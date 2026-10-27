@@ -16,6 +16,7 @@ from mcp.client.streamable_http import streamable_http_client
 
 from agent import AgentError, DayOutAgent, GroqClient, GroqConnectionError, REVIEWED_MODEL, Reply, discover_tools
 from dayout import safe_error
+from groq_check import quota_pause_message
 from mcp_check import MCP_URL
 
 ENV_PATH = Path(__file__).resolve().with_name(".env")
@@ -83,12 +84,17 @@ class RequestGate:
         self.last_started = float("-inf")
         self.remaining_tokens = None
         self.reset_at = 0.0
+        self.blocked_until = 0.0
+        self.quota_kind = None
 
     @contextmanager
     def slot(self):
         if not self.lock.acquire(blocking=False):
             raise BusyError("Сервис обрабатывает другой запрос. Попробуйте немного позже.")
         try:
+            quota_delay = self.blocked_until - monotonic()
+            if quota_delay > 0:
+                raise BusyError(quota_pause_message(self.quota_kind, quota_delay))
             delay = self.cooldown - (monotonic() - self.last_started)
             if delay > 0:
                 raise BusyError(f"Подождите ещё {delay + 1:.0f} с перед следующим запросом.")
@@ -132,6 +138,7 @@ async def _perform(config, memory, gate, action, query, emit):
             llm.usage_totals = dict(memory.usage_totals)
             llm.prompt_ratios = list(memory.prompt_ratios)
             llm.remaining_tokens, llm.reset_at = gate.remaining_tokens, gate.reset_at
+            llm.blocked_until, llm.quota_kind = gate.blocked_until, gate.quota_kind
             if action == "check":
                 event("Проверяю связь с сервисом модели…")
                 await llm.check_access()
@@ -162,6 +169,7 @@ async def _perform(config, memory, gate, action, query, emit):
             memory.usage_totals = dict(llm.usage_totals)
             memory.prompt_ratios = list(llm.prompt_ratios)
             gate.remaining_tokens, gate.reset_at = llm.remaining_tokens, llm.reset_at
+            gate.blocked_until, gate.quota_kind = llm.blocked_until, llm.quota_kind
         if agent is not None:
             memory.turns, memory.user_history, memory.pending = agent.turns, agent.user_history, agent.pending
     return result

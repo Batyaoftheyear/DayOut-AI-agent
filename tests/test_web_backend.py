@@ -15,7 +15,7 @@ SOURCE = "https://www.google.com/maps/place/synthetic-web-fixture"
 CONFIG = web.WebConfig("synthetic-groq-key", "synthetic-maps-key", REVIEWED_MODEL)
 
 
-def install_network(monkeypatch, fail_once=False):
+def install_network(monkeypatch, fail_once=False, quota_once=False):
     """Actual agent/GroqClient, synthetic MCP and HTTP, no external connections."""
     requests, searches, clients, loops = [], [], [], []
     failed = False
@@ -28,8 +28,12 @@ def install_network(monkeypatch, fail_once=False):
         if body["messages"][-1]["content"] == "Technical connectivity check. Reply OK.":
             message = {"role": "assistant", "content": "OK"}
         elif body["messages"][-1]["role"] == "tool":
-            if fail_once and not failed:
+            if (fail_once or quota_once) and not failed:
                 failed = True
+                if quota_once:
+                    return httpx.Response(429, headers={"retry-after": "140"}, json={"error": {
+                        "message": "Rate limit on tokens per day (TPD). synthetic-groq-key",
+                    }})
                 raise httpx.ConnectError("synthetic-groq-key", request=request)
             message = {"role": "assistant", "content": "Синтетическая фикстура [S1]"}
         else:
@@ -106,6 +110,28 @@ def test_web_check_and_retry_preserve_pending_mcp_without_repeating_search(monke
     assert memory.failed_query is None and memory.pending is None
     assert reply.usage == {"requests": 3, "prompt_tokens": 200, "completion_tokens": 20, "missing_usage": 1}
     assert all(client.is_closed for client in clients)
+
+
+def test_provider_quota_pause_is_shared_across_browsers_and_preserves_pending(monkeypatch):
+    clock = [1000.0]
+    monkeypatch.setattr(web, "monotonic", lambda: clock[0])
+    monkeypatch.setattr("agent.monotonic", lambda: clock[0])
+    requests, searches, clients, _ = install_network(monkeypatch, quota_once=True)
+    first, second, gate = web.WebMemory(), web.WebMemory(), web.RequestGate(cooldown=0)
+    result = web.run_action(CONFIG, first, gate, "ask", "Синтетический запрос")
+    assert "TPD" in result.error and "140 с" in result.error
+    assert "synthetic-groq-key" not in result.error and not first.paused
+    assert first.pending and "\n\nСоответствие" in result.partial
+    first_state, second_state = pickle.dumps(first), pickle.dumps(second)
+    for memory, action, query in [(first, "retry", ""), (second, "check", ""), (second, "ask", "Другой вопрос")]:
+        with pytest.raises(web.BusyError, match="TPD"):
+            web.run_action(CONFIG, memory, gate, action, query)
+    second.reset()  # Starting a new chat does not clear the organization's pause.
+    assert pickle.dumps(first) == first_state and pickle.dumps(second) == second_state
+    assert len(requests) == 2 and len(searches) == 1 and all(client.is_closed for client in clients)
+    clock[0] += 140
+    assert web.run_action(CONFIG, first, gate, "retry").reply
+    assert len(requests) == 3 and len(searches) == 1
 
 
 def test_gate_rejects_concurrent_or_fast_requests_and_releases_after_error(monkeypatch):

@@ -11,7 +11,7 @@ from time import monotonic
 import httpx
 from jsonschema import ValidationError, validators
 
-from groq_check import API_URL, error_message as groq_error_message
+from groq_check import API_URL, error_message as groq_error_message, quota_details, quota_pause_message
 from mcp_check import error_message as mcp_error_message
 
 ALLOWED_TOOLS = {"search_places", "lookup_weather", "compute_routes", "resolve_names", "resolve_maps_urls"}
@@ -76,7 +76,7 @@ class SourceValidationError(AnswerValidationError):
 
 
 class QuotaPauseError(AgentError):
-    """No request sent: the remaining quota wait budget is too small."""
+    """Provider rejected a request or a known quota pause prevents sending it."""
 
 
 def provider_error(error: Exception) -> AgentError:
@@ -297,6 +297,8 @@ class GroqClient:
         self.client, self.model, self.emit = client, model, emit
         self.remaining_tokens = None
         self.reset_at = 0.0
+        self.blocked_until = 0.0
+        self.quota_kind = None
         self.show_usage = show_usage
         self.usage_totals = {"requests": 0, "prompt_tokens": 0, "completion_tokens": 0, "missing_usage": 0}
         self.prompt_ratios = []
@@ -322,6 +324,7 @@ class GroqClient:
 
     async def check_access(self):
         """Manual check with fixed technical text, never conversation or Maps data."""
+        self.check_quota_pause()
         self.start_attempt()
         try:
             response = await self.client.get(f"{API_URL}/models")
@@ -339,6 +342,11 @@ class GroqClient:
         except QuotaPauseError as error:
             raise QuotaPauseError(str(error).replace("/retry", "/check")) from None
 
+    def check_quota_pause(self):
+        delay = self.blocked_until - monotonic()
+        if delay > 0:
+            raise QuotaPauseError(quota_pause_message(self.quota_kind, delay))
+
     def update_limits(self, headers):
         remaining = headers.get("x-ratelimit-remaining-tokens", "")
         reset = headers.get("x-ratelimit-reset-tokens", "")
@@ -353,6 +361,7 @@ class GroqClient:
         self.reset_at = monotonic() + seconds
 
     async def complete(self, messages: list, tools: list, allow_tools: bool = True, max_tokens=1600) -> dict:
+        self.check_quota_pause()
         body = {
             "model": self.model, "messages": messages, "max_completion_tokens": max_tokens,
         }
@@ -377,6 +386,10 @@ class GroqClient:
             self.usage_totals["missing_usage"] += 1
             response = await self.client.post(f"{API_URL}/chat/completions", json=body)
             self.update_limits(response.headers)
+            if response.status_code == 429:
+                self.quota_kind, wait = quota_details(response)
+                if wait is not None:
+                    self.blocked_until = monotonic() + wait
             response.raise_for_status()
             data = response.json()
             self.record_usage(data, request_bytes)
@@ -424,7 +437,7 @@ class DayOutAgent:
         if candidates:
             links = "\n".join(f"- [{title}]({url})" for url, title in list(candidates.items())[:3])
             self.emit("DayOut: Поиск вернул кандидатов; итоговый подбор не завершён:\n" + links
-                      + "\nСоответствие всем условиям, часы работы и бюджет пока не подтверждены.")
+                      + "\n\nСоответствие всем условиям, часы работы и бюджет пока не подтверждены.")
 
     def build_history(self) -> list:
         """Keep user constraints verbatim; don't resend completed tool-call protocols."""

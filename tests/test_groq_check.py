@@ -118,3 +118,25 @@ def test_truncated_completion_is_not_success():
     with httpx.Client(transport=httpx.MockTransport(handler)) as client:
         with pytest.raises(check.GroqCheckError, match="обрезан"):
             check.completion(client, "synthetic-model", [])
+
+
+@pytest.mark.parametrize("kind", ["TPD", "TPM", "RPD", "RPM", "ITPM", "OTPM"])
+def test_quota_error_reports_kind_and_retry_after_without_provider_text(kind):
+    response = httpx.Response(429, request=httpx.Request("POST", check.API_URL),
+                             headers={"retry-after": "139.1"}, json={"error": {
+                                 "message": f"Rate limit ({kind}): synthetic-secret", "code": "rate_limit_exceeded",
+                             }})
+    error = httpx.HTTPStatusError("synthetic-secret", request=response.request, response=response)
+    text = check.error_message(error)
+    assert check.quota_details(response) == (kind, 140)
+    assert kind in text and "140 с" in text and "synthetic-secret" not in text
+
+
+@pytest.mark.parametrize("value", ["NaN", "inf", "-1", "604801", "synthetic-secret", "1e9", ""])
+def test_quota_diagnostic_rejects_untrusted_retry_after(value):
+    response = httpx.Response(429, request=httpx.Request("POST", check.API_URL),
+                             headers={"retry-after": value}, json={"error": "synthetic-secret"})
+    error = httpx.HTTPStatusError("synthetic-secret", request=response.request, response=response)
+    assert check.quota_details(response) == (None, None)
+    assert "тип квоты не указан" in check.error_message(error)
+    assert "synthetic-secret" not in check.error_message(error)

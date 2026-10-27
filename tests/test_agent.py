@@ -670,6 +670,33 @@ def test_http_429_keeps_completed_mcp_results_for_manual_retry():
     asyncio.run(run())
 
 
+def test_retry_after_blocks_completions_and_connectivity_checks_until_deadline(monkeypatch):
+    clock, requests = [1000.0], []
+    monkeypatch.setattr("agent.monotonic", lambda: clock[0])
+    def handler(request):
+        requests.append(request)
+        if len(requests) == 1:
+            return httpx.Response(429, headers={"retry-after": "140"}, json={"error": {
+                "message": "Rate limit on tokens per day (TPD). synthetic-secret",
+            }})
+        return httpx.Response(200, json={"choices": [{"finish_reason": "stop", "message": answer("OK")}],
+                                        "usage": {"prompt_tokens": 1, "completion_tokens": 1}})
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
+            llm = GroqClient(http, "synthetic-model")
+            with pytest.raises(QuotaPauseError, match="TPD"):
+                await llm.complete([], [])
+            llm.start_attempt()  # A new attempt does not reset a provider deadline.
+            for action in (lambda: llm.complete([], []), llm.check_access):
+                with pytest.raises(QuotaPauseError, match="140 с"):
+                    await action()
+            assert len(requests) == 1 and llm.usage_totals["requests"] == 1
+            clock[0] += 140
+            assert (await llm.complete([], []))["content"] == "OK"
+            assert len(requests) == 2
+    asyncio.run(run())
+
+
 def test_invalid_tool_format_does_not_break_evidence_extraction():
     agent = fixture_agent([calling({"id": "invalid", "type": "function"}), answer("Не удалось подтвердить данные.")])
     asyncio.run(agent.ask("Тест"))

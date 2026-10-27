@@ -3,6 +3,7 @@
 import argparse
 import json
 import logging
+import math
 import os
 import re
 import sys
@@ -158,6 +159,45 @@ def request_error_reason(response: httpx.Response) -> str:
             "Возможны ошибки параметров, схем или генерации вызова инструмента.")
 
 
+QUOTA_LABELS = {
+    "TPD": "суточный лимит токенов (TPD)",
+    "TPM": "минутный лимит токенов (TPM)",
+    "RPD": "суточный лимит запросов (RPD)",
+    "RPM": "минутный лимит запросов (RPM)",
+    "ITPM": "минутный лимит входных токенов (ITPM)",
+    "OTPM": "минутный лимит выходных токенов (OTPM)",
+}
+
+
+def quota_details(response: httpx.Response) -> tuple[str | None, int | None]:
+    """Extract a known quota label and numeric Retry-After, never raw messages."""
+    kind = None
+    try:
+        data = response.json()
+        detail = data.get("error") if isinstance(data, dict) else None
+        message = detail.get("message") if isinstance(detail, dict) else None
+        if isinstance(message, str):
+            for code in QUOTA_LABELS:
+                if re.search(r"\b" + code + r"\b", message, re.I):
+                    kind = code
+                    break
+    except ValueError:
+        pass
+    value = response.headers.get("retry-after", "")
+    wait = None
+    if re.fullmatch(r"[0-9]{1,7}(?:\.[0-9]{1,3})?", value):
+        seconds = float(value)
+        if 0 <= seconds <= 604800:
+            wait = math.ceil(seconds)
+    return kind, wait
+
+
+def quota_pause_message(kind: str | None, seconds: float) -> str:
+    label = QUOTA_LABELS.get(kind, "лимит API")
+    return (f"Groq: {label}; до следующей попытки ещё {math.ceil(seconds)} с. "
+            "Запрос не отправлен. После паузы можно продолжить вручную.")
+
+
 def error_message(error: Exception) -> str:
     if isinstance(error, GroqCheckError):
         return str(error)
@@ -172,7 +212,11 @@ def error_message(error: Exception) -> str:
             return ("Groq HTTP 403: доступ запрещён. Проверьте разрешения аккаунта, модели "
                     "и доступность API из текущей сети. Причина блокировки не установлена." + suffix)
         if status == 429:
-            return "Groq HTTP 429: превышен лимит бесплатного API. Повторите позже; автоматических повторов нет."
+            kind, wait = quota_details(error.response)
+            label = QUOTA_LABELS.get(kind, "лимит API (тип квоты не указан)")
+            pause = (f"Повторите не раньше чем через {wait} с." if wait is not None else
+                     "Дождитесь восстановления квоты; время ожидания сервер не указал.")
+            return f"Groq HTTP 429: превышен {label}. {pause} Автоматических повторов нет."
         if status in (400, 404):
             return f"Groq HTTP {status}: " + request_error_reason(error.response)
         return f"Groq HTTP {status}: запрос не выполнен."
