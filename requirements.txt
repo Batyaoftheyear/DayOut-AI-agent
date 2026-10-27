@@ -1,0 +1,6 @@
+# Supported SDK v1 API; do not silently migrate to SDK v2.
+mcp==1.30.0
+httpx==0.28.1
+python-dotenv==1.2.4
+jsonschema==4.26.0
+streamlit==1.66.0
