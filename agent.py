@@ -310,6 +310,19 @@ def validate_behavior(text: str, evidence: list):
 
 
 class GroqClient:
+    provider = "Groq"
+    api_url = API_URL
+    token_parameter = "max_completion_tokens"
+
+    def request_options(self):
+        return model_options(self.model)
+
+    def convert_error(self, error):
+        return provider_error(error)
+
+    def cache_allowed(self):
+        return self.model == GPT_OSS_MODEL
+
     def __init__(self, client: httpx.AsyncClient, model: str, emit=lambda _: None, show_usage=False, max_quota_wait=45):
         self.client, self.model, self.emit = client, model, emit
         self.remaining_tokens = None
@@ -335,22 +348,22 @@ class GroqClient:
             self.prompt_ratios.append(incoming / max(1, request_bytes))
             self.prompt_ratios = self.prompt_ratios[-5:]
             if self.show_usage:
-                self.emit(f"Groq: токены API — вход {incoming}, выход {outgoing}.")
+                self.emit(f"{self.provider}: токены API — вход {incoming}, выход {outgoing}.")
         elif self.show_usage:
-            self.emit("Groq: API не предоставил расход токенов для этого запроса.")
+            self.emit(f"{self.provider}: API не предоставил расход токенов для этого запроса.")
 
     async def check_access(self):
         """Manual check with fixed technical text, never conversation or Maps data."""
         self.check_quota_pause()
         self.start_attempt()
         try:
-            response = await self.client.get(f"{API_URL}/models")
+            response = await self.client.get(f"{self.api_url}/models")
             response.raise_for_status()
             data = response.json()
             if self.model not in {item["id"] for item in data["data"]}:
-                raise AgentError("Модель отсутствует в списке Groq. Проверьте GROQ_MODEL.")
+                raise AgentError(f"Модель отсутствует в списке {self.provider}. Проверьте настройку модели.")
         except (httpx.HTTPError, KeyError, ValueError, TypeError) as error:
-            raise provider_error(error) from None
+            raise self.convert_error(error) from None
         # Reuse pacing and completion parsing, but send no tool definitions.
         try:
             await self.complete([
@@ -362,7 +375,7 @@ class GroqClient:
     def check_quota_pause(self):
         delay = self.blocked_until - monotonic()
         if delay > 0:
-            raise QuotaPauseError(quota_pause_message(self.quota_kind, delay))
+            raise QuotaPauseError(quota_pause_message(self.quota_kind, delay).replace("Groq:", self.provider + ":"))
 
     def update_limits(self, headers):
         remaining = headers.get("x-ratelimit-remaining-tokens", "")
@@ -380,8 +393,8 @@ class GroqClient:
     async def complete(self, messages: list, tools: list, allow_tools: bool = True, max_tokens=1600) -> dict:
         self.check_quota_pause()
         body = {
-            "model": self.model, "messages": messages, "max_completion_tokens": max_tokens,
-            **model_options(self.model),
+            "model": self.model, "messages": messages, self.token_parameter: max_tokens,
+            **self.request_options(),
         }
         if tools:
             body.update(tools=tools, tool_choice="auto" if allow_tools else "none")
@@ -393,16 +406,16 @@ class GroqClient:
         delay = self.reset_at - monotonic()
         if self.remaining_tokens is not None and estimated > self.remaining_tokens and delay > 0:
             if delay + 1 > self.quota_wait_remaining:
-                raise QuotaPauseError(f"Groq: для квоты нужна пауза около {delay + 1:.0f} с. "
+                raise QuotaPauseError(f"{self.provider}: для квоты нужна пауза около {delay + 1:.0f} с. "
                                       "Пауза не помещается в бюджет ожидания этой попытки; подождите и введите /retry.")
             self.quota_wait_remaining -= delay + 1
-            self.emit(f"Groq: ожидание обновления лимита, около {delay + 1:.0f} с "
+            self.emit(f"{self.provider}: ожидание обновления лимита, около {delay + 1:.0f} с "
                       f"(остаток {self.remaining_tokens}, оценка запроса ~{estimated} токенов).")
             await asyncio.sleep(delay + 1)
         try:
             self.usage_totals["requests"] += 1
             self.usage_totals["missing_usage"] += 1
-            response = await self.client.post(f"{API_URL}/chat/completions", json=body)
+            response = await self.client.post(f"{self.api_url}/chat/completions", json=body)
             self.update_limits(response.headers)
             if response.status_code == 429:
                 self.quota_kind, wait = quota_details(response)
@@ -413,23 +426,24 @@ class GroqClient:
             self.record_usage(data, request_bytes)
             choice = data["choices"][0]
             if choice.get("finish_reason") not in {"stop", "tool_calls"}:
-                raise AgentError("Groq не завершил ответ (лимит токенов или фильтр). Сократите запрос.")
+                raise AgentError(f"{self.provider} не завершил ответ (лимит токенов или фильтр). Сократите запрос.")
             message = choice["message"]
             if not isinstance(message, dict) or message.get("role") != "assistant":
                 raise ValueError
             cached = (data.get("usage") or {}).get("prompt_tokens_details") or {}
-            if cached.get("cached_tokens", 0) and self.model != GPT_OSS_MODEL:
+            if cached.get("cached_tokens", 0) and not self.cache_allowed():
                 raise AgentError("API сообщил об использовании кэша. Проверьте условия модели перед продолжением.")
             # Never carry provider reasoning/analysis into history or the UI,
             # even if an upstream response ignores include_reasoning=False.
             return {name: message[name] for name in ("role", "content", "tool_calls") if name in message}
         except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError) as error:
-            raise provider_error(error) from None
+            raise self.convert_error(error) from None
 
 
 class DayOutAgent:
     def __init__(self, session, llm, tools: dict, emit=lambda _: None, max_calls=8, timeout=120):
         self.session, self.llm, self.tools, self.emit = session, llm, tools, emit
+        self.provider = getattr(llm, "provider", "Groq")
         self.max_calls, self.timeout = max_calls, timeout
         self.turns = []
         self.user_history = []
@@ -448,7 +462,7 @@ class DayOutAgent:
     def save_pending(self, state, usage_start, start):
         state.record_attempt(self.llm, usage_start, start)
         self.pending = (monotonic(), state)
-        self.emit("Groq: ход сохранён в памяти; /retry может продолжить его в течение 5 минут.")
+        self.emit(f"{self.provider}: ход сохранён в памяти; /retry может продолжить его в течение 5 минут.")
         # A partial result is metadata only, not an unvalidated generated answer.
         candidates = {}
         for name, payload in tool_evidence(state.messages[state.begin:]):
@@ -488,10 +502,10 @@ class DayOutAgent:
         pending, self.pending = self.pending, None
         if resume and pending and pending[1].query == query and start - pending[0] < PENDING_TTL:
             state = pending[1]
-            self.emit("Groq: продолжаю незавершённый ход с сохранёнными результатами MCP.")
+            self.emit(f"{self.provider}: продолжаю незавершённый ход с сохранёнными результатами MCP.")
         else:
             if resume and pending:
-                self.emit("Groq: сохранённый ход устарел или относится к другому вопросу; начинаю новый поиск.")
+                self.emit(f"{self.provider}: сохранённый ход устарел или относится к другому вопросу; начинаю новый поиск.")
             now = datetime.now(MOSCOW_TZ).isoformat(timespec="minutes")
             messages = [{"role": "system", "content": SYSTEM_PROMPT + f"\nСейчас {now}, Europe/Moscow."}]
             sources = {}
@@ -526,7 +540,7 @@ class DayOutAgent:
                     state.steps += 1
                     calls = message.get("tool_calls") or []
                     if not isinstance(calls, list):
-                        raise AgentError("Groq вернул некорректный список вызовов.")
+                        raise AgentError(f"{self.provider} вернул некорректный список вызовов.")
                     if not calls:
                         text = message.get("content")
                         if not isinstance(text, str) or not text.strip():
@@ -541,7 +555,7 @@ class DayOutAgent:
                             if state.repairs:
                                 raise
                             state.repairs += 1
-                            self.emit("Groq: ответ не прошёл проверку; одна попытка исправления (расходует токены).")
+                            self.emit(f"{self.provider}: ответ не прошёл проверку; одна попытка исправления (расходует токены).")
                             # Do not feed fabricated prose or URLs back as evidence.
                             messages.append({"role": "user", "content": (
                                 "Ответ отклонён: " + str(error) + " Используй только доступные метки источников "

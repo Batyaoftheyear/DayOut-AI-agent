@@ -197,6 +197,21 @@ def test_gpt_oss_web_round_trip_uses_groq_and_keeps_mcp_citations(monkeypatch):
                and body["include_reasoning"] is False for body in requests)
 
 
+def test_yandex_web_round_trip_uses_same_agent_and_isolates_groq_quota(monkeypatch):
+    requests, searches, _, _ = install_network(monkeypatch)
+    config = web.WebConfig("synthetic-yandex-key", CONFIG.maps_key,
+                           "gpt://synthetic-folder/aliceai-llm-flash", "yandex", "synthetic-folder")
+    gate = web.RequestGate(cooldown=0)
+    with gate.slot("groq:" + CONFIG.model):
+        gate.blocked_until = 10**15
+        gate.remaining_tokens, gate.reset_at = 0, 10**15
+    result = web.run_action(config, web.WebMemory(), gate, "ask", "Найди кафе")
+    assert result.reply and SOURCE in result.reply.text
+    assert len(requests) == 2 and len(searches) == 1
+    assert all(body["model"] == config.model and "max_tokens" in body
+               and "reasoning_effort" not in body for body in requests)
+
+
 @pytest.mark.parametrize("model", [GPT_OSS_MODEL, REVIEWED_MODEL, "unsupported-model"])
 def test_web_accepts_only_explicit_supported_models(monkeypatch, tmp_path, model):
     monkeypatch.setattr(web, "ENV_PATH", tmp_path / "missing.env")

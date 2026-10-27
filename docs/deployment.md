@@ -17,7 +17,9 @@
 Открыть `http://localhost:8501`. Если `.env` уже заполнен для консольного агента,
 дополнительные локальные ключи не нужны. Приоритет настроек: переменные окружения →
 Streamlit Secrets → `.env`; окружение процесса не перезаписывается приложением.
-Текущая модель — `openai/gpt-oss-120b`, Global ZDR в Groq ранее подтверждён
+Текущий провайдер выбирается через `LLM_PROVIDER`; для Яндекса используйте
+[инструкцию подключения](yandex.md). Наличие ключей обоих провайдеров не
+вызывает автоматического переключения. Предыдущая модель — `openai/gpt-oss-120b`, Global ZDR в Groq ранее подтверждён
 пользователем. У GPT-OSS есть автоматический кэш провайдера; см.
 [особенности перехода](model-migration.md). Настройка `.env` не изменяет Secrets
 уже развёрнутого сайта.
@@ -33,7 +35,8 @@ Streamlit Secrets → `.env`; окружение процесса не пере�
 ## Streamlit Community Cloud
 
 1. В выбранной ветке GitHub должны быть текущие `app.py`, `web_backend.py`,
-   `agent.py`, `dayout.py`, `groq_check.py`, `mcp_check.py`, `requirements.txt`,
+   `agent.py`, `dayout.py`, `provider_config.py`, `yandex_client.py`, `yandex_check.py`,
+   `groq_check.py`, `mcp_check.py`, `requirements.txt`,
    `assets/style.css` и `.streamlit/config.toml`. Загружать `.env`, настоящий
    `secrets.toml`, `.venv` и временные файлы не требуется.
 2. В Community Cloud подключить GitHub и выбрать **Create app** → приложение
@@ -46,9 +49,11 @@ Streamlit Secrets → `.env`; окружение процесса не пере�
 7. В **Secrets** вставить TOML с собственными значениями:
 
 ```toml
-GROQ_API_KEY = "your-groq-api-key"
+LLM_PROVIDER = "yandex"
+YANDEX_API_KEY = "your-yandex-api-key"
+YANDEX_FOLDER_ID = "your-folder-id"
+YANDEX_MODEL = "aliceai-llm-flash"
 GOOGLE_MAPS_API_KEY = "your-google-maps-api-key"
-GROQ_MODEL = "openai/gpt-oss-120b"
 ```
 
 8. Нажать **Deploy**, дождаться установки зависимостей и открытия страницы.
@@ -63,7 +68,7 @@ GROQ_MODEL = "openai/gpt-oss-120b"
 
 - Страница открывается в отдельном браузере и на телефоне.
 - Обезличенный технический поиск даёт ответ и ссылку Google Maps: так проверяется
-  исходящий доступ хостинга к Groq и Google Maps MCP.
+  исходящий доступ хостинга к выбранному провайдеру LLM и Google Maps MCP.
 - Уточнение сохраняет район/другие условия; два браузерных сеанса не смешивают историю.
 - «Новый диалог», проверка связи и продолжение запроса работают.
 - При ожидании квоты/сбое показывается понятное сообщение; ключи не выводятся.

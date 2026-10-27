@@ -1,7 +1,6 @@
 """Streamlit adapter: session data only, fresh async transports per action."""
 
 import asyncio
-import os
 import threading
 from contextlib import contextmanager
 from dataclasses import dataclass, field
@@ -10,45 +9,21 @@ from pathlib import Path
 from time import monotonic
 
 import httpx
-from dotenv import dotenv_values
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 
-from agent import AgentError, DayOutAgent, GroqClient, GroqConnectionError, SUPPORTED_MODELS, Reply, discover_tools
+from agent import AgentError, DayOutAgent, GroqConnectionError, Reply, discover_tools
 from dayout import safe_error
 from groq_check import quota_pause_message
 from mcp_check import MCP_URL
+from provider_config import CONFIG_NAMES, WebConfig, load_settings
+from yandex_client import make_client
 
 ENV_PATH = Path(__file__).resolve().with_name(".env")
-CONFIG_NAMES = ("GROQ_API_KEY", "GOOGLE_MAPS_API_KEY", "GROQ_MODEL")
-
-
-@dataclass(frozen=True)
-class WebConfig:
-    groq_key: str = field(repr=False)
-    maps_key: str = field(repr=False)
-    model: str
-
-    def redact(self, text):
-        for key in (self.groq_key, self.maps_key):
-            if key:
-                text = text.replace(key, "[REDACTED]")
-        return text
 
 
 def load_web_config(secrets=None) -> WebConfig:
-    """Environment > Streamlit Secrets > local .env, without mutating os.environ."""
-    local = dotenv_values(ENV_PATH) if ENV_PATH.is_file() else {}
-    secrets = secrets or {}
-    values = {}
-    for name in CONFIG_NAMES:
-        value = os.environ.get(name, secrets.get(name, local.get(name, "")))
-        values[name] = str(value or "").strip()
-    if not values["GROQ_API_KEY"] or not values["GOOGLE_MAPS_API_KEY"]:
-        raise AgentError("Не настроены ключи сервиса. Заполните .env локально или Secrets на хостинге.")
-    if values["GROQ_MODEL"] not in SUPPORTED_MODELS:
-        raise AgentError("Неподдерживаемая GROQ_MODEL. Допустимы: " + ", ".join(sorted(SUPPORTED_MODELS)))
-    return WebConfig(values["GROQ_API_KEY"], values["GOOGLE_MAPS_API_KEY"], values["GROQ_MODEL"])
+    return load_settings(secrets, ENV_PATH)
 
 
 @dataclass
@@ -106,7 +81,8 @@ class RequestGate:
                 self.model = model
             quota_delay = self.blocked_until - monotonic()
             if quota_delay > 0:
-                raise BusyError(quota_pause_message(self.quota_kind, quota_delay))
+                label = "Yandex AI Studio" if str(self.model).startswith("yandex:") else "Groq"
+                raise BusyError(quota_pause_message(self.quota_kind, quota_delay).replace("Groq:", label + ":"))
             delay = self.cooldown - (monotonic() - self.last_started)
             if delay > 0:
                 raise BusyError(f"Подождите ещё {delay + 1:.0f} с перед следующим запросом.")
@@ -145,8 +121,8 @@ async def _perform(config, memory, gate, action, query, emit):
             emit(text)
 
     try:
-        async with httpx.AsyncClient(headers={"Authorization": f"Bearer {config.groq_key}"}, timeout=45) as groq:
-            llm = GroqClient(groq, config.model, emit=event)
+        async with httpx.AsyncClient(headers=config.headers, timeout=45) as http:
+            llm = make_client(http, config, emit=event)
             llm.usage_totals = dict(memory.usage_totals)
             llm.prompt_ratios = list(memory.prompt_ratios)
             llm.remaining_tokens, llm.reset_at = gate.remaining_tokens, gate.reset_at
@@ -199,7 +175,7 @@ def run_action(config, memory, gate, action, query="", emit=lambda _: None):
         query = memory.failed_query
     if action != "check" and not 1 <= len(query.strip()) <= 4000:
         raise AgentError("Введите запрос от 1 до 4000 символов.")
-    with gate.slot(config.model):
+    with gate.slot(f"{config.provider}:{config.model}"):
         if action == "ask":
             memory.pending = None
             memory.failed_query = query
@@ -218,6 +194,6 @@ def progress_label(event):
         return "Проверяю ответ и источники…"
     if "продолжаю незавершённый" in event:
         return "Продолжаю подбор с найденными данными…"
-    if event.startswith("Groq:"):
+    if event.startswith(("Groq:", "Yandex AI Studio:")):
         return "Обрабатываю результат…"
     return event

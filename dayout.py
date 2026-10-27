@@ -1,4 +1,4 @@
-"""DayOut console chat: Groq chooses tools, Python executes Google Maps MCP."""
+"""DayOut console chat: the configured LLM chooses Google Maps MCP tools."""
 
 import argparse
 import asyncio
@@ -11,13 +11,14 @@ import httpx
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 
-from agent import AgentError, DayOutAgent, GroqClient, GroqConnectionError, QuotaPauseError, SUPPORTED_MODELS, discover_tools
-from groq_check import load_config, error_message as groq_error_message
-from mcp_check import MCP_URL, load_key, error_message as mcp_error_message
+from agent import AgentError, DayOutAgent, GroqConnectionError, QuotaPauseError, discover_tools
+from mcp_check import MCP_URL, error_message as mcp_error_message
+from provider_config import load_settings
+from yandex_client import make_client
 
 
 def is_transcript_line(text: str) -> bool:
-    prefixes = ("Вы:", "DayOut:", "DayOut подключён", "MCP →", "Groq:", "Groq HTTP ",
+    prefixes = ("Вы:", "DayOut:", "DayOut подключён", "MCP →", "Groq:", "Groq HTTP ", "Yandex AI Studio:", "Yandex AI Studio HTTP ",
                 "Запрос остановлен", "Вызовов инструментов:", "Ошибка сети", "Traceback ", "PS C:\\")
     return any(line.strip().startswith(prefixes) for line in text.splitlines())
 
@@ -27,10 +28,11 @@ async def read_query():
 
 
 async def chat(agent, llm, queries, emit, read_line=None):
+    label = getattr(llm, "provider", "Groq")
     pending = iter(queries) if queries else None
     read_line = read_line or read_query
     paused, failed_query = False, None
-    emit("Команды: /check — проверка Groq, /retry — повтор неудачного запроса, /reset — очистка, /exit — выход.")
+    emit(f"Команды: /check — проверка {label}, /retry — повтор неудачного запроса, /reset — очистка, /exit — выход.")
     while True:
         if pending is not None:
             query = next(pending, None)
@@ -58,14 +60,14 @@ async def chat(agent, llm, queries, emit, read_line=None):
                 await llm.check_access()
             except QuotaPauseError as error:
                 emit(str(error))
-                emit("Проверка Groq не завершена из-за квоты. Подождите, затем повторите /check.")
+                emit(f"Проверка {label} не завершена из-за квоты. Подождите, затем повторите /check.")
             except AgentError as error:
                 paused = True
                 emit(str(error))
                 emit("Отправка запросов приостановлена. Проверьте сеть/доступ и снова введите /check.")
             else:
                 paused = False
-                emit("Groq: список моделей и генерация доступны. Можно ввести запрос или /retry.")
+                emit(f"{label}: список моделей и генерация доступны. Можно ввести запрос или /retry.")
             continue
         if is_transcript_line(query):
             emit("Похоже на строку лога. Введите только свой вопрос, без «Вы:», «DayOut:» и сообщений программы.")
@@ -74,7 +76,7 @@ async def chat(agent, llm, queries, emit, read_line=None):
             emit("Неизвестная команда. Доступны /check, /retry, /reset, /exit.")
             continue
         if paused:
-            emit("Отправка запросов приостановлена после сбоя Groq. Введите /check для проверки связи.")
+            emit(f"Отправка запросов приостановлена после сбоя {label}. Введите /check для проверки связи.")
             continue
         if command == "/retry":
             if failed_query is None:
@@ -108,23 +110,24 @@ async def chat(agent, llm, queries, emit, read_line=None):
                      f"выход {usage['completion_tokens']}{suffix}.")
 
 
-async def run(groq_key: str, maps_key: str, model: str, queries: list[str], emit, show_usage=False):
-    async with httpx.AsyncClient(headers={"Authorization": f"Bearer {groq_key}"}, timeout=45) as groq:
+async def run(config, queries: list[str], emit, show_usage=False):
+    model, maps_key = config.model, config.maps_key
+    async with httpx.AsyncClient(headers=config.headers, timeout=45) as http:
+        llm = make_client(http, config, emit=emit, show_usage=show_usage)
         try:
-            response = await groq.get("https://api.groq.com/openai/v1/models")
+            response = await http.get(llm.api_url + "/models")
             response.raise_for_status()
             if model not in {item["id"] for item in response.json()["data"]}:
-                raise AgentError("GROQ_MODEL не найдена в API. Проверьте groq_check.py --list-models.")
+                raise AgentError(f"Модель не найдена в API {config.label}. Проверьте настройку модели.")
         except (httpx.HTTPError, KeyError, TypeError, ValueError) as error:
-            raise AgentError(groq_error_message(error)) from None
+            raise llm.convert_error(error) from None
         async with httpx.AsyncClient(headers={"X-Goog-Api-Key": maps_key}, timeout=45) as maps:
             async with streamable_http_client(MCP_URL, http_client=maps) as (read, write, _):
                 async with ClientSession(read, write, read_timeout_seconds=timedelta(seconds=45)) as session:
                     async with asyncio.timeout(60):
                         await session.initialize()
                         tools = await discover_tools(session)
-                    emit("DayOut подключён. Модель: " + model)
-                    llm = GroqClient(groq, model, emit=emit, show_usage=show_usage)
+                    emit("DayOut подключён. Провайдер: " + config.label + "; модель: " + model)
                     agent = DayOutAgent(session, llm, tools, emit=emit)
                     await chat(agent, llm, queries, emit)
 
@@ -152,12 +155,9 @@ def main() -> int:
             text = text.replace(key, "[REDACTED]")
         return text
     try:
-        groq_key, model = load_config()
-        maps_key = load_key()
-        secrets = [groq_key, maps_key]
-        if model not in SUPPORTED_MODELS:
-            raise AgentError("Неподдерживаемая GROQ_MODEL. Допустимы: " + ", ".join(sorted(SUPPORTED_MODELS)))
-        asyncio.run(run(groq_key, maps_key, model, args.query or [], lambda text: print(redact(text), flush=True), args.usage))
+        config = load_settings()
+        secrets = [config.llm_key, config.maps_key]
+        asyncio.run(run(config, args.query or [], lambda text: print(redact(text), flush=True), args.usage))
     except KeyboardInterrupt:
         print("DayOut остановлен.", file=sys.stderr)
         return 130

@@ -14,6 +14,7 @@ def app(monkeypatch, tmp_path):
     monkeypatch.setenv("GROQ_API_KEY", "synthetic-web-key")
     monkeypatch.setenv("GOOGLE_MAPS_API_KEY", "synthetic-maps-key")
     monkeypatch.setenv("GROQ_MODEL", REVIEWED_MODEL)
+    monkeypatch.setenv("LLM_PROVIDER", "groq")
     return AppTest.from_file(str(Path(__file__).resolve().parents[1] / "app.py"))
 
 
