@@ -11,7 +11,7 @@ import httpx
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 
-from agent import AgentError, DayOutAgent, GroqClient, GroqConnectionError, QuotaPauseError, REVIEWED_MODEL, discover_tools
+from agent import AgentError, DayOutAgent, GroqClient, GroqConnectionError, QuotaPauseError, SUPPORTED_MODELS, discover_tools
 from groq_check import load_config, error_message as groq_error_message
 from mcp_check import MCP_URL, load_key, error_message as mcp_error_message
 
@@ -155,9 +155,8 @@ def main() -> int:
         groq_key, model = load_config()
         maps_key = load_key()
         secrets = [groq_key, maps_key]
-        if model != REVIEWED_MODEL:
-            raise AgentError("Для передачи Maps Content проверена только " + REVIEWED_MODEL
-                             + ". Для другой модели сначала проверьте хранение и кэширование.")
+        if model not in SUPPORTED_MODELS:
+            raise AgentError("Неподдерживаемая GROQ_MODEL. Допустимы: " + ", ".join(sorted(SUPPORTED_MODELS)))
         asyncio.run(run(groq_key, maps_key, model, args.query or [], lambda text: print(redact(text), flush=True), args.usage))
     except KeyboardInterrupt:
         print("DayOut остановлен.", file=sys.stderr)

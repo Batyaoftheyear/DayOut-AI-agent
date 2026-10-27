@@ -14,6 +14,7 @@ from dotenv import load_dotenv
 from jsonschema import ValidationError, validate
 
 API_URL = "https://api.groq.com/openai/v1"
+GPT_OSS_MODEL = "openai/gpt-oss-120b"
 ENV_PATH = Path(__file__).resolve().with_name(".env")
 DEMO_SCHEMA = {
     "type": "object",
@@ -53,10 +54,15 @@ def request_json(client: httpx.Client, method: str, path: str, **kwargs) -> dict
     return data
 
 
+def model_options(model: str) -> dict:
+    # Hiding reasoning does not remove its token cost. Low effort limits latency.
+    return {"reasoning_effort": "low", "include_reasoning": False} if model == GPT_OSS_MODEL else {}
+
+
 def completion(client: httpx.Client, model: str, messages: list, **kwargs) -> dict:
     data = request_json(client, "POST", "chat/completions", json={
         "model": model, "messages": messages, "max_completion_tokens": 2048,
-        **kwargs,
+        **model_options(model), **kwargs,
     })
     try:
         choice = data["choices"][0]

@@ -9,7 +9,7 @@ import pytest
 from mcp.types import CallToolResult, Tool
 
 import web_backend as web
-from agent import AgentError, REVIEWED_MODEL
+from agent import AgentError, GPT_OSS_MODEL, REVIEWED_MODEL
 
 SOURCE = "https://www.google.com/maps/place/synthetic-web-fixture"
 CONFIG = web.WebConfig("synthetic-groq-key", "synthetic-maps-key", REVIEWED_MODEL)
@@ -185,3 +185,42 @@ def test_missing_config_is_safe_and_does_not_attempt_network(monkeypatch, tmp_pa
 def test_progress_uses_plain_labels_instead_of_internal_tool_names():
     assert web.progress_label("MCP → search_places") == "Ищу подходящие места…"
     assert "лимита" in web.progress_label("Groq: ожидание обновления лимита, около 30 с")
+
+
+def test_gpt_oss_web_round_trip_uses_groq_and_keeps_mcp_citations(monkeypatch):
+    requests, searches, _, _ = install_network(monkeypatch)
+    config = web.WebConfig(CONFIG.groq_key, CONFIG.maps_key, GPT_OSS_MODEL)
+    result = web.run_action(config, web.WebMemory(), web.RequestGate(cooldown=0), "ask", "Найди кафе")
+    assert result.reply and SOURCE in result.reply.text
+    assert len(requests) == 2 and len(searches) == 1
+    assert all(body["model"] == GPT_OSS_MODEL and body["reasoning_effort"] == "low"
+               and body["include_reasoning"] is False for body in requests)
+
+
+@pytest.mark.parametrize("model", [GPT_OSS_MODEL, REVIEWED_MODEL, "unsupported-model"])
+def test_web_accepts_only_explicit_supported_models(monkeypatch, tmp_path, model):
+    monkeypatch.setattr(web, "ENV_PATH", tmp_path / "missing.env")
+    for name in web.CONFIG_NAMES:
+        monkeypatch.delenv(name, raising=False)
+    secrets = {"GROQ_API_KEY": "synthetic-key", "GOOGLE_MAPS_API_KEY": "synthetic-maps", "GROQ_MODEL": model}
+    if model == "unsupported-model":
+        with pytest.raises(AgentError, match="Неподдерживаемая"):
+            web.load_web_config(secrets)
+    else:
+        assert web.load_web_config(secrets).model == model
+
+
+def test_quota_windows_follow_the_model_and_switching_back_keeps_known_pause(monkeypatch):
+    monkeypatch.setattr(web, "monotonic", lambda: 1000.0)
+    gate = web.RequestGate(cooldown=0)
+    with gate.slot(REVIEWED_MODEL):
+        gate.remaining_tokens, gate.reset_at = 0, 1060
+        gate.blocked_until, gate.quota_kind = 1140, "TPD"
+    with gate.slot(GPT_OSS_MODEL):
+        assert gate.remaining_tokens is None and gate.blocked_until == 0
+        gate.remaining_tokens, gate.reset_at = 7000, 1005
+    with pytest.raises(web.BusyError, match="TPD"):
+        with gate.slot(REVIEWED_MODEL):
+            pass
+    with gate.slot(GPT_OSS_MODEL):
+        assert gate.remaining_tokens == 7000 and gate.reset_at == 1005

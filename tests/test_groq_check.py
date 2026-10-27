@@ -140,3 +140,17 @@ def test_quota_diagnostic_rejects_untrusted_retry_after(value):
     assert check.quota_details(response) == (None, None)
     assert "тип квоты не указан" in check.error_message(error)
     assert "synthetic-secret" not in check.error_message(error)
+
+
+def test_gpt_oss_synthetic_check_uses_supported_reasoning_parameters():
+    seen = []
+    def handler(request):
+        body = json.loads(request.content)
+        seen.append(body)
+        return httpx.Response(200, json={"choices": [{"finish_reason": "stop", "message": {
+            "role": "assistant", "content": "OK",
+        }}]})
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        check.completion(client, check.GPT_OSS_MODEL, [])
+    assert seen[0]["reasoning_effort"] == "low" and seen[0]["include_reasoning"] is False
+    assert "reasoning_format" not in seen[0]

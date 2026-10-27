@@ -14,7 +14,7 @@ from dotenv import dotenv_values
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 
-from agent import AgentError, DayOutAgent, GroqClient, GroqConnectionError, REVIEWED_MODEL, Reply, discover_tools
+from agent import AgentError, DayOutAgent, GroqClient, GroqConnectionError, SUPPORTED_MODELS, Reply, discover_tools
 from dayout import safe_error
 from groq_check import quota_pause_message
 from mcp_check import MCP_URL
@@ -46,8 +46,8 @@ def load_web_config(secrets=None) -> WebConfig:
         values[name] = str(value or "").strip()
     if not values["GROQ_API_KEY"] or not values["GOOGLE_MAPS_API_KEY"]:
         raise AgentError("Не настроены ключи сервиса. Заполните .env локально или Secrets на хостинге.")
-    if values["GROQ_MODEL"] != REVIEWED_MODEL:
-        raise AgentError("Укажите проверенную модель в GROQ_MODEL; смена модели требует отдельной проверки условий работы с данными Maps.")
+    if values["GROQ_MODEL"] not in SUPPORTED_MODELS:
+        raise AgentError("Неподдерживаемая GROQ_MODEL. Допустимы: " + ", ".join(sorted(SUPPORTED_MODELS)))
     return WebConfig(values["GROQ_API_KEY"], values["GOOGLE_MAPS_API_KEY"], values["GROQ_MODEL"])
 
 
@@ -86,12 +86,24 @@ class RequestGate:
         self.reset_at = 0.0
         self.blocked_until = 0.0
         self.quota_kind = None
+        self.model = None
+        self.model_limits = {}
 
     @contextmanager
-    def slot(self):
+    def slot(self, model=None):
         if not self.lock.acquire(blocking=False):
             raise BusyError("Сервис обрабатывает другой запрос. Попробуйте немного позже.")
         try:
+            if model is not None and model != self.model:
+                # Provider quotas are per model; changing the configured model
+                # must not inherit the previous model's token window/429 pause.
+                if self.model is not None:
+                    self.model_limits[self.model] = (
+                        self.remaining_tokens, self.reset_at, self.blocked_until, self.quota_kind,
+                    )
+                (self.remaining_tokens, self.reset_at, self.blocked_until,
+                 self.quota_kind) = self.model_limits.get(model, (None, 0.0, 0.0, None))
+                self.model = model
             quota_delay = self.blocked_until - monotonic()
             if quota_delay > 0:
                 raise BusyError(quota_pause_message(self.quota_kind, quota_delay))
@@ -187,7 +199,7 @@ def run_action(config, memory, gate, action, query="", emit=lambda _: None):
         query = memory.failed_query
     if action != "check" and not 1 <= len(query.strip()) <= 4000:
         raise AgentError("Введите запрос от 1 до 4000 символов.")
-    with gate.slot():
+    with gate.slot(config.model):
         if action == "ask":
             memory.pending = None
             memory.failed_query = query

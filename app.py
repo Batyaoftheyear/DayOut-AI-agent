@@ -14,8 +14,8 @@ st.html(Path(__file__).with_name("assets").joinpath("style.css"))
 
 @st.cache_resource
 def request_gate():
-    # Only a lock and numeric counters are shared. No conversations or Maps data.
-    return RequestGate()
+    # Per-model quota state and a lock only; no conversations or Maps data.
+    return RequestGate(cooldown=5)
 
 
 def queue_action(action, query=""):

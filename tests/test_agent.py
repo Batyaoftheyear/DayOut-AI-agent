@@ -195,6 +195,30 @@ def test_groq_rejects_incomplete_response_and_cache_use(response, match):
     asyncio.run(run())
 
 
+def test_gpt_oss_cache_hit_does_not_stop_turn_and_reasoning_is_not_forwarded():
+    from agent import GPT_OSS_MODEL
+    requests = []
+    def handler(request):
+        body = json.loads(request.content)
+        requests.append(body)
+        message = calling(tool_call()) if len(requests) == 1 else answer("Фикстура [S1]")
+        message["reasoning"] = "synthetic-private-reasoning"
+        return httpx.Response(200, json={"choices": [{"finish_reason": "stop", "message": message}], "usage": {
+            "prompt_tokens": 100, "completion_tokens": 20, "prompt_tokens_details": {"cached_tokens": 80},
+        }})
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
+            agent = fixture_agent([])
+            agent.llm = GroqClient(http, GPT_OSS_MODEL)
+            reply = await agent.ask("Тест")
+            assert reply.tools == ["search_places"] and SOURCE in reply.text
+            assert "synthetic-private-reasoning" not in json.dumps(agent.turns)
+            assert "synthetic-private-reasoning" not in json.dumps(requests)
+            assert "synthetic-private-reasoning" not in reply.text
+            assert reply.usage["prompt_tokens"] == 200 and reply.usage["completion_tokens"] == 40
+    asyncio.run(run())
+
+
 def test_groq_http_failure_names_correct_provider_without_body():
     async def run():
         transport = httpx.MockTransport(lambda _: httpx.Response(429, text="secret-response"))
@@ -351,6 +375,29 @@ def test_citation_repair_uses_existing_data_without_repeating_search():
     repaired = agent.llm.complete.await_args_list[-1].args[0]
     assert "Доступные метки источников: [S1]." in repaired[0]["content"]
     assert any(item["role"] == "tool" for item in repaired)
+
+
+def test_local_summary_indices_are_bound_to_each_response_metadata_without_renumbering():
+    second = SOURCE + "-second"
+    payload = {"summary": "Первое [0], второе [2], вместе [0, 2], неизвестное [1].", "places": [
+        {"googleMapsLinks": {"placeUrl": SOURCE}}, None,
+        {"googleMapsLinks": {"placeUrl": second}},
+    ]}
+    result = extract_payload(CallToolResult(content=[], structuredContent=payload), "search_places")
+    assert result["summary"] == f"Первое {SOURCE}, второе {second}, вместе {SOURCE} {second}, неизвестное [1]."
+    assert payload["summary"].startswith("Первое [0]")  # Original provider response was not mutated.
+    other = extract_payload(CallToolResult(content=[], structuredContent={
+        "summary": "Другой поиск [0].", "places": [{"googleMapsLinks": {"placeUrl": second}}],
+    }), "search_places")
+    assert other["summary"] == f"Другой поиск {second}."
+
+
+def test_numeric_citation_gets_one_repair_without_repeating_mcp_search():
+    agent = fixture_agent([calling(tool_call()), answer("Фикстура [0]"), answer("Фикстура [S1]")])
+    reply = asyncio.run(agent.ask("Тест"))
+    assert SOURCE in reply.text and "[0]" not in reply.text
+    agent.session.call_tool.assert_awaited_once()
+    assert agent.llm.complete.await_count == 3
 
 
 @pytest.mark.parametrize("explicit,expected", [(None, 3), (5, 5)])
