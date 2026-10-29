@@ -16,7 +16,7 @@ from mcp_check import error_message as mcp_error_message
 from request_policy import response_format as plan_response_format, plan_messages, parse_plan, instructions as plan_instructions
 
 ALLOWED_TOOLS = {"search_places", "lookup_weather", "compute_routes", "resolve_names", "resolve_maps_urls"}
-AGENT_RELEASE = "2026-10-29-r2"
+AGENT_RELEASE = "2026-10-29-r3"
 # Qwen remains available for an explicit rollback. No automatic model fallback.
 REVIEWED_MODEL = "qwen/qwen3.8-27b"
 SUPPORTED_MODELS = frozenset({REVIEWED_MODEL, GPT_OSS_MODEL})
@@ -29,6 +29,9 @@ SYSTEM_PROMPT = """Ты DayOut, помощник по досугу. Отвеча
 Неясный стиль кратко интерпретируй и ищи. Дата не обязательна для обычного поиска.
 Места, адреса, цены, часы, погода и время пути — только из успешных данных инструментов.
 Не выводи район, метро или ориентиры по названию места: они должны быть прямо названы в данных MCP.
+Для поиска рядом с конкретной станцией метро или адресом проверь близость через compute_routes от ориентира к кандидатам.
+Если радиус не задан, используй ориентир до 15 минут пешком и явно назови это допущение. Выбирай до двух мест.
+Не называй далёкое или непроверенное место ближайшим. Если близость не подтверждена, сообщи об этом вместо обещания района.
 Новые места ищи через MCP. Не добавляй детали интерьера, сезонные развлечения или еду от себя.
 Нет данных — сообщи об этом. Открытый парк не означает круглосуточный доступ.
 При новом времени визита проверь часы через search_places: название/тип, район и город,
@@ -121,6 +124,7 @@ class TurnState:
     policy_ready: bool = False
     tool_outcomes: list = field(default_factory=list)
     repair_codes: list = field(default_factory=list)
+    weather_requests: list = field(default_factory=list)
 
     def record_attempt(self, llm, usage_start, start):
         for key, value in usage_start.items():
@@ -618,6 +622,7 @@ class DayOutAgent:
                                 "Не обещай проверку в фоне. Неизвестные часы и время пути обозначь как неизвестные."
                             )})
                             continue
+                        text = self.with_budget_context(text, state.plan)
                         messages.append({"role": "assistant", "content": text})
                         # Commit a complete turn only; failed turns never corrupt tool-call history.
                         # Keep current evidence and cited historical sources without
@@ -632,7 +637,8 @@ class DayOutAgent:
                         state.record_attempt(self.llm, usage_start, start)
                         observations = {"task": state.plan["task"] if state.plan else None,
                                         "budget_requested": bool(state.plan and state.plan["budget"]["amount"] is not None),
-                                        "tool_outcomes": state.tool_outcomes}
+                                        "tool_outcomes": state.tool_outcomes,
+                                        "weather_requests": state.weather_requests}
                         return Reply(text, called, state.seconds, state.usage or None, observations)
                     if len(called) + len(calls) > self.max_calls:
                         raise AgentError("Превышен лимит MCP-вызовов за один запрос.")
@@ -661,6 +667,9 @@ class DayOutAgent:
                         if name == "search_places" and isinstance(payload, dict) and payload.get("places") == [] and status == "success":
                             status = "empty"
                         state.tool_outcomes.append({"tool": name, "status": status})
+                        if name == "lookup_weather" and status != "invalid_arguments":
+                            args = json.loads(call["function"]["arguments"])
+                            state.weather_requests.append({"date": copy.deepcopy(args.get("date")), "hour": args.get("hour")})
                         sources.update(collect_sources(payload))
                         for url in sources:
                             if url not in refs:
@@ -719,12 +728,24 @@ class DayOutAgent:
             raise AnswerValidationError("Пользователь не задал бюджет. Убери шаблон о попадании в бюджет.")
         if amount is not None and plan["task"] == "search":
             plain = re.sub(r"https?://[^\s)]+", "", text)
-            if searches and format(amount, "g") not in re.sub(r"\s", "", plain):
-                raise AnswerValidationError("Сохрани денежное ограничение: укажи исходную сумму цифрами и честный статус проверки цен.")
             budget_claim = re.search(r"в рамках бюджета|укладыва[а-я]*[^.!?\n]{0,30}бюджет", plain, re.I)
             unknown_price = re.search(r"(?:стоимост[ьи]|цен[аы])[^.!?\n]{0,50}неизвест|попадание в бюджет не подтверждено", plain, re.I)
             if budget_claim and unknown_price:
                 raise AnswerValidationError("Ответ одновременно обещает бюджет и признаёт цены неизвестными. Убери гарантию: это кандидаты при заданном ориентире, стоимость не подтверждена.")
+
+    @staticmethod
+    def with_budget_context(text, plan):
+        """Render the user's constraint without asking the LLM to repeat digits.
+
+        This is input context, not a statement that venue prices were verified.
+        """
+        if not plan or plan["task"] != "search" or plan["budget"]["amount"] is None:
+            return text
+        budget = plan["budget"]
+        currency = {"RUB": "₽", "USD": "USD", "EUR": "EUR", "unknown": "(валюта не уточнена)"}[budget["currency"]]
+        scope = {"total": "на всех", "per_person": "на человека", "per_hour": "за час", "unknown": "(единица не уточнена)"}[budget["scope"]]
+        people = f"; участников: {budget['people']}" if budget["people"] is not None else ""
+        return text + f"\n\nБюджет запроса: {budget['amount']:g} {currency} {scope}{people}."
 
     async def execute(self, call: dict, plan=None) -> tuple[dict, str]:
         function = call.get("function")

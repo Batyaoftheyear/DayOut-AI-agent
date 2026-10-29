@@ -124,6 +124,35 @@ def test_budget_and_price_request_reach_search_without_blocking_an_honest_unknow
     assert "1500 руб. на человека" in query and "нужны цены с единицами" in query
 
 
+@pytest.mark.parametrize("wording", ["Цены неизвестны.", "Ориентир — три тысячи рублей, стоимость не подтверждена."])
+def test_budget_is_rendered_from_memory_without_a_repair_for_missing_digits(wording):
+    a = agent([planned(plan(amount=3000, action="set")), call("кафе"),
+               answer("Кандидат [S1]. " + wording)], [result(prices=False)])
+    reply = asyncio.run(a.ask("Кафе в Москве на двоих, общий бюджет 3000 рублей."))
+    assert "Бюджет запроса: 3000 ₽ на всех; участников: 2." in reply.text
+    assert a.llm.complete.await_count == 3 and a.session.call_tool.await_count == 1
+    assert a.last_plan["budget"]["amount"] == 3000
+
+
+def test_a_proximity_plan_requires_route_evidence_before_a_recommendation():
+    p = plan()
+    p["area"] = "рядом с метро Синтетическая"
+    p["required_tools"] = ["search_places", "compute_routes"]
+    route_call = {"role": "assistant", "content": None, "tool_calls": [{"id": "route", "type": "function",
+        "function": {"name": "compute_routes", "arguments": json.dumps({
+            "origin": {"address": "метро Синтетическая, Москва"},
+            "destination": {"placeId": "synthetic-place"}, "travelMode": "WALK"})}}]}
+    a = agent([planned(p), call("кафе рядом с метро Синтетическая"), answer("Кафе рядом [S1]."),
+               route_call, answer("Кандидат [S1], пеший маршрут подтверждён [S2].")],
+              [result(), CallToolResult(content=[], structuredContent={
+                  "attribution": {"title": "Synthetic walking route", "url": "https://example.test/walking"}})])
+    a.tools["compute_routes"] = Tool(name="compute_routes", inputSchema={"type": "object"})
+    reply = asyncio.run(a.ask("Найди кафе рядом с метро Синтетическая, Москва."))
+    assert reply.tools == ["search_places", "compute_routes"]
+    sent = a.session.call_tool.await_args.kwargs["arguments"]
+    assert sent["travelMode"] == "WALK" and sent["origin"]["address"] == "метро Синтетическая, Москва"
+
+
 def test_failed_search_can_be_reported_without_forcing_budget_prose_repairs():
     a = agent([planned(plan(amount=4000, action="set")), call("кафе"),
                answer("Поиск временно не выполнился. Данные не получены.")],

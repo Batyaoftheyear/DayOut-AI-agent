@@ -169,7 +169,7 @@ async def _perform(config, memory, gate, action, query, emit):
                 state = agent.current_state
                 result.observations = {"task": state.plan["task"] if state.plan else None,
                     "budget_requested": bool(state.plan and state.plan["budget"]["amount"] is not None),
-                    "tool_outcomes": list(state.tool_outcomes)}
+                    "tool_outcomes": list(state.tool_outcomes), "weather_requests": list(state.weather_requests)}
     return result
 
 

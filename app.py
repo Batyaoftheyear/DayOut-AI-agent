@@ -41,6 +41,14 @@ def render_metrics(reply):
             st.write("Тип запроса: " + label)
         if reply.tools:
             st.write("Инструменты: " + ", ".join(reply.tools))
+        for request in (reply.observations or {}).get("weather_requests", []):
+            date = request["date"]
+            if date:
+                stamp = f"{date['day']:02d}.{date['month']:02d}.{date['year']:04d}"
+                stamp += f", {request['hour']:02d}:00" if request["hour"] is not None else ", на день"
+            else:
+                stamp = "текущая погода (дата не передана)"
+            st.write("Запрос погоды: " + stamp)
         if reply.usage:
             usage = reply.usage
             if usage["missing_usage"] == usage["requests"]:

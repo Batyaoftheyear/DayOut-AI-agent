@@ -75,6 +75,23 @@ def paced_wait(seconds):
         remaining -= delay
 
 
+def weather_parameters_match(requests, case, visit_date):
+    mode = case.get("weather_mode")
+    if not mode:
+        return True
+    if not requests:
+        return False
+    day = date.fromisoformat(visit_date)
+    expected_date = {"year": day.year, "month": day.month, "day": day.day}
+    for request in requests:
+        if mode == "current":
+            if request.get("date") is not None or request.get("hour") is not None:
+                return False
+        elif request.get("date") != expected_date or request.get("hour") != (case.get("weather_hour") if mode == "hourly" else None):
+            return False
+    return True
+
+
 def run_live(case, config, gate, visit_date, interval, pace, inspect=False, limits=None):
     memory, turns, all_tools = WebMemory(), [], []
     successful_tools, texts, observations = [], [], []
@@ -117,6 +134,7 @@ def run_live(case, config, gate, visit_date, interval, pace, inspect=False, limi
                       "tools": tools, "usage": usage, "source_link_count": returned_links,
                       "failure_category": category, "partial_available": bool(result.partial),
                       "tool_outcomes": outcomes, "task": observed.get("task"),
+                      "weather_requests": observed.get("weather_requests", []),
                       "budget_requested": observed.get("budget_requested")})
         if limits:
             limits["turns"] += 1
@@ -150,6 +168,7 @@ def run_live(case, config, gate, visit_date, interval, pace, inspect=False, limi
         "forbidden_last_text_absent": all(fragment.lower() not in last_text.lower() for fragment in case.get("forbidden_last_text", [])),
         "last_source_count_matches": "last_source_links" not in case or bool(turns and turns[-1]["source_link_count"] == case["last_source_links"]),
         "no_invalid_tool_arguments": not any(item["status"] == "invalid_arguments" for observed in observations for item in observed.get("tool_outcomes", [])),
+        "weather_parameters_match": weather_parameters_match([request for observed in observations for request in observed.get("weather_requests", [])], case, visit_date),
     }
     infrastructure_failed = any(turn["failure_category"] in INFRASTRUCTURE_FAILURES for turn in turns)
     return {"execution_status": "stopped" if stop_reason else "completed" if auto["all_turns_completed"] and not infrastructure_failed else "failed",

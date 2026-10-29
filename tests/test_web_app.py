@@ -95,3 +95,15 @@ def test_busy_request_can_be_resubmitted_without_retyping(app, monkeypatch):
     button(app, "Повторить отправку").click().run()
     assert attempts == ["Сохранить мой запрос"] * 2
     assert len(app.chat_message) == 2
+
+
+def test_weather_details_show_the_date_actually_requested(app, monkeypatch):
+    def action(*args, **kwargs):
+        return web.WebResult(reply=Reply("Синтетический прогноз.", ["lookup_weather"], .1,
+            observations={"task": "weather", "weather_requests": [
+                {"date": {"year": 2026, "month": 10, "day": 30}, "hour": None}]}))
+    monkeypatch.setattr(web, "run_action", action)
+    app.run()
+    app.chat_input[0].set_value("Погода завтра в Москве").run()
+    assert not app.exception
+    assert any("Запрос погоды: 30.10.2026, на день" in item.value for item in app.markdown)

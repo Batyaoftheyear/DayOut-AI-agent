@@ -126,3 +126,16 @@ def test_final_turn_and_source_checks_use_the_current_answer_not_old_history(mon
     result = evaluation.run_live(case, SimpleNamespace(), None, "2026-10-30", 0, [None])
     assert all(result["auto_checks"].values())
     assert result["turns"][-1]["source_link_count"] == 0
+
+
+def test_weather_call_alone_cannot_pass_a_dated_or_hourly_forecast_case():
+    day = {"year": 2026, "month": 10, "day": 30}
+    current = [{"date": None, "hour": None}]
+    daily = [{"date": day, "hour": None}]
+    hourly = [{"date": day, "hour": 22}]
+    assert not evaluation.weather_parameters_match(current, {"weather_mode": "daily"}, "2026-10-30")
+    assert evaluation.weather_parameters_match(daily, {"weather_mode": "daily"}, "2026-10-30")
+    assert not evaluation.weather_parameters_match(daily, {"weather_mode": "hourly", "weather_hour": 22}, "2026-10-30")
+    assert evaluation.weather_parameters_match(hourly, {"weather_mode": "hourly", "weather_hour": 22}, "2026-10-30")
+    assert evaluation.weather_parameters_match(current, {"weather_mode": "current"}, "2026-10-30")
+    assert not evaluation.weather_parameters_match(daily, {"weather_mode": "daily"}, "2026-10-31")
