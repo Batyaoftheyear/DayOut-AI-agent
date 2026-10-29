@@ -16,6 +16,7 @@ from mcp_check import error_message as mcp_error_message
 from request_policy import response_format as plan_response_format, plan_messages, parse_plan, instructions as plan_instructions
 
 ALLOWED_TOOLS = {"search_places", "lookup_weather", "compute_routes", "resolve_names", "resolve_maps_urls"}
+AGENT_RELEASE = "2026-10-29-r2"
 # Qwen remains available for an explicit rollback. No automatic model fallback.
 REVIEWED_MODEL = "qwen/qwen3.8-27b"
 SUPPORTED_MODELS = frozenset({REVIEWED_MODEL, GPT_OSS_MODEL})
@@ -441,8 +442,17 @@ class GroqClient:
             data = response.json()
             self.record_usage(data, request_bytes)
             choice = data["choices"][0]
-            if choice.get("finish_reason") not in {"stop", "tool_calls"}:
-                raise AgentError(f"{self.provider} не завершил ответ (лимит токенов или фильтр). Сократите запрос.")
+            reason = choice.get("finish_reason")
+            stage = "план запроса" if response_format is not None else "ответ"
+            if reason == "length":
+                raise AgentError(f"{self.provider} не завершил {stage}: достигнут лимит генерации одного запроса "
+                                 f"({max_tokens} токенов; finish_reason=length). Пополнение счёта не увеличивает этот лимит.")
+            if reason == "content_filter":
+                raise AgentError(f"{self.provider} не завершил {stage}: сработал фильтр провайдера "
+                                 "(finish_reason=content_filter). Неполный текст не показан.")
+            if reason not in {"stop", "tool_calls"}:
+                raise AgentError(f"{self.provider} не завершил {stage}: API вернул неподдерживаемый признак завершения. "
+                                 "Причина не установлена; сырой ответ скрыт.")
             message = choice["message"]
             if not isinstance(message, dict) or message.get("role") != "assistant":
                 raise ValueError

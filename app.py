@@ -6,6 +6,7 @@ import streamlit as st
 from streamlit.errors import StreamlitSecretNotFoundError
 
 from agent import AgentError
+import agent as agent_runtime
 from web_backend import BusyError, CONFIG_NAMES, RequestGate, WebMemory, load_web_config, progress_label, run_action
 
 st.set_page_config(page_title="DayOut — куда пойдём?", page_icon="🧭", layout="centered")
@@ -32,6 +33,12 @@ def clear_chat():
 def render_metrics(reply):
     st.caption(f"{reply.seconds:.1f} с · обращений к инструментам: {len(reply.tools)}")
     with st.expander("Детали запроса"):
+        if reply.observations and reply.observations.get("task"):
+            task = reply.observations["task"]
+            label = {"search": "поиск мест", "weather": "погода", "route": "маршрут", "refine": "уточнение найденного",
+                     "chat": "общий вопрос", "clarify": "уточняющий вопрос", "resolve_names": "поиск идентификатора",
+                     "resolve_maps_urls": "разбор ссылки"}.get(task, "другая задача")
+            st.write("Тип запроса: " + label)
         if reply.tools:
             st.write("Инструменты: " + ", ".join(reply.tools))
         if reply.usage:
@@ -94,6 +101,7 @@ with st.sidebar:
     with st.expander("О проекте"):
         st.write("Учебный ассистент: LLM выбирает инструменты официального Google Maps MCP и составляет ответ по найденным данным.")
         st.caption("Часы работы и стоимость могут быть неизвестны. Проверяйте условия перед посещением.")
+        st.caption("Версия агента: " + getattr(agent_runtime, "AGENT_RELEASE", "прежняя — требуется перезапуск приложения"))
         st.link_button("Код проекта ↗", "https://github.com/Batyaoftheyear/DayOut-AI-agent")
 
 st.markdown('<div class="eyebrow">ГОРОД · ВПЕЧАТЛЕНИЯ · ВАШИ ПЛАНЫ</div>', unsafe_allow_html=True)

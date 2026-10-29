@@ -31,6 +31,8 @@ def test_initial_screen_loads_without_api_calls(app, monkeypatch):
     assert app.title[0].value == "Куда пойдём?"
     assert not app.chat_input[0].disabled
     assert len(app.chat_message) == 0
+    from agent import AGENT_RELEASE
+    assert any(AGENT_RELEASE in caption.value for caption in app.caption)
 
 
 def test_submit_followup_and_reset_render_in_browser_session(app, monkeypatch):

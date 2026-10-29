@@ -35,7 +35,7 @@ Streamlit Secrets → `.env`; окружение процесса не пере�
 ## Streamlit Community Cloud
 
 1. В выбранной ветке GitHub должны быть текущие `app.py`, `web_backend.py`,
-   `agent.py`, `dayout.py`, `provider_config.py`, `yandex_client.py`, `yandex_check.py`,
+   `agent.py`, `request_policy.py`, `dayout.py`, `provider_config.py`, `yandex_client.py`, `yandex_check.py`,
    `groq_check.py`, `mcp_check.py`, `requirements.txt`,
    `assets/style.css` и `.streamlit/config.toml`. Загружать `.env`, настоящий
    `secrets.toml`, `.venv` и временные файлы не требуется.
@@ -65,6 +65,18 @@ GOOGLE_MAPS_API_KEY = "your-google-maps-api-key"
 без локальных ключей, виртуального окружения и содержимого домашнего каталога.
 
 ## Что проверить после деплоя
+
+В «О проекте» отображается версия реально загруженного модуля агента:
+`2026-10-29-r2` для текущей диагностики. Если там прежняя версия либо указание
+перезапустить приложение, проверьте выбранные репозиторий/ветку/entrypoint и
+выполните Reboot app в Community Cloud. После обновления начните новый диалог.
+По одному времени ответа или числу инструментов версию установить нельзя.
+
+Сообщение `finish_reason=length` означает предел генерации одного запроса,
+заданный приложением (1600 для ответа, 750 для плана). Это не доказательство
+исчерпания баланса или суточной квоты. `content_filter` показывается отдельно;
+неподдерживаемые причины не выводятся сырым текстом.
+[Описание finish_reason в API Яндекса](https://aistudio.yandex.ru/ru/docs/ai-studio/api/Chat-Completions/createChatCompletion).
 
 - Страница открывается в отдельном браузере и на телефоне.
 - Обезличенный технический поиск даёт ответ и ссылку Google Maps: так проверяется

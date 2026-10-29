@@ -92,3 +92,30 @@ def test_yandex_errors_are_safe_name_correct_provider_and_never_auto_retry(statu
                     await llm.check_access()
     asyncio.run(run())
     assert len(requests) == 1
+
+
+@pytest.mark.parametrize("reason,stage,expected", [
+    ("length", False, "1600 токенов; finish_reason=length"),
+    ("length", True, "750 токенов; finish_reason=length"),
+    ("content_filter", False, "finish_reason=content_filter"),
+    ("synthetic-private-detail", False, "Причина не установлена"),
+])
+def test_incomplete_generation_has_a_specific_reason_without_echoing_output(reason, stage, expected):
+    requests = []
+    def handler(request):
+        requests.append(request)
+        return httpx.Response(200, json={"choices": [{"finish_reason": reason,
+            "message": {"role": "assistant", "content": "synthetic-private-output"}}],
+            "usage": {"prompt_tokens": 10, "completion_tokens": 20}})
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
+            llm = YandexClient(http, MODEL)
+            with pytest.raises(AgentError) as error:
+                await llm.complete([], [], max_tokens=750 if stage else 1600,
+                                   response_format={"type": "json_object"} if stage else None)
+            text = str(error.value)
+            assert expected in text and ("план запроса" if stage else "ответ") in text
+            assert "synthetic-private" not in text
+            assert llm.usage_totals["completion_tokens"] == 20
+    asyncio.run(run())
+    assert len(requests) == 1
