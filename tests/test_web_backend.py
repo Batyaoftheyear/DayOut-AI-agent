@@ -25,7 +25,13 @@ def install_network(monkeypatch, fail_once=False, quota_once=False):
             return httpx.Response(200, json={"data": [{"id": REVIEWED_MODEL}]})
         body = json.loads(request.content)
         requests.append(body)
-        if body["messages"][-1]["content"] == "Technical connectivity check. Reply OK.":
+        if body["messages"][0]["content"].startswith("Разбери текущую просьбу"):
+            message = {"role": "assistant", "content": json.dumps({
+                "task": "search", "city": "Москва", "area": "", "activity": "кафе", "purpose": "встреча",
+                "other_constraints": "", "budget": {"action": "keep", "amount": None, "currency": "unknown", "people": None, "scope": "unknown"},
+                "strict_area": False, "required_tools": ["search_places"], "reference_kind": "none", "price_requested": False,
+            }, ensure_ascii=False)}
+        elif body["messages"][-1]["content"] == "Technical connectivity check. Reply OK.":
             message = {"role": "assistant", "content": "OK"}
         elif body["messages"][-1]["role"] == "tool":
             if (fail_once or quota_once) and not failed:
@@ -207,9 +213,13 @@ def test_yandex_web_round_trip_uses_same_agent_and_isolates_groq_quota(monkeypat
         gate.remaining_tokens, gate.reset_at = 0, 10**15
     result = web.run_action(config, web.WebMemory(), gate, "ask", "Найди кафе")
     assert result.reply and SOURCE in result.reply.text
-    assert len(requests) == 2 and len(searches) == 1
+    assert len(requests) == 3 and len(searches) == 1
     assert all(body["model"] == config.model and "max_tokens" in body
                and "reasoning_effort" not in body for body in requests)
+    planner_format = requests[0]["response_format"]
+    assert planner_format["type"] == "json_schema" and "tools" not in requests[0]
+    assert "uniqueItems" not in planner_format["json_schema"]["schema"]["properties"]["required_tools"]
+    assert all("response_format" not in body for body in requests[1:])
 
 
 @pytest.mark.parametrize("model", [GPT_OSS_MODEL, REVIEWED_MODEL, "unsupported-model"])

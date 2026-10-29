@@ -33,6 +33,7 @@ def provider_error(error):
 
 
 class YandexClient(GroqClient):
+    planning_enabled = True
     provider = "Yandex AI Studio"
     api_url = API_URL
     token_parameter = "max_tokens"

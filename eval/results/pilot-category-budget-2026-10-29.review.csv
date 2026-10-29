@@ -1,0 +1,7 @@
+﻿case_id,repeat,criterion,verdict,note
+D04,1,relevance,pending,
+D04,1,constraints,pending,
+D04,1,grounding,pending,
+D04,1,honesty,pending,
+D04,1,tool_choice,pending,
+D04,1,dialogue,pending,

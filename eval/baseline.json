@@ -1,0 +1,9 @@
+{
+  "captured_on": "2026-10-29",
+  "repository": "https://github.com/Batyaoftheyear/DayOut-AI-agent",
+  "commit": "4ecc733321c44bf614d112da20f345d11b96e3a9",
+  "provider": "yandex",
+  "model": "aliceai-llm-flash/latest",
+  "live_quality_evaluated": false,
+  "notes": "Reference code before request-policy and citation corrections. Existing Groq quota failures are not an Alice Flash quality baseline."
+}

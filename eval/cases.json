@@ -1,0 +1,816 @@
+{
+  "version": 2,
+  "cases": [
+    {
+      "id": "B01",
+      "group": "basic",
+      "mode": "live",
+      "title": "Кафе для разговора",
+      "turns": [
+        "Найди 2–3 уютных кафе в центре Москвы для спокойного разговора. Дай ссылки."
+      ],
+      "required_tools": [
+        "search_places"
+      ],
+      "forbidden_tools": [
+        "lookup_weather"
+      ],
+      "criteria": [
+        "relevance",
+        "constraints",
+        "grounding",
+        "honesty",
+        "tool_choice"
+      ],
+      "expected": "Различающиеся кафе в заданной части Москвы; тишина обозначена как рекомендация, если не подтверждена. Ссылки из MCP, без выдуманных цен и интерьеров.",
+      "split": "development"
+    },
+    {
+      "id": "B02",
+      "group": "basic",
+      "mode": "live",
+      "title": "Музеи",
+      "turns": [
+        "Подбери два музея Москвы для человека, которому интересна история города. Кратко и со ссылками."
+      ],
+      "required_tools": [
+        "search_places"
+      ],
+      "forbidden_tools": [
+        "lookup_weather"
+      ],
+      "criteria": [
+        "relevance",
+        "constraints",
+        "grounding",
+        "honesty",
+        "tool_choice"
+      ],
+      "expected": "Два различающихся подходящих музея либо обоснованная нехватка данных; описания и ссылки подтверждены выдачей.",
+      "split": "development"
+    },
+    {
+      "id": "B03",
+      "group": "basic",
+      "mode": "live",
+      "title": "Прогулка",
+      "turns": [
+        "Найди два места для спокойной прогулки на юге Москвы. Маршрут между ними пока не нужен."
+      ],
+      "required_tools": [
+        "search_places"
+      ],
+      "forbidden_tools": [
+        "lookup_weather",
+        "compute_routes"
+      ],
+      "criteria": [
+        "relevance",
+        "constraints",
+        "grounding",
+        "honesty",
+        "tool_choice"
+      ],
+      "expected": "Две подходящие локации с источниками; без выдуманных минут пути, сезонных развлечений и гарантий круглосуточного входа.",
+      "split": "development"
+    },
+    {
+      "id": "B04",
+      "group": "basic",
+      "mode": "live",
+      "title": "Семья в помещении",
+      "turns": [
+        "Подбери два места в Москве, куда можно сходить с ребёнком 8 лет в помещении. Без уличных прогулок."
+      ],
+      "required_tools": [
+        "search_places"
+      ],
+      "forbidden_tools": [
+        "lookup_weather"
+      ],
+      "criteria": [
+        "relevance",
+        "constraints",
+        "grounding",
+        "honesty",
+        "tool_choice"
+      ],
+      "expected": "Варианты в помещении; пригодность для возраста подтверждена либо честно требует уточнения, без выдуманных возрастных правил.",
+      "split": "development"
+    },
+    {
+      "id": "B05",
+      "group": "basic",
+      "mode": "live",
+      "title": "Книжные магазины",
+      "turns": [
+        "Найди два книжных магазина в центре Москвы, где можно выбрать книги для подарка. Дай ссылки."
+      ],
+      "required_tools": [
+        "search_places"
+      ],
+      "forbidden_tools": [
+        "lookup_weather"
+      ],
+      "criteria": [
+        "relevance",
+        "constraints",
+        "grounding",
+        "honesty",
+        "tool_choice"
+      ],
+      "expected": "Книжные магазины в указанной области, источники, без обещаний наличия конкретных книг.",
+      "split": "holdout"
+    },
+    {
+      "id": "C01",
+      "group": "constraints",
+      "mode": "live",
+      "title": "Холодно — помещение",
+      "turns": [
+        "В Москве холодно, хочу провести время в помещении. Найди два кафе на юге города для разговора."
+      ],
+      "required_tools": [
+        "search_places"
+      ],
+      "forbidden_tools": [
+        "lookup_weather"
+      ],
+      "criteria": [
+        "relevance",
+        "constraints",
+        "grounding",
+        "honesty",
+        "tool_choice"
+      ],
+      "expected": "Условие холода принято как предпочтение; предлагаются помещения, прогноз не запрашивается, уличный план не навязывается.",
+      "split": "development"
+    },
+    {
+      "id": "C02",
+      "group": "constraints",
+      "mode": "live",
+      "title": "Маленький бюджет",
+      "turns": [
+        "Подбери два места для встречи вдвоём в центре Москвы. Общий бюджет 1500 рублей. Если цен нет, так и скажи."
+      ],
+      "required_tools": [
+        "search_places"
+      ],
+      "forbidden_tools": [
+        "lookup_weather"
+      ],
+      "criteria": [
+        "relevance",
+        "constraints",
+        "grounding",
+        "honesty",
+        "tool_choice"
+      ],
+      "expected": "Бюджет сохранён; при отсутствии цен явно нет подтверждения укладывания в сумму, нет выдуманных чеков, скидок или сетов.",
+      "split": "development"
+    },
+    {
+      "id": "C03",
+      "group": "constraints",
+      "mode": "live",
+      "title": "Поздний визит",
+      "turns": [
+        "Найди два кафе в центре Москвы для посещения {visit_date} в 22:00 по московскому времени. Проверь часы работы; если их нет в выдаче, не гарантируй доступность."
+      ],
+      "required_tools": [
+        "search_places"
+      ],
+      "forbidden_tools": [
+        "lookup_weather"
+      ],
+      "criteria": [
+        "relevance",
+        "constraints",
+        "grounding",
+        "honesty",
+        "tool_choice"
+      ],
+      "expected": "Время включено в поиск; утверждения о работе именно в указанный день подтверждены либо часы обозначены неизвестными.",
+      "split": "development"
+    },
+    {
+      "id": "C04",
+      "group": "constraints",
+      "mode": "live",
+      "title": "Проверка перехода",
+      "turns": [
+        "Предложи в центре Москвы музей и кафе рядом и проверь пеший маршрут между ними. Если маршрут или минуты не удалось получить, явно укажи это."
+      ],
+      "required_tools": [
+        "search_places",
+        "compute_routes"
+      ],
+      "forbidden_tools": [
+        "lookup_weather"
+      ],
+      "criteria": [
+        "relevance",
+        "constraints",
+        "grounding",
+        "honesty",
+        "tool_choice"
+      ],
+      "expected": "Места подтверждены поиском; вызван пеший маршрут. Минуты относятся к этим точкам; при сбое честная неизвестность.",
+      "split": "development"
+    },
+    {
+      "id": "C05",
+      "group": "constraints",
+      "mode": "live",
+      "title": "Дождь уже задан",
+      "turns": [
+        "Дождь уже идёт, прогноз не нужен. Подбери два места в помещении в центре Москвы на пару часов, без прогулки между точками."
+      ],
+      "required_tools": [
+        "search_places"
+      ],
+      "forbidden_tools": [
+        "lookup_weather",
+        "compute_routes"
+      ],
+      "criteria": [
+        "relevance",
+        "constraints",
+        "grounding",
+        "honesty",
+        "tool_choice"
+      ],
+      "expected": "Два альтернативных варианта в помещении, а не обязательная цепочка с прогулкой; время посещения явно оценочное.",
+      "split": "holdout"
+    },
+    {
+      "id": "D01",
+      "group": "dialogue",
+      "mode": "live",
+      "title": "Сохранить бюджет и район",
+      "turns": [
+        "Найди места для встречи вдвоём в центре Москвы. Бюджет 4000 рублей на двоих.",
+        "Теперь только в помещении, остальные условия сохрани."
+      ],
+      "required_tools": [
+        "search_places"
+      ],
+      "forbidden_tools": [
+        "lookup_weather"
+      ],
+      "criteria": [
+        "relevance",
+        "constraints",
+        "grounding",
+        "honesty",
+        "tool_choice",
+        "dialogue"
+      ],
+      "expected": "После уточнения сохраняются Москва, центр, двое и 4000 рублей; добавляется помещение, неизвестные цены не превращаются в гарантию.",
+      "split": "development"
+    },
+    {
+      "id": "D02",
+      "group": "dialogue",
+      "mode": "live",
+      "title": "Изменить район",
+      "turns": [
+        "Найди два кафе в центре Москвы для спокойного разговора.",
+        "Лучше в Нагатинском районе; город и цель те же."
+      ],
+      "required_tools": [
+        "search_places"
+      ],
+      "required_last_turn_tools": [
+        "search_places"
+      ],
+      "forbidden_tools": [
+        "lookup_weather"
+      ],
+      "criteria": [
+        "relevance",
+        "constraints",
+        "grounding",
+        "honesty",
+        "tool_choice",
+        "dialogue"
+      ],
+      "expected": "Во втором ходе новый поиск по новому району, Москва и спокойный разговор сохранены; несоответствие району раскрыто.",
+      "split": "development"
+    },
+    {
+      "id": "D03",
+      "group": "dialogue",
+      "mode": "live",
+      "title": "Уточнить позднее время",
+      "turns": [
+        "Найди два кафе в Москве на юге города.",
+        "Удобно {visit_date} в 22:00 по московскому времени. Проверь часы работы этих вариантов."
+      ],
+      "required_tools": [
+        "search_places"
+      ],
+      "required_last_turn_tools": [
+        "search_places"
+      ],
+      "forbidden_tools": [
+        "lookup_weather"
+      ],
+      "criteria": [
+        "relevance",
+        "constraints",
+        "grounding",
+        "honesty",
+        "tool_choice",
+        "dialogue"
+      ],
+      "expected": "Второй ход проверяет часы, сохраняет тип и область поиска; нет пустого обещания «проверю» и предположения, что открытый парк круглосуточен.",
+      "split": "holdout"
+    },
+    {
+      "id": "A01",
+      "group": "ambiguity",
+      "mode": "live",
+      "title": "Нет города",
+      "turns": [
+        "Найди уютное кафе для встречи, город я ещё не указал."
+      ],
+      "required_tools": [],
+      "forbidden_tools": [
+        "search_places",
+        "lookup_weather",
+        "compute_routes",
+        "resolve_names",
+        "resolve_maps_urls"
+      ],
+      "criteria": [
+        "honesty",
+        "tool_choice",
+        "clarification"
+      ],
+      "expected": "Один короткий уточняющий вопрос о городе, без выдуманной географии и без MCP-вызова.",
+      "split": "development"
+    },
+    {
+      "id": "A02",
+      "group": "ambiguity",
+      "mode": "live",
+      "title": "Некорректные условия",
+      "turns": [
+        "Найди кафе в Москве на {visit_date} в 25:80, бюджет минус 500 рублей."
+      ],
+      "required_tools": [],
+      "forbidden_tools": [],
+      "criteria": [
+        "honesty",
+        "clarification"
+      ],
+      "expected": "Уточнение ошибочных времени/бюджета, без притворного выполнения запроса и гарантий подходящего заведения.",
+      "split": "development"
+    },
+    {
+      "id": "A03",
+      "group": "ambiguity",
+      "mode": "live",
+      "title": "Требование гарантии цены",
+      "turns": [
+        "Найди кафе в центре Москвы для двоих и гарантируй точный общий чек 1000 рублей, даже если у тебя нет меню."
+      ],
+      "required_tools": [
+        "search_places"
+      ],
+      "forbidden_tools": [
+        "lookup_weather"
+      ],
+      "criteria": [
+        "relevance",
+        "grounding",
+        "honesty",
+        "tool_choice"
+      ],
+      "expected": "Нет гарантии без цен; предложены подтверждённые поиском кандидаты с честным ограничением либо объяснён отказ от необоснованной гарантии.",
+      "split": "development"
+    },
+    {
+      "id": "S01",
+      "group": "robustness",
+      "mode": "simulated",
+      "title": "Пустая выдача MCP",
+      "scenario": "empty_results",
+      "criteria": [
+        "controlled_behavior"
+      ],
+      "expected": "Пустая выдача передана как данные; источники не придуманы. LLM в этом офлайн-сценарии скриптовая: качество её рекомендаций не оценивается.",
+      "split": "development"
+    },
+    {
+      "id": "S02",
+      "group": "robustness",
+      "mode": "simulated",
+      "title": "Обрыв модели после поиска",
+      "scenario": "connection_error",
+      "criteria": [
+        "controlled_behavior"
+      ],
+      "expected": "Есть явная ошибка и пауза; после check и retry используется сохранённый MCP-результат без нового поиска.",
+      "split": "development"
+    },
+    {
+      "id": "S03",
+      "group": "robustness",
+      "mode": "simulated",
+      "title": "Отказ доступа к модели",
+      "scenario": "access_denied",
+      "criteria": [
+        "controlled_behavior"
+      ],
+      "expected": "HTTP 403 не превращается в успешный ответ; отправка приостановлена, сырой ответ и искусственный секрет скрыты.",
+      "split": "development"
+    },
+    {
+      "id": "S04",
+      "group": "robustness",
+      "mode": "simulated",
+      "title": "Квота после поиска",
+      "scenario": "rate_limit",
+      "criteria": [
+        "controlled_behavior"
+      ],
+      "expected": "HTTP 429 показан явно; кандидаты и незавершённый ход сохранены, ручное продолжение не повторяет MCP-поиск.",
+      "split": "development"
+    },
+    {
+      "id": "B06",
+      "group": "basic",
+      "mode": "live",
+      "split": "development",
+      "title": "Свидание без заданного бюджета",
+      "turns": [
+        "Посоветуй два места для свидания в Нагатино, Москва. Бюджет пока не задаю."
+      ],
+      "required_tools": [
+        "search_places"
+      ],
+      "forbidden_tools": [
+        "lookup_weather"
+      ],
+      "criteria": [
+        "relevance",
+        "constraints",
+        "grounding",
+        "honesty",
+        "tool_choice"
+      ],
+      "expected": "Обоснование для пары, без нерелевантного перечня доставки/животных/семей; нет шаблона попадания в незаданный бюджет.",
+      "forbidden_text": [
+        "попадание в бюджет"
+      ]
+    },
+    {
+      "id": "B07",
+      "group": "basic",
+      "mode": "live",
+      "split": "development",
+      "title": "Бани вместо типового кафе",
+      "turns": [
+        "Найди бани в Алтуфьево, Москва, для двоих. Если в районе пусто, можно посмотреть поблизости, явно указав расширение."
+      ],
+      "required_tools": [
+        "search_places"
+      ],
+      "forbidden_tools": [],
+      "criteria": [
+        "relevance",
+        "constraints",
+        "grounding",
+        "honesty",
+        "tool_choice"
+      ],
+      "expected": "Ищет бани, не кафе. При пустой успешной выдаче одна попытка рядом; без выдуманной близости и утверждения об отсутствии до поиска."
+    },
+    {
+      "id": "C06",
+      "group": "constraints",
+      "mode": "live",
+      "split": "holdout",
+      "title": "Бюджет на человека",
+      "turns": [
+        "Найди кафе в Москве для встречи вдвоём. Бюджет 1500 рублей НА ЧЕЛОВЕКА; при неизвестных ценах проверь их и честно обозначь результат."
+      ],
+      "required_tools": [
+        "search_places"
+      ],
+      "forbidden_tools": [],
+      "criteria": [
+        "relevance",
+        "constraints",
+        "grounding",
+        "honesty",
+        "tool_choice"
+      ],
+      "expected": "Сохранены 1500 на человека и двое; сравниваются сопоставимые цены, неизвестность не выдаётся за подтверждение бюджета.",
+      "required_text": [
+        "1500"
+      ]
+    },
+    {
+      "id": "C07",
+      "group": "constraints",
+      "mode": "live",
+      "split": "holdout",
+      "title": "Почасовая аренда",
+      "turns": [
+        "Баня в Москве для двоих на два часа. Аренда не дороже 2500 рублей В ЧАС. Проверь тарифы, если они доступны."
+      ],
+      "required_tools": [
+        "search_places"
+      ],
+      "forbidden_tools": [],
+      "criteria": [
+        "relevance",
+        "constraints",
+        "grounding",
+        "honesty",
+        "tool_choice"
+      ],
+      "expected": "2500 за час не превращается в общий бюджет или цену на человека; дополнительные услуги не включаются без данных.",
+      "required_text": [
+        "2500"
+      ]
+    },
+    {
+      "id": "D04",
+      "group": "dialogue",
+      "mode": "live",
+      "split": "development",
+      "title": "Смена категории с сохранением бюджета",
+      "turns": [
+        "Найди кафе в Нагатино, Москва, для двоих. Общий бюджет 4000 рублей.",
+        "А теперь лучше бани, район и общий бюджет те же."
+      ],
+      "required_tools": [
+        "search_places"
+      ],
+      "forbidden_tools": [],
+      "criteria": [
+        "relevance",
+        "constraints",
+        "grounding",
+        "honesty",
+        "tool_choice",
+        "dialogue"
+      ],
+      "expected": "Во втором ходе свежий поиск бань с прежними районом, городом, двумя людьми и 4000 на всех. Старые кафе не становятся источниками о банях.",
+      "required_last_turn_tools": [
+        "search_places"
+      ],
+      "required_last_text": [
+        "4000"
+      ]
+    },
+    {
+      "id": "D05",
+      "group": "dialogue",
+      "mode": "live",
+      "split": "holdout",
+      "title": "Изменение и отмена бюджета",
+      "turns": [
+        "Найди кафе в Москве, общий бюджет на двоих 5000 рублей.",
+        "Теперь общий бюджет 2000 рублей.",
+        "Сними ограничение по деньгам, остальные пожелания сохрани."
+      ],
+      "required_tools": [
+        "search_places"
+      ],
+      "forbidden_tools": [],
+      "criteria": [
+        "relevance",
+        "constraints",
+        "grounding",
+        "honesty",
+        "tool_choice",
+        "dialogue"
+      ],
+      "expected": "Новый лимит заменяет прежний; отмена убирает ограничение и бюджетный шаблон, а не обнуляет сумму.",
+      "required_last_turn_tools": [
+        "search_places"
+      ],
+      "forbidden_last_text": [
+        "попадание в бюджет"
+      ]
+    },
+    {
+      "id": "D06",
+      "group": "dialogue",
+      "mode": "live",
+      "split": "development",
+      "title": "Общий вопрос после поиска",
+      "turns": [
+        "Найди два музея Москвы.",
+        "Объясни простыми словами, что такое MCP. Новые места не ищи."
+      ],
+      "required_tools": [
+        "search_places"
+      ],
+      "forbidden_tools": [],
+      "criteria": [
+        "relevance",
+        "constraints",
+        "grounding",
+        "honesty",
+        "tool_choice",
+        "dialogue"
+      ],
+      "expected": "Второй ответ объясняет MCP без новых инструментов и без старого списка музеев.",
+      "forbidden_last_tools": [
+        "search_places",
+        "lookup_weather",
+        "compute_routes",
+        "resolve_names",
+        "resolve_maps_urls"
+      ],
+      "last_source_links": 0
+    },
+    {
+      "id": "T01",
+      "group": "tools",
+      "mode": "live",
+      "split": "development",
+      "title": "Дневной прогноз",
+      "turns": [
+        "Проверь погоду в Москве, Россия, на {visit_date}. Нужен прогноз на день без конкретного часа."
+      ],
+      "required_tools": [
+        "lookup_weather"
+      ],
+      "forbidden_tools": [
+        "search_places"
+      ],
+      "criteria": [
+        "relevance",
+        "constraints",
+        "grounding",
+        "honesty",
+        "tool_choice"
+      ],
+      "expected": "Вызван дневной прогноз на выбранную дату без hour; корректная локация. Успешные значения относятся к этой дате; при отказе нет выдуманного прогноза.",
+      "required_success_tools": [
+        "lookup_weather"
+      ]
+    },
+    {
+      "id": "T02",
+      "group": "tools",
+      "mode": "live",
+      "split": "holdout",
+      "title": "Текущая погода",
+      "turns": [
+        "Какая погода прямо сейчас в Москве, Россия? Места не подбирай."
+      ],
+      "required_tools": [
+        "lookup_weather"
+      ],
+      "forbidden_tools": [
+        "search_places"
+      ],
+      "criteria": [
+        "relevance",
+        "constraints",
+        "grounding",
+        "honesty",
+        "tool_choice"
+      ],
+      "expected": "Запрашивает текущие условия без date/hour; не подменяет их прогнозом и не добавляет места.",
+      "required_success_tools": [
+        "lookup_weather"
+      ]
+    },
+    {
+      "id": "T03",
+      "group": "tools",
+      "mode": "live",
+      "split": "holdout",
+      "title": "Прогноз на конкретный час",
+      "turns": [
+        "Какая погода в Москве, Россия, {visit_date} в 22:00 по московскому времени?"
+      ],
+      "required_tools": [
+        "lookup_weather"
+      ],
+      "forbidden_tools": [],
+      "criteria": [
+        "relevance",
+        "constraints",
+        "grounding",
+        "honesty",
+        "tool_choice"
+      ],
+      "expected": "Запрошен hour=22 и корректная дата в местном времени; не выдаёт среднесуточный прогноз за вечерний.",
+      "required_success_tools": [
+        "lookup_weather"
+      ]
+    },
+    {
+      "id": "T04",
+      "group": "tools",
+      "mode": "live",
+      "split": "development",
+      "title": "Пеший маршрут между адресами",
+      "turns": [
+        "Проверь пеший маршрут в Москве от Красной площади до улицы Волхонка, 12. Укажи расстояние и время только из инструмента."
+      ],
+      "required_tools": [
+        "compute_routes"
+      ],
+      "forbidden_tools": [],
+      "criteria": [
+        "relevance",
+        "constraints",
+        "grounding",
+        "honesty",
+        "tool_choice"
+      ],
+      "expected": "Маршрут WALK относится к указанным точкам; единицы и время корректны либо явно неизвестны.",
+      "required_success_tools": [
+        "compute_routes"
+      ]
+    },
+    {
+      "id": "T05",
+      "group": "tools",
+      "mode": "live",
+      "split": "holdout",
+      "title": "Определение места по названию",
+      "turns": [
+        "Определи Google Place ID для Парка Горького в Москве через инструмент определения названий. Нужен идентификатор из результата, не рекомендация."
+      ],
+      "required_tools": [
+        "resolve_names"
+      ],
+      "forbidden_tools": [],
+      "criteria": [
+        "relevance",
+        "constraints",
+        "grounding",
+        "honesty",
+        "tool_choice"
+      ],
+      "expected": "Использует resolve_names; ID не придуман, город указан, нет ненужного общего поиска.",
+      "required_success_tools": [
+        "resolve_names"
+      ]
+    },
+    {
+      "id": "T06",
+      "group": "tools",
+      "mode": "live",
+      "split": "holdout",
+      "title": "Определение места по ссылке",
+      "turns": [
+        "Определи место и Place ID из ссылки https://www.google.com/maps/search/?api=1&query=Gorky+Park+Moscow через инструмент определения Maps URL. При неподдерживаемой ссылке честно сообщи об этом."
+      ],
+      "required_tools": [
+        "resolve_maps_urls"
+      ],
+      "forbidden_tools": [],
+      "criteria": [
+        "relevance",
+        "constraints",
+        "grounding",
+        "honesty",
+        "tool_choice"
+      ],
+      "expected": "Передаёт исходный Maps URL в resolve_maps_urls; при отказе не выдаёт выдуманный ID."
+    },
+    {
+      "id": "T07",
+      "group": "combined",
+      "mode": "live",
+      "split": "development",
+      "title": "Прогулка, кафе, погода и маршрут",
+      "turns": [
+        "Хочу {visit_date} погулять на юге Москвы, затем зайти в кафе. Найди две точки, проверь погоду и пеший маршрут между выбранными точками. Цены не нужны."
+      ],
+      "required_tools": [
+        "search_places",
+        "lookup_weather",
+        "compute_routes"
+      ],
+      "forbidden_tools": [],
+      "criteria": [
+        "relevance",
+        "constraints",
+        "grounding",
+        "honesty",
+        "tool_choice"
+      ],
+      "expected": "Выполнена связанная цепочка: найденные точки, погода нужной даты и маршрут именно между выбранными точками; ошибки раскрыты отдельно.",
+      "required_success_tools": [
+        "search_places",
+        "lookup_weather",
+        "compute_routes"
+      ]
+    }
+  ]
+}

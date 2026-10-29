@@ -1,0 +1,149 @@
+{
+  "metadata": {
+    "started_at": "2026-10-29T15:30:10+03:00",
+    "target": "local_web_adapter",
+    "provider": "yandex",
+    "model": "aliceai-llm-flash/latest",
+    "variant": "candidate",
+    "split": "development",
+    "max_live_turns": 3,
+    "prices_rub_per_1k": null,
+    "max_estimated_rub": null,
+    "cost_is_estimate_not_invoice": true,
+    "python": "3.14.4",
+    "code_sha256": "552060420d248bfbaaafa662c6ee0f46b5f70eefc81f11ecf59bd4e9120b6e79",
+    "dataset_sha256": "bebffb13aff907e7e1e0273e2e8dcc9eeb7795d3424643b7e7e299d5738f207c",
+    "visit_date": "2026-10-30",
+    "interval_seconds": 5,
+    "raw_content_saved": false
+  },
+  "results": [
+    {
+      "execution_status": "failed",
+      "stop_reason": null,
+      "auto_checks": {
+        "all_turns_completed": false,
+        "required_tools_called": true,
+        "forbidden_tools_absent": true,
+        "last_turn_tools_called": true,
+        "last_turn_forbidden_tools_absent": true,
+        "required_tools_succeeded": true,
+        "required_text_present": true,
+        "forbidden_text_absent": true,
+        "required_last_text_present": false,
+        "forbidden_last_text_absent": true,
+        "last_source_count_matches": true,
+        "no_invalid_tool_arguments": true
+      },
+      "turns": [
+        {
+          "completed": false,
+          "seconds": 16.888,
+          "tools": [
+            "search_places"
+          ],
+          "usage": {
+            "requests": 4,
+            "prompt_tokens": 7050,
+            "completion_tokens": 231,
+            "missing_usage": 0
+          },
+          "source_link_count": 0,
+          "failure_category": "other",
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "error"
+            }
+          ],
+          "task": "search",
+          "budget_requested": true
+        }
+      ],
+      "manual_scores": {
+        "relevance": "pending",
+        "constraints": "pending",
+        "grounding": "pending",
+        "honesty": "pending",
+        "tool_choice": "pending",
+        "dialogue": "pending"
+      },
+      "case_id": "D04",
+      "mode": "live",
+      "repeat": 1,
+      "elapsed_seconds": 16.888
+    },
+    {
+      "execution_status": "failed",
+      "stop_reason": null,
+      "auto_checks": {
+        "all_turns_completed": false,
+        "required_tools_called": false,
+        "forbidden_tools_absent": true,
+        "last_turn_tools_called": true,
+        "last_turn_forbidden_tools_absent": true,
+        "required_tools_succeeded": false,
+        "required_text_present": true,
+        "forbidden_text_absent": true,
+        "required_last_text_present": true,
+        "forbidden_last_text_absent": true,
+        "last_source_count_matches": true,
+        "no_invalid_tool_arguments": true
+      },
+      "turns": [
+        {
+          "completed": false,
+          "seconds": 10.124,
+          "tools": [],
+          "usage": {
+            "requests": 1,
+            "prompt_tokens": 750,
+            "completion_tokens": 156,
+            "missing_usage": 0
+          },
+          "source_link_count": 0,
+          "failure_category": "other",
+          "partial_available": false,
+          "tool_outcomes": [],
+          "task": null,
+          "budget_requested": false
+        }
+      ],
+      "manual_scores": {
+        "relevance": "pending",
+        "constraints": "pending",
+        "grounding": "pending",
+        "honesty": "pending",
+        "tool_choice": "pending"
+      },
+      "case_id": "T01",
+      "mode": "live",
+      "repeat": 1,
+      "elapsed_seconds": 15.123
+    }
+  ],
+  "summary": {
+    "live_attempts": 2,
+    "live_completed": 0,
+    "live_infrastructure_failures": 0,
+    "live_stopped": 0,
+    "live_quality_evaluable": 2,
+    "live_quality_pass": 0,
+    "live_quality_fail": 2,
+    "live_quality_pending": 0,
+    "live_quality_pass_rate": 0.0,
+    "live_end_to_end_pass_rate": 0.0,
+    "usage": {
+      "requests": 5,
+      "prompt_tokens": 7800,
+      "completion_tokens": 387,
+      "missing_usage": 0
+    },
+    "estimated_rub": null,
+    "live_median_seconds": 13.506,
+    "live_p95_seconds": 16.888,
+    "simulated_attempts": 0,
+    "simulated_pass": 0
+  }
+}

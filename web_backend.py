@@ -38,12 +38,14 @@ class WebMemory:
     prompt_ratios: list = field(default_factory=list)
     failed_query: str | None = None
     paused: bool = False
+    last_plan: dict | None = None
 
     def reset(self):
         self.turns.clear()
         self.user_history.clear()
         self.pending = None
         self.failed_query = None
+        self.last_plan = None
         # Resetting a conversation does not repair a failed connection.
 
 
@@ -98,6 +100,7 @@ class WebResult:
     error: str | None = None
     partial: str = ""
     events: list = field(default_factory=list)
+    observations: dict = field(default_factory=dict)
 
 
 def error_leaves(error):
@@ -141,6 +144,7 @@ async def _perform(config, memory, gate, action, query, emit):
                                 tools = await discover_tools(session)
                             agent = DayOutAgent(session, llm, tools, emit=event)
                             agent.turns, agent.user_history, agent.pending = memory.turns, memory.user_history, memory.pending
+                            agent.last_plan = memory.last_plan
                             event("Подбираю варианты…")
                             result.reply = await agent.ask(query, resume=action == "retry")
                             result.reply.text = config.redact(result.reply.text)
@@ -160,6 +164,12 @@ async def _perform(config, memory, gate, action, query, emit):
             gate.blocked_until, gate.quota_kind = llm.blocked_until, llm.quota_kind
         if agent is not None:
             memory.turns, memory.user_history, memory.pending = agent.turns, agent.user_history, agent.pending
+            memory.last_plan = agent.last_plan
+            if agent.current_state is not None:
+                state = agent.current_state
+                result.observations = {"task": state.plan["task"] if state.plan else None,
+                    "budget_requested": bool(state.plan and state.plan["budget"]["amount"] is not None),
+                    "tool_outcomes": list(state.tool_outcomes)}
     return result
 
 

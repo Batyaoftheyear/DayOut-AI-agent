@@ -133,15 +133,22 @@ def test_invented_url_blocks_answer():
     assert not agent.turns
 
 
-def test_missing_citation_gets_returned_sources_appended():
+def test_uncited_answer_does_not_get_an_automatic_catalog_of_sources():
     agent = fixture_agent([calling(tool_call()), answer("Вымышленный тестовый вариант.")])
     result = asyncio.run(agent.ask("Тест"))
-    assert SOURCE in result.text
-    assert "Источники Google Maps" in result.text
+    assert SOURCE not in result.text
+    assert "Источники Google Maps" not in result.text
 
 
 def test_markdown_citation_is_accepted():
     assert DayOutAgent.validate_answer(f"Тест [Google Maps]({SOURCE}).", {SOURCE: "Fixture"})
+
+
+def test_successful_empty_protobuf_search_is_not_a_service_failure():
+    result = CallToolResult(content=[TextContent(type="text", text="{}")], structuredContent={})
+    assert extract_payload(result, "search_places") == {"places": []}
+    assert "error" in extract_payload(result, "lookup_weather")
+    assert "error" in extract_payload(CallToolResult(content=[], isError=True), "search_places")
 
 
 def test_clarification_needs_no_mcp_call():
