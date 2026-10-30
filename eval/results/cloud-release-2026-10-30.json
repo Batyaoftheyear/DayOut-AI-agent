@@ -1,0 +1,15 @@
+{
+  "scope": "public_ui_readonly",
+  "date": "2026-10-30",
+  "url": "https://dayout-ai-agent.streamlit.app/",
+  "raw_content_saved": false,
+  "paid_generation_submitted": false,
+  "limitations": "UI only; Maps quota remains blocked, this does not prove live search availability.",
+  "checks": {
+    "app_rendered": true,
+    "release_r6": true,
+    "chat_enabled": true,
+    "presentation_download": true,
+    "empty_new_session": true
+  }
+}

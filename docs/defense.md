@@ -1,6 +1,6 @@
 # Защита DayOut: 9 минут и ответы на вопросы
 
-Открыть локально [presentation.html](../presentation.html). Управление: ←/→, Home/End; N — заметки, F — полный экран, P — печать. Внизу включается таймер. PDF — запасной вариант без интерактивности.
+Открыть [презентацию онлайн](https://batyaoftheyear.github.io/DayOut-AI-agent/presentation.html) или локальный [presentation.html](../presentation.html). Управление: ←/→, Home/End; N — заметки, F — полный экран, P — печать. Внизу включается таймер. PDF — запасной вариант без интерактивности.
 
 ## До начала
 

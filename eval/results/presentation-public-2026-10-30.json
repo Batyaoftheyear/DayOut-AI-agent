@@ -1,0 +1,13 @@
+{
+  "scope": "public_presentation",
+  "date": "2026-10-30",
+  "url": "https://batyaoftheyear.github.io/DayOut-AI-agent/presentation.html",
+  "checks": {
+    "html_http_200": true,
+    "ten_slides": true,
+    "actual_39_attempts": true,
+    "ready_metrics": true,
+    "pdf_http_200": true,
+    "pdf_10_pages": true
+  }
+}
