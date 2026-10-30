@@ -1,0 +1,17 @@
+{
+  "scope": "ui_and_presentation",
+  "raw_maps_content_saved": false,
+  "checks": {
+    "app_rendered": true,
+    "local_release_r6": true,
+    "chat_enabled": true,
+    "app_mobile_no_horizontal_overflow": true,
+    "ten_slides": true,
+    "initial_slide": true,
+    "keyboard_navigation": true,
+    "tool_tabs": true,
+    "cost_calculator": true,
+    "presentation_mobile_no_horizontal_overflow": true,
+    "pdf_exported": true
+  }
+}

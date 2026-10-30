@@ -1,0 +1,833 @@
+{
+  "metadata": {
+    "started_at": "2026-10-30T13:20:56+03:00",
+    "target": "local_web_adapter",
+    "provider": "yandex",
+    "model": "aliceai-llm-flash/latest",
+    "variant": "extended-r5",
+    "split": "development",
+    "max_live_turns": 23,
+    "review_method": "llm_assisted_same_model",
+    "prices_rub_per_1k": [
+      0.1,
+      0.2
+    ],
+    "max_estimated_rub": 50.0,
+    "cost_is_estimate_not_invoice": true,
+    "python": "3.14.4",
+    "code_sha256": "51361220cf964f9f5332ccba65602b5c13d7eec3550d35094dae94017b04f457",
+    "dataset_sha256": "62fe96bef3038c4590ece105755562177aaf8026303ad2be165b6f0a4538a2be",
+    "dataset_file": "extended_cases.json",
+    "visit_date": "2026-10-31",
+    "interval_seconds": 5,
+    "raw_content_saved": false
+  },
+  "results": [
+    {
+      "execution_status": "failed",
+      "stop_reason": null,
+      "auto_checks": {
+        "all_turns_completed": false,
+        "required_tools_called": false,
+        "forbidden_tools_absent": true,
+        "last_turn_tools_called": true,
+        "last_turn_forbidden_tools_absent": true,
+        "required_tools_succeeded": false,
+        "required_text_present": true,
+        "forbidden_text_absent": true,
+        "required_last_text_present": true,
+        "forbidden_last_text_absent": true,
+        "last_source_count_matches": true,
+        "no_invalid_tool_arguments": true,
+        "weather_parameters_match": true
+      },
+      "turns": [
+        {
+          "completed": true,
+          "seconds": 25.264,
+          "tools": [
+            "search_places",
+            "resolve_maps_urls"
+          ],
+          "usage": {
+            "requests": 5,
+            "prompt_tokens": 12105,
+            "completion_tokens": 341,
+            "missing_usage": 0
+          },
+          "source_link_count": 2,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            },
+            {
+              "tool": "resolve_maps_urls",
+              "status": "success"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": false
+        },
+        {
+          "completed": false,
+          "seconds": 24.781,
+          "tools": [
+            "resolve_maps_urls"
+          ],
+          "usage": {
+            "requests": 5,
+            "prompt_tokens": 13780,
+            "completion_tokens": 437,
+            "missing_usage": 0
+          },
+          "source_link_count": 0,
+          "failure_category": "source_validation",
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "resolve_maps_urls",
+              "status": "success"
+            }
+          ],
+          "task": "resolve_maps_urls",
+          "weather_requests": [],
+          "budget_requested": false
+        }
+      ],
+      "manual_scores": {
+        "relevance": "pending",
+        "constraints": "pending",
+        "grounding": "pending",
+        "honesty": "pending",
+        "tool_choice": "pending",
+        "dialogue": "pending"
+      },
+      "case_id": "E01",
+      "mode": "live",
+      "repeat": 1,
+      "elapsed_seconds": 55.046
+    },
+    {
+      "execution_status": "completed",
+      "stop_reason": null,
+      "auto_checks": {
+        "all_turns_completed": true,
+        "required_tools_called": true,
+        "forbidden_tools_absent": true,
+        "last_turn_tools_called": true,
+        "last_turn_forbidden_tools_absent": true,
+        "required_tools_succeeded": true,
+        "required_text_present": true,
+        "forbidden_text_absent": true,
+        "required_last_text_present": true,
+        "forbidden_last_text_absent": true,
+        "last_source_count_matches": true,
+        "no_invalid_tool_arguments": true,
+        "weather_parameters_match": true
+      },
+      "turns": [
+        {
+          "completed": true,
+          "seconds": 15.711,
+          "tools": [
+            "search_places"
+          ],
+          "usage": {
+            "requests": 3,
+            "prompt_tokens": 6169,
+            "completion_tokens": 290,
+            "missing_usage": 0
+          },
+          "source_link_count": 3,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": true
+        },
+        {
+          "completed": true,
+          "seconds": 20.42,
+          "tools": [
+            "search_places"
+          ],
+          "usage": {
+            "requests": 4,
+            "prompt_tokens": 11272,
+            "completion_tokens": 434,
+            "missing_usage": 0
+          },
+          "source_link_count": 3,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": true
+        }
+      ],
+      "manual_scores": {
+        "relevance": "pass",
+        "constraints": "pass",
+        "grounding": "fail",
+        "honesty": "pass",
+        "tool_choice": "pass",
+        "dialogue": "pass"
+      },
+      "model_review": {
+        "status": "completed",
+        "scores": {
+          "relevance": "pass",
+          "constraints": "pass",
+          "grounding": "fail",
+          "honesty": "pass",
+          "tool_choice": "pass",
+          "dialogue": "pass"
+        },
+        "codes": [
+          "missing_price_caveat"
+        ],
+        "usage": {
+          "requests": 1,
+          "prompt_tokens": 4185,
+          "completion_tokens": 59,
+          "missing_usage": 0
+        },
+        "seconds": 2.449
+      },
+      "case_id": "E02",
+      "mode": "live",
+      "repeat": 1,
+      "elapsed_seconds": 48.581
+    },
+    {
+      "execution_status": "completed",
+      "stop_reason": null,
+      "auto_checks": {
+        "all_turns_completed": true,
+        "required_tools_called": true,
+        "forbidden_tools_absent": true,
+        "last_turn_tools_called": true,
+        "last_turn_forbidden_tools_absent": true,
+        "required_tools_succeeded": true,
+        "required_text_present": true,
+        "forbidden_text_absent": true,
+        "required_last_text_present": true,
+        "forbidden_last_text_absent": true,
+        "last_source_count_matches": true,
+        "no_invalid_tool_arguments": true,
+        "weather_parameters_match": true
+      },
+      "turns": [
+        {
+          "completed": true,
+          "seconds": 9.954,
+          "tools": [],
+          "usage": {
+            "requests": 2,
+            "prompt_tokens": 3177,
+            "completion_tokens": 158,
+            "missing_usage": 0
+          },
+          "source_link_count": 0,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [],
+          "task": "chat",
+          "weather_requests": [],
+          "budget_requested": false
+        }
+      ],
+      "manual_scores": {
+        "relevance": "pass",
+        "constraints": "pass",
+        "grounding": "pass",
+        "honesty": "pass",
+        "tool_choice": "pass",
+        "dialogue": "pass"
+      },
+      "model_review": {
+        "status": "completed",
+        "scores": {
+          "relevance": "pass",
+          "constraints": "pass",
+          "grounding": "pass",
+          "honesty": "pass",
+          "tool_choice": "pass",
+          "dialogue": "pass"
+        },
+        "codes": [
+          "none"
+        ],
+        "usage": {
+          "requests": 1,
+          "prompt_tokens": 622,
+          "completion_tokens": 53,
+          "missing_usage": 0
+        },
+        "seconds": 2.107
+      },
+      "case_id": "E03",
+      "mode": "live",
+      "repeat": 1,
+      "elapsed_seconds": 14.61
+    },
+    {
+      "execution_status": "completed",
+      "stop_reason": null,
+      "auto_checks": {
+        "all_turns_completed": true,
+        "required_tools_called": true,
+        "forbidden_tools_absent": true,
+        "last_turn_tools_called": true,
+        "last_turn_forbidden_tools_absent": true,
+        "required_tools_succeeded": true,
+        "required_text_present": true,
+        "forbidden_text_absent": true,
+        "required_last_text_present": true,
+        "forbidden_last_text_absent": true,
+        "last_source_count_matches": true,
+        "no_invalid_tool_arguments": true,
+        "weather_parameters_match": true
+      },
+      "turns": [
+        {
+          "completed": true,
+          "seconds": 13.578,
+          "tools": [
+            "lookup_weather"
+          ],
+          "usage": {
+            "requests": 3,
+            "prompt_tokens": 5868,
+            "completion_tokens": 208,
+            "missing_usage": 0
+          },
+          "source_link_count": 1,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "lookup_weather",
+              "status": "success"
+            }
+          ],
+          "task": "weather",
+          "weather_requests": [
+            {
+              "date": {
+                "year": 2026,
+                "month": 10,
+                "day": 31
+              },
+              "hour": null
+            }
+          ],
+          "budget_requested": false
+        }
+      ],
+      "manual_scores": {
+        "relevance": "pass",
+        "constraints": "pass",
+        "grounding": "pass",
+        "honesty": "pass",
+        "tool_choice": "pass",
+        "dialogue": "pass"
+      },
+      "model_review": {
+        "status": "completed",
+        "scores": {
+          "relevance": "pass",
+          "constraints": "pass",
+          "grounding": "pass",
+          "honesty": "pass",
+          "tool_choice": "pass",
+          "dialogue": "pass"
+        },
+        "codes": [
+          "none"
+        ],
+        "usage": {
+          "requests": 1,
+          "prompt_tokens": 1244,
+          "completion_tokens": 53,
+          "missing_usage": 0
+        },
+        "seconds": 2.895
+      },
+      "case_id": "E04",
+      "mode": "live",
+      "repeat": 1,
+      "elapsed_seconds": 19.366
+    },
+    {
+      "execution_status": "failed",
+      "stop_reason": null,
+      "auto_checks": {
+        "all_turns_completed": false,
+        "required_tools_called": true,
+        "forbidden_tools_absent": true,
+        "last_turn_tools_called": true,
+        "last_turn_forbidden_tools_absent": true,
+        "required_tools_succeeded": true,
+        "required_text_present": true,
+        "forbidden_text_absent": true,
+        "required_last_text_present": true,
+        "forbidden_last_text_absent": true,
+        "last_source_count_matches": true,
+        "no_invalid_tool_arguments": true,
+        "weather_parameters_match": true
+      },
+      "turns": [
+        {
+          "completed": true,
+          "seconds": 22.757,
+          "tools": [
+            "search_places"
+          ],
+          "usage": {
+            "requests": 4,
+            "prompt_tokens": 9316,
+            "completion_tokens": 474,
+            "missing_usage": 0
+          },
+          "source_link_count": 3,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": true
+        },
+        {
+          "completed": true,
+          "seconds": 26.202,
+          "tools": [
+            "search_places"
+          ],
+          "usage": {
+            "requests": 4,
+            "prompt_tokens": 11217,
+            "completion_tokens": 372,
+            "missing_usage": 0
+          },
+          "source_link_count": 2,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": true
+        },
+        {
+          "completed": true,
+          "seconds": 19.622,
+          "tools": [
+            "search_places"
+          ],
+          "usage": {
+            "requests": 4,
+            "prompt_tokens": 11181,
+            "completion_tokens": 340,
+            "missing_usage": 0
+          },
+          "source_link_count": 2,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            }
+          ],
+          "task": "refine",
+          "weather_requests": [],
+          "budget_requested": true
+        },
+        {
+          "completed": true,
+          "seconds": 26.141,
+          "tools": [
+            "search_places",
+            "search_places"
+          ],
+          "usage": {
+            "requests": 5,
+            "prompt_tokens": 15418,
+            "completion_tokens": 397,
+            "missing_usage": 0
+          },
+          "source_link_count": 2,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            },
+            {
+              "tool": "search_places",
+              "status": "success"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": true
+        },
+        {
+          "completed": true,
+          "seconds": 17.969,
+          "tools": [
+            "search_places"
+          ],
+          "usage": {
+            "requests": 3,
+            "prompt_tokens": 8778,
+            "completion_tokens": 274,
+            "missing_usage": 0
+          },
+          "source_link_count": 2,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": true
+        },
+        {
+          "completed": true,
+          "seconds": 18.604,
+          "tools": [
+            "search_places"
+          ],
+          "usage": {
+            "requests": 3,
+            "prompt_tokens": 8072,
+            "completion_tokens": 291,
+            "missing_usage": 0
+          },
+          "source_link_count": 2,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": true
+        },
+        {
+          "completed": true,
+          "seconds": 23.484,
+          "tools": [
+            "search_places"
+          ],
+          "usage": {
+            "requests": 4,
+            "prompt_tokens": 12019,
+            "completion_tokens": 386,
+            "missing_usage": 0
+          },
+          "source_link_count": 2,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": true
+        },
+        {
+          "completed": true,
+          "seconds": 17.498,
+          "tools": [
+            "search_places"
+          ],
+          "usage": {
+            "requests": 4,
+            "prompt_tokens": 11715,
+            "completion_tokens": 280,
+            "missing_usage": 0
+          },
+          "source_link_count": 1,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            }
+          ],
+          "task": "refine",
+          "weather_requests": [],
+          "budget_requested": true
+        },
+        {
+          "completed": true,
+          "seconds": 18.642,
+          "tools": [
+            "search_places"
+          ],
+          "usage": {
+            "requests": 4,
+            "prompt_tokens": 10531,
+            "completion_tokens": 389,
+            "missing_usage": 0
+          },
+          "source_link_count": 3,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": false
+        },
+        {
+          "completed": true,
+          "seconds": 21.713,
+          "tools": [
+            "search_places"
+          ],
+          "usage": {
+            "requests": 4,
+            "prompt_tokens": 11801,
+            "completion_tokens": 350,
+            "missing_usage": 0
+          },
+          "source_link_count": 2,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            }
+          ],
+          "task": "refine",
+          "weather_requests": [],
+          "budget_requested": false
+        },
+        {
+          "completed": true,
+          "seconds": 14.02,
+          "tools": [
+            "lookup_weather"
+          ],
+          "usage": {
+            "requests": 3,
+            "prompt_tokens": 8265,
+            "completion_tokens": 233,
+            "missing_usage": 0
+          },
+          "source_link_count": 1,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "lookup_weather",
+              "status": "success"
+            }
+          ],
+          "task": "weather",
+          "weather_requests": [
+            {
+              "date": {
+                "year": 2026,
+                "month": 10,
+                "day": 31
+              },
+              "hour": null
+            }
+          ],
+          "budget_requested": false
+        },
+        {
+          "completed": true,
+          "seconds": 15.259,
+          "tools": [
+            "compute_routes"
+          ],
+          "usage": {
+            "requests": 3,
+            "prompt_tokens": 7630,
+            "completion_tokens": 203,
+            "missing_usage": 0
+          },
+          "source_link_count": 1,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "compute_routes",
+              "status": "success"
+            }
+          ],
+          "task": "route",
+          "weather_requests": [],
+          "budget_requested": false
+        },
+        {
+          "completed": true,
+          "seconds": 7.578,
+          "tools": [],
+          "usage": {
+            "requests": 2,
+            "prompt_tokens": 4074,
+            "completion_tokens": 149,
+            "missing_usage": 0
+          },
+          "source_link_count": 0,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [],
+          "task": "refine",
+          "weather_requests": [],
+          "budget_requested": false
+        },
+        {
+          "completed": true,
+          "seconds": 14.904,
+          "tools": [
+            "search_places"
+          ],
+          "usage": {
+            "requests": 3,
+            "prompt_tokens": 7500,
+            "completion_tokens": 222,
+            "missing_usage": 0
+          },
+          "source_link_count": 2,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": false
+        },
+        {
+          "completed": false,
+          "seconds": 11.783,
+          "tools": [],
+          "usage": {
+            "requests": 3,
+            "prompt_tokens": 7915,
+            "completion_tokens": 297,
+            "missing_usage": 0
+          },
+          "source_link_count": 0,
+          "failure_category": "other",
+          "partial_available": false,
+          "tool_outcomes": [],
+          "task": "refine",
+          "weather_requests": [],
+          "budget_requested": false
+        }
+      ],
+      "manual_scores": {
+        "relevance": "pending",
+        "constraints": "pending",
+        "grounding": "pending",
+        "honesty": "pending",
+        "tool_choice": "pending",
+        "dialogue": "pending"
+      },
+      "case_id": "L01",
+      "mode": "live",
+      "repeat": 1,
+      "elapsed_seconds": 348.28
+    }
+  ],
+  "summary": {
+    "live_attempts": 5,
+    "live_completed": 3,
+    "live_infrastructure_failures": 0,
+    "live_stopped": 0,
+    "live_quality_evaluable": 5,
+    "live_quality_pass": 2,
+    "live_quality_fail": 3,
+    "live_quality_pending": 0,
+    "live_quality_pass_rate": 0.4,
+    "live_end_to_end_pass_rate": 0.4,
+    "usage": {
+      "requests": 75,
+      "prompt_tokens": 197803,
+      "completion_tokens": 6525,
+      "missing_usage": 0
+    },
+    "review_usage": {
+      "requests": 3,
+      "prompt_tokens": 6051,
+      "completion_tokens": 165,
+      "missing_usage": 0
+    },
+    "total_usage": {
+      "requests": 78,
+      "prompt_tokens": 203854,
+      "completion_tokens": 6690,
+      "missing_usage": 0
+    },
+    "estimated_rub": 21.7234,
+    "live_median_seconds": 36.131,
+    "live_p95_seconds": 276.176,
+    "turn_attempts": 21,
+    "turn_completed": 19,
+    "turn_median_seconds": 18.604,
+    "turn_p95_seconds": 26.141,
+    "tool_calls": {
+      "compute_routes": 1,
+      "lookup_weather": 2,
+      "resolve_maps_urls": 2,
+      "resolve_names": 0,
+      "search_places": 15
+    },
+    "simulated_attempts": 0,
+    "simulated_pass": 0
+  }
+}

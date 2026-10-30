@@ -1,0 +1,124 @@
+{
+  "metadata": {
+    "scope": "dialogue_stress",
+    "release": "2026-10-30-r6",
+    "code_sha256": "91f9a103dcd9a3c0b06cfcca187689fb84f6ea5062abf23a62d112cfca33a439",
+    "started_at": "2026-10-30T13:56:02+03:00",
+    "review_method": "llm_assisted_same_model",
+    "raw_content_saved": false,
+    "prices_rub_per_1k": [
+      0.1,
+      0.2
+    ]
+  },
+  "turns": [
+    {
+      "index": 1,
+      "completed": true,
+      "seconds": 9.014,
+      "tools": [],
+      "failure_category": null,
+      "tool_outcomes": [],
+      "budget": {
+        "action": "set",
+        "amount": 3000,
+        "currency": "RUB",
+        "people": 2,
+        "scope": "total"
+      },
+      "task": "refine",
+      "city": "Москва",
+      "area": "",
+      "activity": "свидание"
+    },
+    {
+      "index": 2,
+      "completed": true,
+      "seconds": 11.376,
+      "tools": [],
+      "failure_category": null,
+      "tool_outcomes": [],
+      "budget": {
+        "action": "set",
+        "amount": 3000,
+        "currency": "RUB",
+        "people": 2,
+        "scope": "total"
+      },
+      "task": "refine",
+      "city": "Москва",
+      "area": "центр",
+      "activity": "свидание"
+    },
+    {
+      "index": 3,
+      "completed": true,
+      "seconds": 10.136,
+      "tools": [],
+      "failure_category": null,
+      "tool_outcomes": [],
+      "budget": {
+        "action": "set",
+        "amount": 3000,
+        "currency": "RUB",
+        "people": 2,
+        "scope": "total"
+      },
+      "task": "refine",
+      "city": "Москва",
+      "area": "центр",
+      "activity": "свидание"
+    },
+    {
+      "index": 4,
+      "completed": false,
+      "seconds": 10.595,
+      "tools": [],
+      "failure_category": "other",
+      "tool_outcomes": [],
+      "budget": {
+        "action": "set",
+        "amount": 3000,
+        "currency": "RUB",
+        "people": 2,
+        "scope": "total"
+      },
+      "task": "refine",
+      "city": "Москва",
+      "area": "центр",
+      "activity": "свидание"
+    }
+  ],
+  "agent_usage": {
+    "requests": 10,
+    "prompt_tokens": 13460,
+    "completion_tokens": 761,
+    "missing_usage": 0
+  },
+  "checks": {
+    "all_15_answers": false,
+    "initial_budget_preserved": true,
+    "updated_budget_preserved": false,
+    "cancelled_budget_stays_cancelled": false,
+    "no_tools_for_requested_restatement": true,
+    "weather_and_route_used": false
+  },
+  "model_review": {
+    "status": "not_run",
+    "usage": {}
+  },
+  "summary": {
+    "turn_attempts": 4,
+    "turn_completed": 3,
+    "graceful_tool_errors": 0,
+    "checks_passed": 2,
+    "checks_total": 6,
+    "total_usage": {
+      "requests": 10,
+      "prompt_tokens": 13460,
+      "completion_tokens": 761,
+      "missing_usage": 0
+    },
+    "estimated_rub": 1.4982
+  }
+}

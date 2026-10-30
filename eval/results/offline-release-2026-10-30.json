@@ -1,0 +1,145 @@
+{
+  "metadata": {
+    "started_at": "2026-10-30T15:37:11+03:00",
+    "target": "offline_fault_injection",
+    "provider": "scripted_mock",
+    "model": "scripted_mock",
+    "variant": "candidate",
+    "split": "all",
+    "max_live_turns": 5,
+    "review_method": "human_pending",
+    "prices_rub_per_1k": null,
+    "max_estimated_rub": null,
+    "cost_is_estimate_not_invoice": true,
+    "python": "3.14.4",
+    "code_sha256": "91f9a103dcd9a3c0b06cfcca187689fb84f6ea5062abf23a62d112cfca33a439",
+    "dataset_sha256": "3889646b74b13a09b39fad54515d64fe187a9e5d2a4303323ac78274d5dfee2d",
+    "dataset_file": "cases.json",
+    "visit_date": null,
+    "interval_seconds": 65,
+    "raw_content_saved": false
+  },
+  "results": [
+    {
+      "controlled_checks": {
+        "empty_payload_forwarded": true,
+        "completed": true,
+        "no_source_invented": true
+      },
+      "execution_status": "completed",
+      "llm": "scripted_mock",
+      "external_requests": 0,
+      "mcp_calls": 1,
+      "scripted_model_posts": 2,
+      "case_id": "S01",
+      "mode": "simulated",
+      "repeat": 1,
+      "elapsed_seconds": 0.013
+    },
+    {
+      "controlled_checks": {
+        "failure_visible": true,
+        "secret_hidden": true,
+        "pending_saved": true,
+        "partial_sources_available": true,
+        "paused": true,
+        "manual_check": true,
+        "manual_resume_completed": true,
+        "mcp_not_repeated": true
+      },
+      "execution_status": "completed",
+      "llm": "scripted_mock",
+      "external_requests": 0,
+      "mcp_calls": 1,
+      "scripted_model_posts": 4,
+      "case_id": "S02",
+      "mode": "simulated",
+      "repeat": 1,
+      "elapsed_seconds": 0.01
+    },
+    {
+      "controlled_checks": {
+        "failure_visible": true,
+        "secret_hidden": true,
+        "pending_saved": true,
+        "partial_sources_available": true,
+        "paused": true
+      },
+      "execution_status": "completed",
+      "llm": "scripted_mock",
+      "external_requests": 0,
+      "mcp_calls": 1,
+      "scripted_model_posts": 2,
+      "case_id": "S03",
+      "mode": "simulated",
+      "repeat": 1,
+      "elapsed_seconds": 0.007
+    },
+    {
+      "controlled_checks": {
+        "failure_visible": true,
+        "secret_hidden": true,
+        "pending_saved": true,
+        "partial_sources_available": true,
+        "not_network_pause": true,
+        "manual_resume_completed": true,
+        "mcp_not_repeated": true
+      },
+      "execution_status": "completed",
+      "llm": "scripted_mock",
+      "external_requests": 0,
+      "mcp_calls": 1,
+      "scripted_model_posts": 3,
+      "case_id": "S04",
+      "mode": "simulated",
+      "repeat": 1,
+      "elapsed_seconds": 0.008
+    }
+  ],
+  "summary": {
+    "live_attempts": 0,
+    "live_completed": 0,
+    "live_infrastructure_failures": 0,
+    "live_stopped": 0,
+    "live_quality_evaluable": 0,
+    "live_quality_pass": 0,
+    "live_quality_fail": 0,
+    "live_quality_pending": 0,
+    "live_quality_pass_rate": null,
+    "live_end_to_end_pass_rate": null,
+    "usage": {
+      "requests": 0,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "missing_usage": 0
+    },
+    "review_usage": {
+      "requests": 0,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "missing_usage": 0
+    },
+    "total_usage": {
+      "requests": 0,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "missing_usage": 0
+    },
+    "estimated_rub": null,
+    "live_median_seconds": null,
+    "live_p95_seconds": null,
+    "turn_attempts": 0,
+    "turn_completed": 0,
+    "turn_median_seconds": null,
+    "turn_p95_seconds": null,
+    "tool_calls": {
+      "compute_routes": 0,
+      "lookup_weather": 0,
+      "resolve_maps_urls": 0,
+      "resolve_names": 0,
+      "search_places": 0
+    },
+    "simulated_attempts": 4,
+    "simulated_pass": 4
+  }
+}

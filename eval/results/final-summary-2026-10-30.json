@@ -1,0 +1,415 @@
+{
+  "metadata": {
+    "scope": "partial_core_live_eval",
+    "date": "2026-10-30",
+    "release": "2026-10-30-r6",
+    "source_commit": "90aef8f",
+    "source_tag": "eval-r6-2026-10-30",
+    "code_sha256": "91f9a103dcd9a3c0b06cfcca187689fb84f6ea5062abf23a62d112cfca33a439",
+    "review_method": "llm_assisted_same_model",
+    "raw_maps_content_saved": false,
+    "planned_jobs": 90,
+    "unattempted_jobs": 51,
+    "unique_core_cases_attempted": 23,
+    "reason_incomplete": "Google Maps Demo Key daily HTTP 429; continuation deferred by user",
+    "sources": [
+      {
+        "file": "release-development-2026-10-30.json",
+        "sha256": "8c626b1d5f7ac908ea5b28997dbfdd89a69701615cfde70948167c32b9c45806"
+      },
+      {
+        "file": "release-holdout-2026-10-30.json",
+        "sha256": "b39fe8e78a6efe50847ff2e0e70752e416b438f2044854b833548c5f2a9f99bc"
+      }
+    ]
+  },
+  "summary": {
+    "live_attempts": 39,
+    "live_completed": 34,
+    "live_infrastructure_failures": 3,
+    "live_stopped": 0,
+    "live_quality_evaluable": 36,
+    "live_quality_pass": 27,
+    "live_quality_fail": 9,
+    "live_quality_pending": 0,
+    "live_quality_pass_rate": 0.75,
+    "live_end_to_end_pass_rate": 0.6923076923076923,
+    "usage": {
+      "requests": 151,
+      "prompt_tokens": 265082,
+      "completion_tokens": 13237,
+      "missing_usage": 0
+    },
+    "review_usage": {
+      "requests": 34,
+      "prompt_tokens": 74800,
+      "completion_tokens": 1583,
+      "missing_usage": 0
+    },
+    "total_usage": {
+      "requests": 185,
+      "prompt_tokens": 339882,
+      "completion_tokens": 14820,
+      "missing_usage": 0
+    },
+    "estimated_rub": 36.952200000000005,
+    "live_median_seconds": 16.953,
+    "live_p95_seconds": 35.067,
+    "turn_attempts": 45,
+    "turn_completed": 40,
+    "turn_median_seconds": 15.45,
+    "turn_p95_seconds": 28.423,
+    "tool_calls": {
+      "compute_routes": 4,
+      "lookup_weather": 1,
+      "resolve_maps_urls": 5,
+      "resolve_names": 0,
+      "search_places": 38
+    },
+    "simulated_attempts": 0,
+    "simulated_pass": 0
+  },
+  "splits": {
+    "development": {
+      "live_attempts": 36,
+      "live_completed": 32,
+      "live_infrastructure_failures": 2,
+      "live_stopped": 0,
+      "live_quality_evaluable": 34,
+      "live_quality_pass": 25,
+      "live_quality_fail": 9,
+      "live_quality_pending": 0,
+      "live_quality_pass_rate": 0.7352941176470589,
+      "live_end_to_end_pass_rate": 0.6944444444444444,
+      "usage": {
+        "requests": 141,
+        "prompt_tokens": 248384,
+        "completion_tokens": 12433,
+        "missing_usage": 0
+      },
+      "review_usage": {
+        "requests": 32,
+        "prompt_tokens": 69330,
+        "completion_tokens": 1491,
+        "missing_usage": 0
+      },
+      "total_usage": {
+        "requests": 173,
+        "prompt_tokens": 317714,
+        "completion_tokens": 13924,
+        "missing_usage": 0
+      },
+      "estimated_rub": 34.556200000000004,
+      "live_median_seconds": 16.5845,
+      "live_p95_seconds": 35.067,
+      "turn_attempts": 42,
+      "turn_completed": 38,
+      "turn_median_seconds": 15.372,
+      "turn_p95_seconds": 28.423,
+      "tool_calls": {
+        "compute_routes": 4,
+        "lookup_weather": 1,
+        "resolve_maps_urls": 4,
+        "resolve_names": 0,
+        "search_places": 34
+      },
+      "simulated_attempts": 0,
+      "simulated_pass": 0
+    },
+    "holdout": {
+      "live_attempts": 3,
+      "live_completed": 2,
+      "live_infrastructure_failures": 1,
+      "live_stopped": 0,
+      "live_quality_evaluable": 2,
+      "live_quality_pass": 2,
+      "live_quality_fail": 0,
+      "live_quality_pending": 0,
+      "live_quality_pass_rate": 1.0,
+      "live_end_to_end_pass_rate": 0.6666666666666666,
+      "usage": {
+        "requests": 10,
+        "prompt_tokens": 16698,
+        "completion_tokens": 804,
+        "missing_usage": 0
+      },
+      "review_usage": {
+        "requests": 2,
+        "prompt_tokens": 5470,
+        "completion_tokens": 92,
+        "missing_usage": 0
+      },
+      "total_usage": {
+        "requests": 12,
+        "prompt_tokens": 22168,
+        "completion_tokens": 896,
+        "missing_usage": 0
+      },
+      "estimated_rub": 2.396,
+      "live_median_seconds": 19.187,
+      "live_p95_seconds": 24.096,
+      "turn_attempts": 3,
+      "turn_completed": 2,
+      "turn_median_seconds": 19.187,
+      "turn_p95_seconds": 24.096,
+      "tool_calls": {
+        "compute_routes": 0,
+        "lookup_weather": 0,
+        "resolve_maps_urls": 1,
+        "resolve_names": 0,
+        "search_places": 4
+      },
+      "simulated_attempts": 0,
+      "simulated_pass": 0
+    }
+  },
+  "supplementary": {
+    "live_attempts": 5,
+    "live_completed": 4,
+    "live_infrastructure_failures": 1,
+    "live_stopped": 0,
+    "live_quality_evaluable": 4,
+    "live_quality_pass": 3,
+    "live_quality_fail": 1,
+    "live_quality_pending": 0,
+    "live_quality_pass_rate": 0.75,
+    "live_end_to_end_pass_rate": 0.6,
+    "usage": {
+      "requests": 60,
+      "prompt_tokens": 121052,
+      "completion_tokens": 5709,
+      "missing_usage": 0
+    },
+    "review_usage": {
+      "requests": 4,
+      "prompt_tokens": 10838,
+      "completion_tokens": 218,
+      "missing_usage": 0
+    },
+    "total_usage": {
+      "requests": 64,
+      "prompt_tokens": 131890,
+      "completion_tokens": 5927,
+      "missing_usage": 0
+    },
+    "estimated_rub": 14.3744,
+    "live_median_seconds": 25.784,
+    "live_p95_seconds": 156.836,
+    "turn_attempts": 19,
+    "turn_completed": 19,
+    "turn_median_seconds": 12.304,
+    "turn_p95_seconds": 20.837,
+    "tool_calls": {
+      "compute_routes": 1,
+      "lookup_weather": 2,
+      "resolve_maps_urls": 2,
+      "resolve_names": 1,
+      "search_places": 10
+    },
+    "simulated_attempts": 0,
+    "simulated_pass": 0
+  },
+  "stress": {
+    "turn_attempts": 4,
+    "turn_completed": 3,
+    "graceful_tool_errors": 0,
+    "checks_passed": 2,
+    "checks_total": 6,
+    "total_usage": {
+      "requests": 10,
+      "prompt_tokens": 13460,
+      "completion_tokens": 761,
+      "missing_usage": 0
+    },
+    "estimated_rub": 1.4982
+  },
+  "all_today_cost": {
+    "reports": [
+      {
+        "file": "preflight-2026-10-30.json",
+        "estimated_rub": 3.3840000000000003
+      },
+      {
+        "file": "development-r4-2026-10-30.json",
+        "estimated_rub": 24.576900000000002
+      },
+      {
+        "file": "diagnostics-r4-2026-10-30.json",
+        "estimated_rub": 3.9756
+      },
+      {
+        "file": "corrections-r5-2026-10-30.json",
+        "estimated_rub": 6.905900000000001
+      },
+      {
+        "file": "extended-r5-2026-10-30.json",
+        "estimated_rub": 21.7234
+      },
+      {
+        "file": "release-development-2026-10-30.json",
+        "estimated_rub": 34.556200000000004
+      },
+      {
+        "file": "release-holdout-2026-10-30.json",
+        "estimated_rub": 2.396
+      },
+      {
+        "file": "release-extended-2026-10-30.json",
+        "estimated_rub": 14.3744
+      },
+      {
+        "file": "dialogue-stress-2026-10-30.json",
+        "estimated_rub": 1.4982
+      }
+    ],
+    "estimated_rub": 113.3906,
+    "not_invoice": true,
+    "prices_rub_per_1k": [
+      0.1,
+      0.2
+    ]
+  },
+  "failed_core_jobs": [
+    {
+      "case_id": "B01",
+      "repeat": 1,
+      "failed_auto_checks": [],
+      "failed_review_criteria": [
+        "grounding"
+      ],
+      "failure_categories": []
+    },
+    {
+      "case_id": "B03",
+      "repeat": 1,
+      "failed_auto_checks": [
+        "required_tools_called"
+      ],
+      "failed_review_criteria": [
+        "relevance",
+        "constraints",
+        "grounding",
+        "tool_choice"
+      ],
+      "failure_categories": []
+    },
+    {
+      "case_id": "C03",
+      "repeat": 1,
+      "failed_auto_checks": [],
+      "failed_review_criteria": [
+        "grounding"
+      ],
+      "failure_categories": []
+    },
+    {
+      "case_id": "D01",
+      "repeat": 1,
+      "failed_auto_checks": [],
+      "failed_review_criteria": [
+        "grounding"
+      ],
+      "failure_categories": []
+    },
+    {
+      "case_id": "B07",
+      "repeat": 1,
+      "failed_auto_checks": [
+        "all_turns_completed",
+        "required_tools_called",
+        "required_tools_succeeded",
+        "no_invalid_tool_arguments"
+      ],
+      "failed_review_criteria": [],
+      "failure_categories": [
+        "other"
+      ]
+    },
+    {
+      "case_id": "T07",
+      "repeat": 1,
+      "failed_auto_checks": [
+        "required_tools_called",
+        "required_tools_succeeded"
+      ],
+      "failed_review_criteria": [
+        "relevance",
+        "constraints",
+        "grounding",
+        "tool_choice"
+      ],
+      "failure_categories": []
+    },
+    {
+      "case_id": "B03",
+      "repeat": 2,
+      "failed_auto_checks": [
+        "required_tools_called"
+      ],
+      "failed_review_criteria": [
+        "relevance",
+        "constraints",
+        "grounding",
+        "tool_choice"
+      ],
+      "failure_categories": []
+    },
+    {
+      "case_id": "D01",
+      "repeat": 2,
+      "failed_auto_checks": [],
+      "failed_review_criteria": [
+        "grounding"
+      ],
+      "failure_categories": []
+    },
+    {
+      "case_id": "A03",
+      "repeat": 2,
+      "failed_auto_checks": [
+        "all_turns_completed"
+      ],
+      "failed_review_criteria": [],
+      "failure_categories": [
+        "network"
+      ]
+    },
+    {
+      "case_id": "B07",
+      "repeat": 2,
+      "failed_auto_checks": [
+        "all_turns_completed",
+        "required_tools_called",
+        "required_tools_succeeded",
+        "no_invalid_tool_arguments"
+      ],
+      "failed_review_criteria": [],
+      "failure_categories": [
+        "other"
+      ]
+    },
+    {
+      "case_id": "D04",
+      "repeat": 2,
+      "failed_auto_checks": [
+        "all_turns_completed",
+        "required_last_text_present"
+      ],
+      "failed_review_criteria": [],
+      "failure_categories": [
+        "quota"
+      ]
+    },
+    {
+      "case_id": "D03",
+      "repeat": 1,
+      "failed_auto_checks": [
+        "all_turns_completed"
+      ],
+      "failed_review_criteria": [],
+      "failure_categories": [
+        "quota"
+      ]
+    }
+  ]
+}
