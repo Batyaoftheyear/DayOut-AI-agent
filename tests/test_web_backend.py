@@ -30,6 +30,8 @@ def install_network(monkeypatch, fail_once=False, quota_once=False):
                 "task": "search", "city": "Москва", "area": "", "activity": "кафе", "purpose": "встреча",
                 "other_constraints": "", "budget": {"action": "keep", "amount": None, "currency": "unknown", "people": None, "scope": "unknown"},
                 "strict_area": False, "required_tools": ["search_places"], "reference_kind": "none", "price_requested": False,
+                "weather_date": None, "weather_hour": None,
+                "geo_anchor": None, "walk_limit_minutes": None,
             }, ensure_ascii=False)}
         elif body["messages"][-1]["content"] == "Technical connectivity check. Reply OK.":
             message = {"role": "assistant", "content": "OK"}
@@ -97,6 +99,23 @@ def test_reruns_create_fresh_connections_keep_history_and_isolate_browsers(monke
     assert len(set(loops)) == 3 and all(loop.is_closed() for loop in loops)
     assert all(client.is_closed for client in clients)
     pickle.dumps(first)  # Session memory contains no loops, clients or locks.
+
+
+def test_a_connection_failure_before_generation_is_retried_once_without_duplicate_llm_cost(monkeypatch):
+    requests, searches, _, loops = install_network(monkeypatch)
+    original = web.ClientSession.initialize
+    attempts = []
+    async def initialize(self):
+        attempts.append(True)
+        if len(attempts) == 1:
+            raise httpx.ConnectError("synthetic-private-connection-detail")
+        await original(self)
+    monkeypatch.setattr(web.ClientSession, "initialize", initialize)
+    monkeypatch.setattr(web, "sleep", lambda _: None)
+    result = web.run_action(CONFIG, web.WebMemory(), web.RequestGate(cooldown=0), "ask", "Найди кафе")
+    assert result.reply and len(attempts) == 2 and len(requests) == 2 and len(searches) == 1
+    assert len(loops) == 2 and "повторяю подключение" in result.events[0]
+    assert "synthetic-private" not in " ".join(result.events)
 
 
 def test_web_check_and_retry_preserve_pending_mcp_without_repeating_search(monkeypatch):

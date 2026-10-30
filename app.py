@@ -111,6 +111,10 @@ with st.sidebar:
         st.caption("Часы работы и стоимость могут быть неизвестны. Проверяйте условия перед посещением.")
         st.caption("Версия агента: " + getattr(agent_runtime, "AGENT_RELEASE", "прежняя — требуется перезапуск приложения"))
         st.link_button("Код проекта ↗", "https://github.com/Batyaoftheyear/DayOut-AI-agent")
+        presentation = Path(__file__).with_name("presentation.html")
+        if presentation.is_file():
+            st.download_button("Презентация для защиты", data=presentation.read_bytes(),
+                               file_name="DayOut-presentation.html", mime="text/html")
 
 st.markdown('<div class="eyebrow">ГОРОД · ВПЕЧАТЛЕНИЯ · ВАШИ ПЛАНЫ</div>', unsafe_allow_html=True)
 st.title("Куда пойдём?")

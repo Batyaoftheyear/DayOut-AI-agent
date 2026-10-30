@@ -18,7 +18,8 @@ def plan(task="search", amount=None, action="keep", strict=False):
     return {"task": task, "city": "Москва", "area": "Нагатино", "activity": "досуг", "purpose": "свидание",
             "other_constraints": "", "budget": {"action": action, "amount": amount, "currency": "RUB",
                 "people": 2, "scope": "total"}, "strict_area": strict,
-            "required_tools": [], "reference_kind": "none", "price_requested": False}
+            "required_tools": [], "reference_kind": "none", "price_requested": False,
+            "weather_date": None, "weather_hour": None, "geo_anchor": None, "walk_limit_minutes": None}
 
 
 def planned(value):
@@ -72,7 +73,10 @@ def test_new_category_cannot_be_refused_without_search_and_budget_reaches_both_q
     assert a.session.call_tool.await_count == 2
     for invoked in a.session.call_tool.await_args_list:
         query = invoked.kwargs["arguments"]["textQuery"]
-        assert "4000 руб. на всех" in query and "число людей: 2" in query
+        assert "Пожелания:" not in query
+    main_wires = [invocation.args[0][0]["content"] for invocation in a.llm.complete.await_args_list
+                  if not invocation.args[0][0]["content"].startswith("Разбери текущую просьбу")]
+    assert all('"amount":4000' in wire and '"people":2' in wire and '"scope":"total"' in wire for wire in main_wires)
     assert "бани" in a.session.call_tool.await_args.kwargs["arguments"]["textQuery"]
     assert a.last_plan["budget"]["amount"] == 4000
 
@@ -121,7 +125,7 @@ def test_budget_and_price_request_reach_search_without_blocking_an_honest_unknow
     reply = asyncio.run(a.ask("Бани в Москве на двоих, 1500 рублей на человека."))
     assert a.session.call_tool.await_count == 1 and "1500" in reply.text
     query = a.session.call_tool.await_args.kwargs["arguments"]["textQuery"]
-    assert "1500 руб. на человека" in query and "нужны цены с единицами" in query
+    assert query == "бани" and a.last_plan["budget"]["scope"] == "per_person"
 
 
 @pytest.mark.parametrize("wording", ["Цены неизвестны.", "Ориентир — три тысячи рублей, стоимость не подтверждена."])
@@ -204,6 +208,60 @@ def test_reset_discards_previous_structured_constraints():
     assert a.last_plan is None and not a.user_history
 
 
+def test_missing_city_becomes_one_question_without_search_or_another_generation():
+    p = plan()
+    p["city"] = ""
+    a = agent([planned(p)], [])
+    reply = asyncio.run(a.ask("Найди кафе; город я ещё не указал."))
+    assert reply.text == "В каком городе искать места?" and not reply.tools
+    assert a.llm.complete.await_count == 1
+
+
+def test_people_change_keeps_amount_and_unit_but_updates_participants():
+    p = plan(amount=1500, action="set")
+    p["budget"]["scope"] = "per_person"
+    previous = parse_plan(planned(p))
+    changed = plan(action="set")
+    changed["budget"].update(people=3, currency="unknown", scope="unknown")
+    merged = parse_plan(planned(changed), previous)["budget"]
+    assert merged["people"] == 3 and merged["amount"] == 1500 and merged["scope"] == "per_person"
+
+
+def test_empty_search_does_not_force_a_route_between_invented_endpoints():
+    p = plan()
+    p["required_tools"] = ["search_places", "compute_routes"]
+    a = agent([planned(p), call("кафе"), call("кафе поблизости", "two"),
+               answer("Поиск не вернул кандидатов; маршрут построить не из чего.")],
+              [result(empty=True), result(empty=True)])
+    reply = asyncio.run(a.ask("Кафе рядом с ориентиром в Москве."))
+    assert reply.tools == ["search_places", "search_places"]
+
+
+def test_refinement_clears_unnecessary_tools_and_recovers_place_reference():
+    previous=parse_plan(planned(plan()))
+    p=plan('refine')
+    p['required_tools']=['search_places']
+    refined=parse_plan(planned(p),previous)
+    assert refined['required_tools'] == [] and refined['reference_kind'] == 'places'
+
+
+def test_place_sources_survive_two_unrelated_questions():
+    search=plan()
+    chat=plan('chat')
+    refine=plan('refine')
+    refine['reference_kind']='places'
+    a=agent([planned(search),call('кафе'),answer('Кандидат [S1].'),
+             planned(chat),answer('Первый общий ответ.'),planned(chat),answer('Второй общий ответ.'),
+             planned(refine),answer('Прежний кандидат [S1].')],[result()])
+    async def run():
+        await a.ask('Кафе в Москве')
+        await a.ask('Что такое MCP?')
+        await a.ask('Для чего нужен API?')
+        return await a.ask('Повтори найденный вариант без нового поиска')
+    reply=asyncio.run(run())
+    assert FIRST in reply.text and a.session.call_tool.await_count == 1
+
+
 def test_weather_oneof_and_calendar_errors_are_caught_before_network():
     from agent import validate_tool_semantics
     valid = {"location": {"address": "Москва, Россия"}, "date": {"year": 2026, "month": 10, "day": 30}}
@@ -227,3 +285,11 @@ def test_weather_uses_api_default_language_and_preserves_requested_date():
     sent = a.session.call_tool.await_args.kwargs["arguments"]
     assert sent["date"] == args["date"] and sent["location"] == args["location"]
     assert "languageCode" not in sent and "error" not in payload
+    p = plan("weather")
+    p.update(weather_date="2026-10-31", weather_hour=None)
+    p = parse_plan(planned(p))
+    a.session.call_tool.side_effect = [CallToolResult(content=[], structuredContent={"weatherCondition": {"type": "CLOUDY"}})]
+    wrong = {"type": "function", "function": {"name": "lookup_weather", "arguments": json.dumps(dict(args, hour=22))}}
+    asyncio.run(a.execute(wrong, p))
+    sent = a.session.call_tool.await_args.kwargs["arguments"]
+    assert sent["date"] == {"year": 2026, "month": 10, "day": 31} and "hour" not in sent

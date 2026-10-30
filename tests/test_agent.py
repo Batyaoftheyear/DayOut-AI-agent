@@ -157,6 +157,16 @@ def test_clarification_needs_no_mcp_call():
     agent.session.call_tool.assert_not_awaited()
 
 
+def test_duplicate_provider_ids_are_normalized_and_each_result_matches_its_call():
+    agent = fixture_agent([calling(tool_call(call_id="same"), tool_call(call_id="same")), answer()])
+    asyncio.run(agent.ask("Синтетический запрос"))
+    messages = agent.turns[0][0]
+    calls = next(message["tool_calls"] for message in messages if message.get("tool_calls"))
+    result_ids = [message["tool_call_id"] for message in messages if message["role"] == "tool"]
+    assert len(set(result_ids)) == 2 and result_ids == [call["id"] for call in calls]
+    assert agent.session.call_tool.await_count == 2
+
+
 def test_history_is_bounded_and_resettable():
     agent = fixture_agent([answer("Уточнение.")] * 4)
     async def run():

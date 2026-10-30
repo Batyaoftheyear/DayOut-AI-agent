@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from datetime import timedelta
 from pathlib import Path
 from time import monotonic
+from time import sleep
 
 import httpx
 from mcp import ClientSession
@@ -39,6 +40,7 @@ class WebMemory:
     failed_query: str | None = None
     paused: bool = False
     last_plan: dict | None = None
+    last_place_turn: tuple | None = None
 
     def reset(self):
         self.turns.clear()
@@ -46,6 +48,7 @@ class WebMemory:
         self.pending = None
         self.failed_query = None
         self.last_plan = None
+        self.last_place_turn = None
         # Resetting a conversation does not repair a failed connection.
 
 
@@ -101,6 +104,8 @@ class WebResult:
     partial: str = ""
     events: list = field(default_factory=list)
     observations: dict = field(default_factory=dict)
+    setup_retryable: bool = False
+    evidence_messages: list = field(default_factory=list, repr=False)
 
 
 def error_leaves(error):
@@ -145,6 +150,7 @@ async def _perform(config, memory, gate, action, query, emit):
                             agent = DayOutAgent(session, llm, tools, emit=event)
                             agent.turns, agent.user_history, agent.pending = memory.turns, memory.user_history, memory.pending
                             agent.last_plan = memory.last_plan
+                            agent.last_place_turn = memory.last_place_turn
                             event("Подбираю варианты…")
                             result.reply = await agent.ask(query, resume=action == "retry")
                             result.reply.text = config.redact(result.reply.text)
@@ -154,6 +160,8 @@ async def _perform(config, memory, gate, action, query, emit):
         # Keep the committed successful reply instead of offering to repeat it.
         if result.reply is None:
             result.error = config.redact(safe_error(error))
+            result.setup_retryable = agent is None and action != "check" and any(
+                isinstance(item, (httpx.TransportError, TimeoutError)) for item in error_leaves(error))
             if any(isinstance(item, GroqConnectionError) for item in error_leaves(error)):
                 memory.paused = True
     finally:
@@ -165,8 +173,10 @@ async def _perform(config, memory, gate, action, query, emit):
         if agent is not None:
             memory.turns, memory.user_history, memory.pending = agent.turns, agent.user_history, agent.pending
             memory.last_plan = agent.last_plan
+            memory.last_place_turn = agent.last_place_turn
             if agent.current_state is not None:
                 state = agent.current_state
+                result.evidence_messages = state.messages[state.begin:]
                 result.observations = {"task": state.plan["task"] if state.plan else None,
                     "budget_requested": bool(state.plan and state.plan["budget"]["amount"] is not None),
                     "tool_outcomes": list(state.tool_outcomes), "weather_requests": list(state.weather_requests)}
@@ -189,7 +199,15 @@ def run_action(config, memory, gate, action, query="", emit=lambda _: None):
         if action == "ask":
             memory.pending = None
             memory.failed_query = query
-        return asyncio.run(_perform(config, memory, gate, action, query.strip(), emit))
+        before_requests = memory.usage_totals["requests"]
+        result = asyncio.run(_perform(config, memory, gate, action, query.strip(), emit))
+        if result.setup_retryable and memory.usage_totals["requests"] == before_requests:
+            note = "Maps: повторяю подключение один раз; обращения к LLM ещё не было."
+            emit(note)
+            sleep(1)
+            result = asyncio.run(_perform(config, memory, gate, action, query.strip(), emit))
+            result.events.insert(0, note)
+        return result
 
 
 def progress_label(event):

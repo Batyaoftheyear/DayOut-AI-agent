@@ -1,4 +1,4 @@
-"""Reproducible Eval: aggregate metrics only; live quality requires human review."""
+"""Reproducible Eval: aggregate metrics, optional explicit model-assisted review."""
 
 import argparse
 import csv
@@ -46,7 +46,7 @@ def load_cases(path=CASE_PATH):
 def fingerprint():
     digest = hashlib.sha256()
     for name in ("app.py", "agent.py", "request_policy.py", "web_backend.py", "dayout.py", "mcp_check.py", "groq_check.py",
-                 "provider_config.py", "yandex_client.py", "eval_runner.py", "eval/simulated.py", "requirements.txt"):
+                 "provider_config.py", "yandex_client.py", "geo.py", "eval_runner.py", "eval/reviewer.py", "eval/simulated.py", "requirements.txt"):
         digest.update(name.encode())
         digest.update((ROOT / name).read_bytes())
     return digest.hexdigest()
@@ -92,10 +92,11 @@ def weather_parameters_match(requests, case, visit_date):
     return True
 
 
-def run_live(case, config, gate, visit_date, interval, pace, inspect=False, limits=None):
+def run_live(case, config, gate, visit_date, interval, pace, inspect=False, limits=None, reviewer=None):
     memory, turns, all_tools = WebMemory(), [], []
     successful_tools, texts, observations = [], [], []
     stop_reason = None
+    review_records = []
     for query in case["turns"]:
         if limits:
             stop_reason = limit_reason(limits)
@@ -125,6 +126,11 @@ def run_live(case, config, gate, visit_date, interval, pace, inspect=False, limi
             category = "tool_arguments"
         texts.append(result.reply.text if result.reply else "")
         observations.append(observed)
+        if reviewer:
+            review_records.append({"query": query.format(visit_date=visit_date),
+                "answer": result.reply.text if result.reply else None,
+                "messages": result.evidence_messages,
+                "outcomes": outcomes, "failure": category})
         sources = {}
         for messages, _ in memory.turns:
             for _, payload in tool_evidence(messages):
@@ -144,7 +150,7 @@ def run_live(case, config, gate, visit_date, interval, pace, inspect=False, limi
             # Transient console inspection only; report files contain no answers,
             # URLs, names, summaries, tool payloads, or raw provider errors.
             print(config.redact(result.reply.text if result.reply else result.error or "Нет ответа"))
-            for messages, _ in memory.turns:
+            for messages in [result.evidence_messages]:
                 for message in messages:
                     if message.get("role") == "assistant":
                         for call in message.get("tool_calls") or []:
@@ -171,10 +177,19 @@ def run_live(case, config, gate, visit_date, interval, pace, inspect=False, limi
         "weather_parameters_match": weather_parameters_match([request for observed in observations for request in observed.get("weather_requests", [])], case, visit_date),
     }
     infrastructure_failed = any(turn["failure_category"] in INFRASTRUCTURE_FAILURES for turn in turns)
-    return {"execution_status": "stopped" if stop_reason else "completed" if auto["all_turns_completed"] and not infrastructure_failed else "failed",
+    result = {"execution_status": "stopped" if stop_reason else "completed" if auto["all_turns_completed"] and not infrastructure_failed else "failed",
             "stop_reason": stop_reason,
             "auto_checks": auto, "turns": turns,
             "manual_scores": {criterion: "pending" for criterion in case["criteria"]}}
+    if reviewer and auto["all_turns_completed"] and not stop_reason:
+        review = reviewer(case, review_records)
+        result["model_review"] = review
+        if review["status"] == "completed":
+            result["manual_scores"] = review["scores"]
+        if limits:
+            for key, value in review.get("usage", {}).items():
+                limits["usage"][key] += value
+    return result
 
 
 def estimate_cost(usage, prices):
@@ -215,18 +230,27 @@ def summary(report):
             pending += 1
     durations = [sum(turn["seconds"] for turn in row["turns"]) for row in live]
     ordered = sorted(durations)
+    per_turn = sorted(turn["seconds"] for row in live for turn in row["turns"])
     evaluable = len(live) - infrastructure - stopped
     usage = {key: sum(turn.get("usage", {}).get(key, 0) for row in live for turn in row["turns"])
              for key in ("requests", "prompt_tokens", "completion_tokens", "missing_usage")}
+    review_usage = {key: sum(row.get("model_review", {}).get("usage", {}).get(key, 0) for row in live)
+                    for key in usage}
+    total_usage = {key: usage[key] + review_usage[key] for key in usage}
     return {"live_attempts": len(live), "live_completed": sum(row["execution_status"] == "completed" for row in live),
             "live_infrastructure_failures": infrastructure, "live_stopped": stopped, "live_quality_evaluable": evaluable,
             "live_quality_pass": passed, "live_quality_fail": failed, "live_quality_pending": pending,
             "live_quality_pass_rate": passed / evaluable if evaluable and not pending else None,
             "live_end_to_end_pass_rate": passed / (len(live)-stopped) if len(live)>stopped and not pending else None,
             "usage": usage,
-            "estimated_rub": estimate_cost(usage, report.get("metadata", {}).get("prices_rub_per_1k")),
+            "review_usage": review_usage, "total_usage": total_usage,
+            "estimated_rub": estimate_cost(total_usage, report.get("metadata", {}).get("prices_rub_per_1k")),
             "live_median_seconds": (ordered[(len(ordered)-1)//2] + ordered[len(ordered)//2]) / 2 if ordered else None,
             "live_p95_seconds": ordered[max(0, math.ceil(len(ordered)*.95)-1)] if ordered else None,
+            "turn_attempts": len(per_turn), "turn_completed": sum(bool(turn.get("completed")) for row in live for turn in row["turns"]),
+            "turn_median_seconds": (per_turn[(len(per_turn)-1)//2]+per_turn[len(per_turn)//2])/2 if per_turn else None,
+            "turn_p95_seconds": per_turn[max(0, math.ceil(len(per_turn)*.95)-1)] if per_turn else None,
+            "tool_calls": {name: sum(turn.get("tools", []).count(name) for row in live for turn in row["turns"]) for name in sorted(ALLOWED_TOOLS)},
             "simulated_attempts": len(simulated),
             "simulated_pass": sum(all(row["controlled_checks"].values()) for row in simulated)}
 
@@ -281,6 +305,7 @@ def interactive_review(case, result):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--list", action="store_true")
+    parser.add_argument("--cases", type=Path, default=CASE_PATH, help="Основной или дополнительный набор сценариев")
     parser.add_argument("--mode", choices=["live", "simulated"])
     parser.add_argument("--case", action="append", default=[])
     parser.add_argument("--visit-date", type=date.fromisoformat)
@@ -293,6 +318,8 @@ def main():
     parser.add_argument("--output-rub-per-1k", type=float)
     parser.add_argument("--max-estimated-rub", type=float, help="Остановка по расчётной стоимости МЕЖДУ ходами; один ход может превысить порог")
     parser.add_argument("--interactive-review", action="store_true", help="Показать ответ/доказательства и записать ручные оценки сразу, без сохранения Maps Content")
+    parser.add_argument("--llm-review", action="store_true", help="Дополнительная платная LLM-разметка по данным MCP; не человеческая экспертиза")
+    parser.add_argument("--spot-check", action="append", default=[], help="Однократно показать исходные данные выбранного кейса для выборочной сверки, без сохранения")
     parser.add_argument("--output", type=Path)
     parser.add_argument("--inspect", action="store_true", help="Показать ответ и доказательства в терминале, без сохранения")
     parser.add_argument("--summarize", type=Path)
@@ -304,7 +331,7 @@ def main():
             apply_review(report, args.review)
         print(json.dumps(summary(report), ensure_ascii=False, indent=2))
         return 0
-    cases = load_cases()
+    cases = load_cases(args.cases)
     if args.list:
         for case in cases:
             print(f"{case['id']}  {case['mode']:9} {case.get('split','development'):11} {case['title']}")
@@ -327,6 +354,13 @@ def main():
     if args.mode == "live" and args.visit_date is None:
         parser.error("Для live явно зафиксируйте --visit-date YYYY-MM-DD")
     config = load_web_config() if args.mode == "live" else None
+    if args.llm_review and (not config or config.provider != "yandex" or args.interactive_review):
+        parser.error("LLM-review доступен в live с Яндексом, отдельно от interactive-review")
+    if args.llm_review:
+        from eval.reviewer import ModelReviewer
+        reviewer = ModelReviewer(config, args.spot_check)
+    else:
+        reviewer = None
     if args.interval is None:
         args.interval = 5 if config and config.provider == "yandex" else 65
     review_path = args.output.with_suffix(".review.csv")
@@ -340,9 +374,11 @@ def main():
               "provider": config.provider if config else "scripted_mock",
               "model": config.model.replace("gpt://" + config.folder_id + "/", "") if config and config.folder_id else config.model if config else "scripted_mock",
               "variant": args.variant, "split": args.split, "max_live_turns": args.max_live_turns,
+              "review_method": "llm_assisted_same_model" if reviewer else "human_pending",
               "prices_rub_per_1k": prices, "max_estimated_rub": args.max_estimated_rub,
               "cost_is_estimate_not_invoice": True, "python": platform.python_version(),
-              "code_sha256": fingerprint(), "dataset_sha256": hashlib.sha256(CASE_PATH.read_bytes()).hexdigest(),
+              "code_sha256": fingerprint(), "dataset_sha256": hashlib.sha256(args.cases.read_bytes()).hexdigest(),
+              "dataset_file": args.cases.name,
               "visit_date": str(args.visit_date) if args.visit_date else None, "interval_seconds": args.interval,
               "raw_content_saved": False}, "results": []}
     gate, pace = RequestGate(cooldown=0), [None]
@@ -359,7 +395,7 @@ def main():
                 print(f"Eval {case['id']} · повтор {repeat}", flush=True)
                 start = time.monotonic()
                 result = run_live(case, config, gate, str(args.visit_date), args.interval, pace,
-                                  args.inspect or args.interactive_review, limits) if config else run_simulated(case["scenario"])
+                                  args.inspect or args.interactive_review, limits, reviewer) if config else run_simulated(case["scenario"])
                 result.update(case_id=case["id"], mode=case["mode"], repeat=repeat, elapsed_seconds=round(time.monotonic()-start, 3))
                 report["results"].append(result)
                 write_report(args.output, report)
@@ -367,6 +403,9 @@ def main():
                     interactive_review(case, result)
                     write_report(args.output, report)
                 print(f"  {result['execution_status']} · {result['elapsed_seconds']} с", flush=True)
+                if config and reviewer:
+                    review = result.get("model_review", {})
+                    print("  review: " + review.get("status", "not_run") + "; issues: " + ",".join(review.get("codes", [])), flush=True)
                 if config and any(turn.get("failure_category") in {"quota", "authentication", "access_denied", "billing"} for turn in result["turns"]):
                     report["metadata"]["stopped_reason"] = "provider_access_or_quota"
                     break
