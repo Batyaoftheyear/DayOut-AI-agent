@@ -6,7 +6,6 @@ import streamlit as st
 from streamlit.errors import StreamlitSecretNotFoundError
 
 from agent import AgentError
-import agent as agent_runtime
 from web_backend import BusyError, CONFIG_NAMES, RequestGate, WebMemory, load_web_config, progress_label, run_action
 
 st.set_page_config(page_title="DayOut — куда пойдём?", page_icon="🧭", layout="centered")
@@ -106,15 +105,6 @@ with st.sidebar:
         st.warning("Нужно проверить связь с моделью.")
     st.button("Проверить связь", use_container_width=True, disabled=busy or config is None,
               on_click=queue_action, args=("check",))
-    with st.expander("О проекте"):
-        st.write("Учебный ассистент: LLM выбирает инструменты официального Google Maps MCP и составляет ответ по найденным данным.")
-        st.caption("Часы работы и стоимость могут быть неизвестны. Проверяйте условия перед посещением.")
-        st.caption("Версия агента: " + getattr(agent_runtime, "AGENT_RELEASE", "прежняя — требуется перезапуск приложения"))
-        st.link_button("Код проекта ↗", "https://github.com/Batyaoftheyear/DayOut-AI-agent")
-        presentation = Path(__file__).with_name("presentation.html")
-        if presentation.is_file():
-            st.download_button("Презентация для защиты", data=presentation.read_bytes(),
-                               file_name="DayOut-presentation.html", mime="text/html")
 
 st.markdown('<div class="eyebrow">ГОРОД · ВПЕЧАТЛЕНИЯ · ВАШИ ПЛАНЫ</div>', unsafe_allow_html=True)
 st.title("Куда пойдём?")
