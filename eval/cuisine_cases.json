@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "C01",
+      "group": "regression",
+      "mode": "live",
+      "split": "development",
+      "title": "Выбор грузинской кухни после поиска ресторанов",
+      "turns": ["Куда сходить в Кузьминках, Москва, в ресторан?", "Хочу грузинскую кухню."],
+      "required_tools": ["search_places"],
+      "required_last_turn_tools": ["search_places"],
+      "required_success_tools": ["search_places"],
+      "forbidden_tools": ["lookup_weather", "compute_routes"],
+      "forbidden_text": ["Укажи доступную метку", "В ответе использованы данные MCP без ссылки"],
+      "context_checks": [{"turn": 2, "expected": {"city": "Москва", "area": "Кузьминки", "cuisine": "грузинская кухня"}}],
+      "criteria": ["relevance", "constraints", "grounding", "honesty", "tool_choice", "dialogue"],
+      "expected": "Вторая реплика вызывает настоящий новый search_places с грузинской кухней, в Кузьминках Москвы. Предложения подтверждены полученными данными и ссылками. При отсутствии подходящих данных честно раскрыта неизвестность. Нет технических инструкций для модели."
+    },
+    {
+      "id": "C02",
+      "group": "regression",
+      "mode": "live",
+      "split": "development",
+      "title": "Выбор кухни с опечаткой",
+      "turns": ["Найди ресторан в Кузьминках, Москва. На двоих, общий бюджет 3000 рублей.", "Хочу грухинскую кухню."],
+      "required_tools": ["search_places"],
+      "required_last_turn_tools": ["search_places"],
+      "required_success_tools": ["search_places"],
+      "forbidden_tools": ["lookup_weather", "compute_routes"],
+      "forbidden_text": ["Укажи доступную метку", "В ответе использованы данные MCP без ссылки"],
+      "context_checks": [{"turn": 2, "expected": {"city": "Москва", "area": "Кузьминки", "cuisine": "грузинская кухня"}}],
+      "budget_checks": [{"turn": 2, "expected": {"amount": 3000, "people": 2, "scope": "total"}}],
+      "criteria": ["relevance", "constraints", "grounding", "honesty", "tool_choice", "dialogue"],
+      "expected": "Опечатка интерпретирована как грузинская кухня. Новый реальный поиск с этой кухней и прежним районом; бюджет 3000 на двоих сохранён без необоснованной гарантии чека. Источники подтверждают содержание либо неизвестность явно раскрыта."
+    }
+  ]
+}

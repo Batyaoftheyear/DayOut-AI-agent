@@ -18,7 +18,7 @@ from request_policy import response_format as plan_response_format, plan_message
 from geo import distance_meters, locations, seconds as duration_seconds
 
 ALLOWED_TOOLS = {"search_places", "lookup_weather", "compute_routes", "resolve_names", "resolve_maps_urls"}
-AGENT_RELEASE = "2026-11-02-r12"
+AGENT_RELEASE = "2026-11-02-r13"
 # Qwen remains available for an explicit rollback. No automatic model fallback.
 REVIEWED_MODEL = "qwen/qwen3.8-27b"
 SUPPORTED_MODELS = frozenset({REVIEWED_MODEL, GPT_OSS_MODEL})
@@ -819,7 +819,7 @@ class DayOutAgent:
         kinds = {"weather": {"lookup_weather"}, "route": {"compute_routes"},
                  "search": {"search_places"}, "resolve_names": {"resolve_names"},
                  "resolve_maps_urls": {"resolve_maps_urls"}}
-        if state.plan and state.plan["task"] == "chat":
+        if state.plan and state.plan["task"] in {"chat", "clarify"}:
             return {}
         allowed = kinds.get(state.plan["task"]) if state.plan else None
         if state.plan and len(state.plan["required_tools"]) > 1:
@@ -945,7 +945,7 @@ class DayOutAgent:
                     # An anchor must be found before any circle can be used.
                     arguments = {'textQuery': f"{plan['geo_anchor']} {plan['city']}", 'pageSize':1}
                 elif name == 'search_places' and anchor:
-                    arguments = {'textQuery': plan['activity'] or 'кафе', 'pageSize':3,
+                    arguments = {'textQuery': ' '.join(filter(None,(plan['activity'] or 'кафе',plan.get('cuisine')))), 'pageSize':3,
                                  'locationBias':{'circle':{'center':copy.deepcopy(anchor),'radiusMeters':1200}}}
                 elif name == 'compute_routes' and anchor:
                     arguments['origin'] = {'latLng':copy.deepcopy(anchor)}
@@ -964,7 +964,7 @@ class DayOutAgent:
                             # An ordinary district search does not need invented
                             # coordinates. Let Maps resolve the explicit area.
                             arguments.pop('locationBias',None)
-                            arguments['textQuery']=' '.join(filter(None,(plan.get('activity'),plan.get('area'),plan['city'])))
+                            arguments['textQuery']=' '.join(filter(None,(plan.get('activity'),plan.get('cuisine'),plan.get('area'),plan['city'])))
                         else:
                             raise ValueError('coordinates must come from MCP')
                     else:
@@ -975,6 +975,9 @@ class DayOutAgent:
             if name == "search_places" and isinstance(arguments, dict):
                 properties = self.tools[name].inputSchema.get("properties", {})
                 query_field = next((key for key in ("textQuery", "text_query") if key in properties), None)
+                if (query_field and plan and plan.get('cuisine') and plan['task']=='search' and not plan.get('geo_anchor')
+                        and (not self.current_state or 'search_places' not in self.current_state.called)):
+                    arguments[query_field]=' '.join(filter(None,(plan.get('activity') or 'рестораны',plan['cuisine'],plan.get('area'),plan['city'])))
                 language = next((key for key in ("languageCode", "language_code") if key in properties), None)
                 if language and language not in arguments:
                     arguments[language] = "ru"

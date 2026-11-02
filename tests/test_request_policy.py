@@ -92,6 +92,54 @@ def test_general_question_after_search_has_no_old_place_sources_or_new_search():
     assert not reply.tools and a.session.call_tool.await_count == 1
 
 
+@pytest.mark.parametrize('query',['Хочу грузинскую кухню.','Хочу грухинскую кухню.'])
+def test_cuisine_followup_searches_again_with_retained_district_and_budget(query):
+    first=plan(amount=3000,action='set')
+    first.update(area='Кузьминки',activity='рестораны')
+    followup=plan('refine')
+    followup.update(city='',area='',activity='',cuisine='грузинская кухня')
+    a=agent([planned(first),call('рестораны Кузьминки Москва'),answer('Кандидат [S1].'),
+        planned(followup),call('рестораны','two'),answer('Новый кандидат [S2].')],[result(),result(SECOND)])
+    async def run():
+        await a.ask('Рестораны в Кузьминках, Москва. Бюджет 3000 рублей на двоих.')
+        return await a.ask(query)
+    reply=asyncio.run(run())
+    assert reply.tools==['search_places'] and SECOND in reply.text and FIRST not in reply.text
+    sent=a.session.call_tool.await_args.kwargs['arguments']['textQuery']
+    assert all(value in sent for value in ('грузинская кухня','Кузьминки','Москва','рестораны'))
+    assert a.last_plan['budget']['amount']==3000 and a.last_plan['budget']['people']==2
+    assert a.llm.complete.await_args_list[4].kwargs['tool_choice']['function']['name']=='search_places'
+
+
+def test_explicit_no_search_and_cuisine_cancellation_have_distinct_actions():
+    previous=plan();previous.update(activity='рестораны',cuisine='грузинская кухня')
+    changed=plan('refine');changed.update(activity='рестораны',cuisine='итальянская кухня')
+    paused=parse_plan(planned(changed),previous,'Хочу итальянскую кухню. Пока ничего не ищи.')
+    assert paused['task']=='refine' and not paused['required_tools'] and paused['cuisine']=='итальянская кухня'
+    cleared=parse_plan(planned(previous | {'task':'refine'}),previous,'Теперь подойдёт любая кухня.')
+    assert cleared['task']=='search' and cleared['cuisine']=='' and cleared['required_tools']==['search_places']
+
+
+def test_clarifying_question_after_a_search_does_not_need_a_place_citation():
+    clarify=plan('clarify');clarify['reference_kind']='places'
+    a=agent([planned(plan()),call('кафе'),answer('Вариант [S1].'),planned(clarify),
+             answer('Какая кухня вам больше нравится?')],[result()])
+    async def run():
+        await a.ask('Найди кафе в Москве.')
+        return await a.ask('Хотелось бы что-нибудь другое.')
+    reply=asyncio.run(run())
+    assert reply.text=='Какая кухня вам больше нравится?' and not reply.tools
+    assert a.session.call_tool.await_count==1 and a.llm.complete.await_count==5
+
+
+def test_source_repair_instructions_are_not_shown_as_user_errors():
+    from agent import SourceValidationError
+    from dayout import safe_error
+    detail='В ответе использованы данные MCP без ссылки. Укажи доступную метку.'
+    message=safe_error(SourceValidationError(detail))
+    assert 'проверенными ссылками' in message and 'Укажи' not in message and 'MCP' not in message
+
+
 def test_unrequested_budget_boilerplate_is_repaired_without_another_search():
     a = agent([planned(plan()), call("кафе"), answer("Вариант [S1]. Попадание в бюджет не подтверждено."),
                answer("Вариант для встречи [S1].")], [result()])

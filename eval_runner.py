@@ -93,6 +93,13 @@ def weather_parameters_match(requests, case, visit_date):
 
 
 def dialogue_constraints_match(turns, case):
+    for check in case.get('context_checks', []):
+        index=check['turn']-1
+        if index >= len(turns) or not turns[index]['completed']:
+            return False
+        actual=turns[index].get('context') or {}
+        if any(actual.get(key)!=value for key,value in check['expected'].items()):
+            return False
     for check in case.get('budget_checks', []):
         index = check['turn'] - 1
         if index >= len(turns) or not turns[index]['completed']:
@@ -156,7 +163,7 @@ def run_live(case, config, gate, visit_date, interval, pace, inspect=False, limi
                       "tool_outcomes": outcomes, "task": observed.get("task"),
                       "weather_requests": observed.get("weather_requests", []),
                       "budget_requested": observed.get("budget_requested"),
-                      "context": {key:(memory.last_plan or {}).get(key) for key in ('city','area','activity','budget')} if result.reply else None})
+                      "context": {key:(memory.last_plan or {}).get(key) for key in ('city','area','activity','cuisine','budget')} if result.reply else None})
         if limits:
             limits["turns"] += 1
             for key, value in usage.items():

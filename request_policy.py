@@ -15,6 +15,7 @@ PLAN_SCHEMA = {
         "city": {"type": "string", "maxLength": 120},
         "area": {"type": "string", "maxLength": 160},
         "activity": {"type": "string", "maxLength": 160},
+        "cuisine": {"type": "string", "maxLength": 120},
         "purpose": {"type": "string", "maxLength": 200},
         "other_constraints": {"type": "string", "maxLength": 500},
         "budget": {"type": "object", "additionalProperties": False, "properties": {
@@ -33,7 +34,7 @@ PLAN_SCHEMA = {
         "geo_anchor": {"type": ["string", "null"]},
         "walk_limit_minutes": {"type": ["integer", "null"], "minimum": 1, "maximum": 720},
     },
-    "required": ["task", "city", "area", "activity", "purpose", "other_constraints", "budget",
+    "required": ["task", "city", "area", "activity", "cuisine", "purpose", "other_constraints", "budget",
                  "strict_area", "required_tools", "reference_kind", "price_requested", "weather_date", "weather_hour", "geo_anchor", "walk_limit_minutes"],
 }
 
@@ -50,6 +51,8 @@ PLAN_PROMPT = """Разбери текущую просьбу для помощ�
 Сохрани применимые прежние условия, новые заменяют старые. Не угадывай город, цены или предпочтения.
 Название города в любом падеже считается указанным: «на юге Москвы», «в Москве», «из Москвы» → city="Москва".
 activity — тип места (рестораны, кафе, парки, музеи, бани), purpose — цель (свидание, разговор, отдых). Не подменяй рестораны словом «свидание» в activity.
+cuisine — кухня для поиска еды, например «грузинская кухня», иначе пустая строка. Сохраняй выбранную кухню при дальнейших уточнениях; «любая кухня» отменяет это условие. Исправляй очевидные опечатки в названии кухни.
+После поиска ресторанов «хочу грузинскую кухню» (в том числе «грухинскую») означает новый search, cuisine="грузинская кухня"; сохрани прежние город, район, тип места и бюджет. Это не refine. Если явно просят только запомнить условие без поиска, поиск запрещён.
 В «Найди красивые места для прогулки вдвоём на юге Москвы» уже есть город: task=search, city="Москва", required_tools=["search_places"].
 task=search: поиск новых мест, смена категории (кафе→баня), района, времени/бюджета или иных условий поиска.
 refine: только сократить/объяснить уже выбранные варианты, без новых фактов. chat: общая беседа или объяснение ошибки.
@@ -93,6 +96,9 @@ def parse_plan(message, previous=None, query=""):
     if content.startswith("```"):
         content = content.split("\n", 1)[1].rsplit("```", 1)[0]
     plan = json.loads(content)
+    # Accept plans from an older session while requesting the explicit field
+    # from the current model schema.
+    plan.setdefault('cuisine', (previous or {}).get('cuisine',''))
     validate(plan, PLAN_SCHEMA)
     no_search = re.search(r'не\s+ищи|не\s+искать|не\s+подбирай|без\s+(?:нового\s+)?поиска|только\s+запомни|пока\s+ничего',query,re.I)
     explicit_search = re.search(r'\b(?:найди|подбери|поищи|покажи|предложи|посоветуй|переподбери|посмотри)\b',query,re.I)
@@ -104,6 +110,17 @@ def parse_plan(message, previous=None, query=""):
                             and re.search(r'\b(?:а|теперь|лучше)\b',query,re.I))
     changed_area = bool(previous and plan['area'].strip() and plan['area'] != previous.get('area'))
     broaden_area = bool(re.search(r'не\s+ограничива|по\s+всей\s+москве|любой\s+район',query,re.I))
+    clear_cuisine = bool(re.search(r'любая\s+кухня|кухня\s+не\s*важна|без\s+ограничений\s+по\s+кухне',query,re.I))
+    if clear_cuisine:
+        plan['cuisine']=''
+    elif previous and not plan['cuisine'].strip() and (plan['task']!='search' or
+            re.search(r'ресторан|кафе|кофейн|бар|еда|поесть',plan['activity'] or previous.get('activity',''),re.I)):
+        plan['cuisine']=previous.get('cuisine','')
+    changed_cuisine = bool(previous and plan['cuisine'] != previous.get('cuisine',''))
+    if changed_cuisine:
+        for key in ('city','area','activity'):
+            if not plan[key].strip():
+                plan[key]=previous.get(key,'')
     if broaden_area and not no_search:
         plan['strict_area']=False
         if previous and plan['area']==previous.get('area'):
@@ -112,7 +129,7 @@ def parse_plan(message, previous=None, query=""):
         plan['walk_limit_minutes']=None
         if not re.search('маршрут',query,re.I):
             plan['required_tools']=[t for t in plan['required_tools'] if t!='compute_routes']
-    if plan['task'] in {'refine','chat'} and (explicit_search or verify_hours or changed_category or changed_area or broaden_area) and not no_search:
+    if plan['task'] in {'refine','chat'} and (explicit_search or verify_hours or changed_category or changed_area or broaden_area or changed_cuisine) and not no_search:
         plan['task']='search'
     if plan['task'] == 'search':
         if len(categories) == 1:
@@ -159,6 +176,8 @@ def instructions(plan):
     text = "\nПлан текущего хода (условия пользователя, не данные о местах): " + json.dumps(plan, ensure_ascii=False, separators=(",", ":"))
     text += "\nВыполни необходимые инструменты перед итогом. Новую категорию нельзя объявлять отсутствующей по старой выдаче."
     text += "\nВыбирай и объясняй варианты для цели пользователя; не пересказывай нерелевантные свойства карточек."
+    if plan.get('cuisine'):
+        text += '\nВ поисковый textQuery обязательно включи выбранную кухню: '+plan['cuisine']+'. Другую кухню не объявляй подходящей без данных.'
     text += "\nЕсли summary не подтверждает район, не утверждай точное соответствие району: сообщи, что это кандидаты по запросу, и предложи проверить расположение по ссылке."
     if budget["amount"] is not None:
         text += ("\nДенежное ограничение учитывай при отборе: сумма, единица и число людей хранятся в плане. "

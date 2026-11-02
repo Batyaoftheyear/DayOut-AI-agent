@@ -11,7 +11,7 @@ import httpx
 from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 
-from agent import AgentError, DayOutAgent, GroqConnectionError, QuotaPauseError, discover_tools
+from agent import AgentError, DayOutAgent, GroqConnectionError, QuotaPauseError, SourceValidationError, discover_tools
 from mcp_check import MCP_URL, error_message as mcp_error_message
 from provider_config import load_settings
 from yandex_client import make_client
@@ -135,6 +135,8 @@ async def run(config, queries: list[str], emit, show_usage=False):
 def safe_error(error: BaseException) -> str:
     if isinstance(error, BaseExceptionGroup):
         return " / ".join(dict.fromkeys(safe_error(item) for item in error.exceptions))
+    if isinstance(error, SourceValidationError):
+        return "Не удалось подготовить ответ с проверенными ссылками на источники. Попробуйте повторить запрос."
     if isinstance(error, AgentError):
         return str(error)
     return "Google Maps: " + mcp_error_message(error)
