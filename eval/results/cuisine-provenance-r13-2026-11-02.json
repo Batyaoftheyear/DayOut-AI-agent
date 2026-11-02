@@ -1,0 +1,13 @@
+{
+  "scope": "cuisine_release_provenance",
+  "tag": "eval-r13-2026-11-02",
+  "commit": "ca15a50002f0c04a9a39e1a6882e2f508906db30",
+  "measured_local_fingerprint": "2261c1b11c8483874fc0d7b3dd296f7a7e7a32b3d759c2ed44e6e5d9f446dbf5",
+  "git_blob_fingerprint": "1f304562fefc45e4088245a9afdce1f13228fc9c12a5d76bf18a77268e0f6c52",
+  "python_files_identical": true,
+  "dependency_versions_identical": true,
+  "byte_differences": [
+    "requirements.txt"
+  ],
+  "difference_reason": "Only CRLF/LF in requirements.txt; Python code and dependency versions are identical."
+}
