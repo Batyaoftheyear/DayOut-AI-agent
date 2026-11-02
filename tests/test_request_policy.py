@@ -314,6 +314,24 @@ def test_new_search_request_overrides_a_previous_temporary_no_search_command():
     assert parse_plan(planned(p),previous,'Перечисли условия, новых мест не ищи.')['task']=='refine'
 
 
+@pytest.mark.parametrize('query,activity',[
+    ('Удобно завтра в 22:00. Проверь часы работы этих вариантов.','кафе'),
+    ('А теперь лучше бани, район и бюджет те же.','бани'),
+])
+def test_hours_and_new_category_require_search_even_when_planner_calls_it_refinement(query,activity):
+    previous=plan();previous['activity']='кафе'
+    p=plan('refine');p['activity']='кафе'
+    current=parse_plan(planned(p),previous,query)
+    assert current['task']=='search' and current['activity']==activity and current['required_tools']==['search_places']
+
+
+def test_dropping_the_area_restarts_search_without_the_old_metro_radius():
+    previous=plan();previous.update(area='Алтуфьево',geo_anchor='метро Алтуфьево',walk_limit_minutes=15)
+    p=dict(previous,task='refine')
+    current=parse_plan(planned(p),previous,'А если не ограничиваться Алтуфьево?')
+    assert current['task']=='search' and current['area']=='' and current['geo_anchor'] is None
+
+
 def test_coordinates_from_retained_place_evidence_work_after_unrelated_turns():
     center={'latitude':55.7,'longitude':37.6}
     a=agent([], [result(SECOND)])
@@ -326,6 +344,18 @@ def test_coordinates_from_retained_place_evidence_work_after_unrelated_turns():
     payload,_=asyncio.run(a.execute(invocation))
     assert 'error' not in payload
     assert a.session.call_tool.await_args.kwargs['arguments']['locationBias']['circle']['center']==center
+
+
+def test_first_district_search_drops_unverified_coordinates_and_uses_named_location():
+    a=agent([], [result()])
+    a.tools['search_places'].inputSchema['properties']['locationBias']={'type':'object'}
+    invocation=call('кафе')['tool_calls'][0]
+    invocation['function']['arguments']=json.dumps({'textQuery':'кафе','locationBias':{'circle':{
+        'center':{'latitude':55.7,'longitude':37.6},'radiusMeters':1000}}})
+    payload,_=asyncio.run(a.execute(invocation,plan()))
+    sent=a.session.call_tool.await_args.kwargs['arguments']
+    assert 'error' not in payload and 'locationBias' not in sent
+    assert 'Москва' in sent['textQuery'] and 'Нагатино' in sent['textQuery']
 
 
 def test_missing_city_is_still_a_question_without_a_search():

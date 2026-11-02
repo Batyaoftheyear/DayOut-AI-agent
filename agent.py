@@ -17,7 +17,7 @@ from request_policy import response_format as plan_response_format, plan_message
 from geo import distance_meters, locations, seconds as duration_seconds
 
 ALLOWED_TOOLS = {"search_places", "lookup_weather", "compute_routes", "resolve_names", "resolve_maps_urls"}
-AGENT_RELEASE = "2026-11-02-r10"
+AGENT_RELEASE = "2026-11-02-r11"
 # Qwen remains available for an explicit rollback. No automatic model fallback.
 REVIEWED_MODEL = "qwen/qwen3.8-27b"
 SUPPORTED_MODELS = frozenset({REVIEWED_MODEL, GPT_OSS_MODEL})
@@ -342,6 +342,7 @@ class GroqClient:
     provider = "Groq"
     api_url = API_URL
     token_parameter = "max_completion_tokens"
+    network_retry_limit = 0
 
     def request_options(self):
         return model_options(self.model)
@@ -444,9 +445,17 @@ class GroqClient:
                       f"(остаток {self.remaining_tokens}, оценка запроса ~{estimated} токенов).")
             await asyncio.sleep(delay + 1)
         try:
-            self.usage_totals["requests"] += 1
-            self.usage_totals["missing_usage"] += 1
-            response = await self.client.post(f"{self.api_url}/chat/completions", json=body)
+            for attempt in range(self.network_retry_limit + 1):
+                self.usage_totals["requests"] += 1
+                self.usage_totals["missing_usage"] += 1
+                try:
+                    response = await self.client.post(f"{self.api_url}/chat/completions", json=body)
+                    break
+                except httpx.RequestError:
+                    if attempt >= self.network_retry_limit:
+                        raise
+                    self.emit(f"{self.provider}: временный сбой связи; повтор генерации один раз. Результаты инструментов сохранены.")
+                    await asyncio.sleep(.5)
             self.update_limits(response.headers)
             if response.status_code == 429:
                 self.quota_kind, wait = quota_details(response)
@@ -894,9 +903,16 @@ class DayOutAgent:
                         known += [point for _,payload in tool_evidence(self.current_state.messages[self.current_state.begin:]) for point in locations(payload)]
                     nearby = [point for point in known if distance_meters(circle['center'], point) < 100]
                     if not nearby:
-                        raise ValueError('coordinates must come from MCP')
-                    # Restore exact MCP coordinates when the model rounded them.
-                    circle['center'] = min(nearby, key=lambda p: distance_meters(circle['center'], p))
+                        if plan and plan.get('city') and not plan.get('geo_anchor'):
+                            # An ordinary district search does not need invented
+                            # coordinates. Let Maps resolve the explicit area.
+                            arguments.pop('locationBias',None)
+                            arguments['textQuery']=' '.join(filter(None,(plan.get('activity'),plan.get('area'),plan['city'])))
+                        else:
+                            raise ValueError('coordinates must come from MCP')
+                    else:
+                        # Restore exact MCP coordinates when the model rounded them.
+                        circle['center'] = min(nearby, key=lambda p: distance_meters(circle['center'], p))
             # A small default reduces upstream output without overriding an
             # explicitly requested result count or assuming an undocumented field.
             if name == "search_places" and isinstance(arguments, dict):

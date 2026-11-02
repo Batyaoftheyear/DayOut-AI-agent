@@ -96,12 +96,25 @@ def parse_plan(message, previous=None, query=""):
     validate(plan, PLAN_SCHEMA)
     no_search = re.search(r'не\s+ищи|не\s+искать|не\s+подбирай|без\s+(?:нового\s+)?поиска|только\s+запомни|пока\s+ничего',query,re.I)
     explicit_search = re.search(r'\b(?:найди|подбери|поищи|покажи|предложи|посоветуй|переподбери|посмотри)\b',query,re.I)
-    if plan['task'] in {'refine','chat'} and explicit_search and not no_search:
+    verify_hours = re.search(r'проверь[^.!?]{0,50}(?:час|расписан|работ|открыт)',query,re.I)
+    requested = query.lower().split('вместо', 1)[0]
+    categories = [name for pattern,name in ((r'ресторан', 'рестораны'), (r'кафе|кофейн', 'кафе'),
+        (r'музе', 'музеи'), (r'бан[ияьюе]|саун', 'бани'), (r'аквапарк', 'аквапарки')) if re.search(pattern, requested)]
+    changed_category = bool(previous and len(categories)==1 and categories[0] != previous.get('activity')
+                            and re.search(r'\b(?:а|теперь|лучше)\b',query,re.I))
+    changed_area = bool(previous and plan['area'].strip() and plan['area'] != previous.get('area'))
+    broaden_area = bool(re.search(r'не\s+ограничива|по\s+всей\s+москве|любой\s+район',query,re.I))
+    if broaden_area and not no_search:
+        plan['strict_area']=False
+        if previous and plan['area']==previous.get('area'):
+            plan['area']=''
+        plan['geo_anchor']=None
+        plan['walk_limit_minutes']=None
+        if not re.search('маршрут',query,re.I):
+            plan['required_tools']=[t for t in plan['required_tools'] if t!='compute_routes']
+    if plan['task'] in {'refine','chat'} and (explicit_search or verify_hours or changed_category or changed_area or broaden_area) and not no_search:
         plan['task']='search'
     if plan['task'] == 'search':
-        requested = query.lower().split('вместо', 1)[0]
-        categories = [name for pattern,name in ((r'ресторан', 'рестораны'), (r'кафе|кофейн', 'кафе'),
-            (r'музе', 'музеи'), (r'бан[ияьюе]|саун', 'бани'), (r'аквапарк', 'аквапарки')) if re.search(pattern, requested)]
         if len(categories) == 1:
             plan['activity'] = categories[0]
     # The MVP focuses on Moscow. Preserve an explicitly supplied city even if

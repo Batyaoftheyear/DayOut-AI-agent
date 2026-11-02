@@ -37,6 +37,7 @@ class YandexClient(GroqClient):
     provider = "Yandex AI Studio"
     api_url = API_URL
     token_parameter = "max_tokens"
+    network_retry_limit = 1
 
     def request_options(self):
         return {"temperature": 0.2}

@@ -1,0 +1,354 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "B03",
+      "group": "basic",
+      "mode": "live",
+      "title": "Прогулка",
+      "turns": [
+        "Найди два места для спокойной прогулки на юге Москвы. Маршрут между ними пока не нужен."
+      ],
+      "required_tools": [
+        "search_places"
+      ],
+      "forbidden_tools": [
+        "lookup_weather",
+        "compute_routes"
+      ],
+      "criteria": [
+        "relevance",
+        "constraints",
+        "grounding",
+        "honesty",
+        "tool_choice"
+      ],
+      "expected": "Две подходящие локации с источниками; без выдуманных минут пути, сезонных развлечений и гарантий круглосуточного входа.",
+      "split": "development"
+    },
+    {
+      "id": "D03",
+      "group": "dialogue",
+      "mode": "live",
+      "title": "Уточнить позднее время",
+      "turns": [
+        "Найди два кафе в Москве на юге города.",
+        "Удобно {visit_date} в 22:00 по московскому времени. Проверь часы работы этих вариантов."
+      ],
+      "required_tools": [
+        "search_places"
+      ],
+      "required_last_turn_tools": [
+        "search_places"
+      ],
+      "forbidden_tools": [
+        "lookup_weather"
+      ],
+      "criteria": [
+        "relevance",
+        "constraints",
+        "grounding",
+        "honesty",
+        "tool_choice",
+        "dialogue"
+      ],
+      "expected": "Второй ход проверяет часы, сохраняет тип и область поиска; нет пустого обещания «проверю» и предположения, что открытый парк круглосуточен.",
+      "split": "holdout"
+    },
+    {
+      "id": "B07",
+      "group": "basic",
+      "mode": "live",
+      "split": "development",
+      "title": "Близость ресторанов к станции метро",
+      "turns": [
+        "Найди два тихих ресторана для свидания рядом с метро Бутырская в Москве. Общий бюджет 3000 рублей на двоих. Близость означает до 15 минут пешком от станции; если подходящих мест нет, честно скажи, не подменяй их далёкими."
+      ],
+      "required_tools": [
+        "search_places",
+        "compute_routes"
+      ],
+      "forbidden_tools": [],
+      "criteria": [
+        "relevance",
+        "constraints",
+        "grounding",
+        "honesty",
+        "tool_choice"
+      ],
+      "expected": "Маршруты WALK от станции к выбранным кандидатам подтверждают предел 15 минут; далёкие места не объявлены ближайшими. Если близость или цены не подтверждены, это раскрыто; гарантии бюджета нет.",
+      "required_success_tools": [
+        "search_places",
+        "compute_routes"
+      ]
+    },
+    {
+      "id": "D04",
+      "group": "dialogue",
+      "mode": "live",
+      "split": "development",
+      "title": "Смена категории с сохранением бюджета",
+      "turns": [
+        "Найди кафе в Нагатино, Москва, для двоих. Общий бюджет 4000 рублей.",
+        "А теперь лучше бани, район и общий бюджет те же."
+      ],
+      "required_tools": [
+        "search_places"
+      ],
+      "forbidden_tools": [],
+      "criteria": [
+        "relevance",
+        "constraints",
+        "grounding",
+        "honesty",
+        "tool_choice",
+        "dialogue"
+      ],
+      "expected": "Во втором ходе свежий поиск бань с прежними районом, городом, двумя людьми и 4000 на всех. Старые кафе не становятся источниками о банях.",
+      "required_last_turn_tools": [
+        "search_places"
+      ],
+      "required_last_text": [
+        "4000"
+      ]
+    },
+    {
+      "id": "E02",
+      "title": "Изменить число людей при прежнем бюджете на человека",
+      "group": "extended",
+      "mode": "live",
+      "split": "development",
+      "turns": [
+        "Найди кафе в центре Москвы для двоих. Бюджет 1500 рублей на человека.",
+        "Теперь нас трое. Бюджет на человека и остальные условия прежние. Переподбери варианты."
+      ],
+      "required_tools": [
+        "search_places"
+      ],
+      "forbidden_tools": [],
+      "criteria": [
+        "relevance",
+        "constraints",
+        "grounding",
+        "honesty",
+        "tool_choice",
+        "dialogue"
+      ],
+      "expected": "Во втором поиске три человека и 1500 рублей на человека, не общий бюджет. Цены без источника не гарантированы.",
+      "required_last_turn_tools": [
+        "search_places"
+      ],
+      "required_last_text": [
+        "1500"
+      ]
+    },
+    {
+      "id": "L01",
+      "title": "Диалог из пятнадцати ходов",
+      "group": "extended",
+      "mode": "live",
+      "split": "development",
+      "turns": [
+        "Ищем место для свидания в Москве. Нас двое, общий бюджет 3000 рублей. Пока ничего не ищи, запомни условия.",
+        "Предложи два тихих кафе в центре Москвы.",
+        "Сократи описание каждого до одного предложения по уже найденным данным. Новых мест не ищи.",
+        "Теперь не ограничивайся центром. Найди варианты на юге Москвы.",
+        "Лучше в Нагатино. Посмотри там, остальные условия прежние.",
+        "Теперь ресторан вместо кафе. Остальные условия прежние.",
+        "Уменьшим общий бюджет до 2000 рублей на двоих. Переподбери варианты.",
+        "Перечисли текущие условия поиска. Новые места не ищи.",
+        "Отменяем денежное ограничение. Переподбери рестораны по остальным условиям.",
+        "Сравни последние варианты по уже полученным данным: что подходит для спокойного разговора? Новых мест не ищи.",
+        "Отдельный вопрос: какая погода в Москве {visit_date}? Нужен дневной прогноз.",
+        "Ещё отдельный вопрос: построй пеший маршрут от Красной площади до Волхонки, 12, Москва.",
+        "Вернёмся к ресторанам. Напомни последние условия поиска ресторанов. Ничего не ищи.",
+        "Теперь найди ещё два ресторана по этим условиям.",
+        "Составь короткий итог по последним двум вариантам: название, почему подходят, ссылка и что неизвестно. Новых мест не ищи."
+      ],
+      "required_tools": [
+        "search_places",
+        "lookup_weather",
+        "compute_routes"
+      ],
+      "forbidden_tools": [],
+      "criteria": [
+        "relevance",
+        "constraints",
+        "grounding",
+        "honesty",
+        "tool_choice",
+        "dialogue"
+      ],
+      "expected": "Все 15 ходов завершаются. Сохраняются Москва, Нагатино, двое, спокойный разговор; категория ресторан. 3000 заменяется на 2000, затем бюджет отменён и не возвращается. Отдельные погода/маршрут не меняют область ресторанов. Нет выдуманных ссылок/цен.",
+      "forbidden_last_text": [
+        "попадание в бюджет",
+        "2000",
+        "3000"
+      ],
+      "forbidden_last_tools": [
+        "search_places",
+        "lookup_weather",
+        "compute_routes",
+        "resolve_names",
+        "resolve_maps_urls"
+      ],
+      "no_tools_turns": [
+        1,
+        3,
+        8,
+        10,
+        13,
+        15
+      ],
+      "budget_checks": [
+        {
+          "turn": 1,
+          "expected": {
+            "amount": 3000,
+            "people": 2,
+            "scope": "total"
+          }
+        },
+        {
+          "turn": 2,
+          "expected": {
+            "amount": 3000,
+            "people": 2,
+            "scope": "total"
+          }
+        },
+        {
+          "turn": 4,
+          "expected": {
+            "amount": 3000,
+            "people": 2,
+            "scope": "total"
+          }
+        },
+        {
+          "turn": 5,
+          "expected": {
+            "amount": 3000,
+            "people": 2,
+            "scope": "total"
+          }
+        },
+        {
+          "turn": 6,
+          "expected": {
+            "amount": 3000,
+            "people": 2,
+            "scope": "total"
+          }
+        },
+        {
+          "turn": 7,
+          "expected": {
+            "amount": 2000,
+            "people": 2,
+            "scope": "total"
+          }
+        },
+        {
+          "turn": 8,
+          "expected": {
+            "amount": 2000,
+            "people": 2,
+            "scope": "total"
+          }
+        },
+        {
+          "turn": 9,
+          "expected": {
+            "amount": null
+          }
+        },
+        {
+          "turn": 10,
+          "expected": {
+            "amount": null
+          }
+        },
+        {
+          "turn": 13,
+          "expected": {
+            "amount": null
+          }
+        },
+        {
+          "turn": 14,
+          "expected": {
+            "amount": null
+          }
+        },
+        {
+          "turn": 15,
+          "expected": {
+            "amount": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "E05",
+      "title": "Город в родительном падеже",
+      "group": "regression",
+      "mode": "live",
+      "split": "development",
+      "turns": [
+        "Найди красивые места для прогулки вдвоём на юге Москвы."
+      ],
+      "required_tools": [
+        "search_places"
+      ],
+      "required_success_tools": [
+        "search_places"
+      ],
+      "forbidden_tools": [
+        "lookup_weather",
+        "compute_routes"
+      ],
+      "forbidden_text": [
+        "В каком городе"
+      ],
+      "criteria": [
+        "relevance",
+        "constraints",
+        "grounding",
+        "honesty",
+        "tool_choice",
+        "clarification"
+      ],
+      "expected": "Без повторного вопроса о городе. Реальный search_places и места-кандидаты по запросу с источниками; красота и романтичность не гарантируются."
+    },
+    {
+      "id": "T07",
+      "group": "combined",
+      "mode": "live",
+      "split": "development",
+      "title": "Прогулка, кафе, погода и маршрут",
+      "turns": [
+        "Хочу {visit_date} погулять на юге Москвы, затем зайти в кафе. Найди две точки, проверь погоду и пеший маршрут между выбранными точками. Цены не нужны."
+      ],
+      "required_tools": [
+        "search_places",
+        "lookup_weather",
+        "compute_routes"
+      ],
+      "forbidden_tools": [],
+      "criteria": [
+        "relevance",
+        "constraints",
+        "grounding",
+        "honesty",
+        "tool_choice"
+      ],
+      "expected": "Выполнена связанная цепочка: найденные точки, погода нужной даты и маршрут именно между выбранными точками; ошибки раскрыты отдельно.",
+      "required_success_tools": [
+        "search_places",
+        "lookup_weather",
+        "compute_routes"
+      ]
+    }
+  ]
+}

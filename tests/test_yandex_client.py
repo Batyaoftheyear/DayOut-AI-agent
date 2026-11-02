@@ -87,6 +87,24 @@ def test_named_tool_choice_reaches_yandex_http_request():
     assert sent[0]['temperature']==0.2
 
 
+def test_transient_network_failure_retries_only_generation_and_records_unknown_usage():
+    sent=[]
+    def handler(request):
+        sent.append(json.loads(request.content))
+        if len(sent)==1:
+            raise httpx.ReadError('temporary transport failure',request=request)
+        return httpx.Response(200,json={'choices':[{'finish_reason':'stop','message':{'role':'assistant','content':'OK'}}],
+                                      'usage':{'prompt_tokens':10,'completion_tokens':1}})
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
+            llm=YandexClient(http,MODEL)
+            result=await llm.complete([{'role':'user','content':'fixed technical text'}],[])
+            assert result['content']=='OK' and llm.usage_totals['requests']==2
+            assert llm.usage_totals['missing_usage']==1
+    asyncio.run(run())
+    assert len(sent)==2 and sent[0]==sent[1]
+
+
 @pytest.mark.parametrize("status,kind", [(400, AgentError), (401, GroqConnectionError), (402, GroqConnectionError),
                                         (403, GroqConnectionError), (404, AgentError), (429, QuotaPauseError)])
 def test_yandex_errors_are_safe_name_correct_provider_and_never_auto_retry(status, kind):
