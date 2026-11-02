@@ -3,6 +3,7 @@
 import asyncio
 import copy
 import json
+import math
 import re
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
@@ -17,7 +18,7 @@ from request_policy import response_format as plan_response_format, plan_message
 from geo import distance_meters, locations, seconds as duration_seconds
 
 ALLOWED_TOOLS = {"search_places", "lookup_weather", "compute_routes", "resolve_names", "resolve_maps_urls"}
-AGENT_RELEASE = "2026-11-02-r11"
+AGENT_RELEASE = "2026-11-02-r12"
 # Qwen remains available for an explicit rollback. No automatic model fallback.
 REVIEWED_MODEL = "qwen/qwen3.8-27b"
 SUPPORTED_MODELS = frozenset({REVIEWED_MODEL, GPT_OSS_MODEL})
@@ -156,6 +157,8 @@ def replace_strings(value, replacements: dict):
 
 
 def render_sources(text: str, aliases: dict) -> str:
+    text = re.sub(r'\[((?:S\d+\s*[,;]\s*)+S\d+)\]',
+                  lambda m:' '.join('['+x+']' for x in re.findall(r'S\d+',m[1])),text)
     # Some models wrap the source placeholder in a Markdown link: normalize first.
     text = re.sub(r"\[[^\]\n]+\]\((\[S\d+\])\)", r"\1", text)
     if any(tag not in aliases for tag in re.findall(r"\[S\d+\]", text)):
@@ -650,19 +653,23 @@ class DayOutAgent:
                                 raise SourceValidationError("В ответе использованы данные MCP без ссылки. Укажи доступную метку рядом с поддерживаемым текстом.")
                         except AnswerValidationError as error:
                             if state.repairs >= (2 if state.plan else 1) or str(error) in state.repair_codes:
-                                raise
-                            state.repairs += 1
-                            state.repair_codes.append(str(error))
-                            self.emit(f"{self.provider}: ответ не прошёл проверку; одна попытка исправления (расходует токены).")
-                            # Do not feed fabricated prose or URLs back as evidence.
-                            messages.append({"role": "user", "content": (
-                                "Ответ отклонён: " + str(error) + " Используй только доступные метки источников "
-                                "и полученные данные MCP. Если причина требует инструмент, вызови его; "
-                                "если для рекомендации нет данных, вызови search_places; "
-                                "в остальных случаях исправь текст по уже полученным данным. "
-                                "Не обещай проверку в фоне. Неизвестные часы и время пути обозначь как неизвестные."
-                            )})
-                            continue
+                                fallback=self.nearby_fallback(state) or self.search_fallback(state)
+                                if fallback is None:
+                                    raise
+                                text=fallback
+                            else:
+                                state.repairs += 1
+                                state.repair_codes.append(str(error))
+                                self.emit(f"{self.provider}: ответ не прошёл проверку; одна попытка исправления (расходует токены).")
+                                # Do not feed fabricated prose or URLs back as evidence.
+                                messages.append({"role": "user", "content": (
+                                    "Ответ отклонён: " + str(error) + " Используй только доступные метки источников "
+                                    "и полученные данные MCP. Если причина требует инструмент, вызови его; "
+                                    "если для рекомендации нет данных, вызови search_places; "
+                                    "в остальных случаях исправь текст по уже полученным данным. "
+                                    "Не обещай проверку в фоне. Неизвестные часы и время пути обозначь как неизвестные."
+                                )})
+                                continue
                         text = self.with_budget_context(text, state.plan)
                         messages.append({"role": "assistant", "content": text})
                         # Commit a complete turn only; failed turns never corrupt tool-call history.
@@ -689,8 +696,10 @@ class DayOutAgent:
                     ids = {item["id"] for previous in messages if previous.get("role") == "assistant"
                            for item in previous.get("tool_calls") or []}
                     for index, call in enumerate(calls):
-                        if not isinstance(call, dict) or not isinstance(call.get("id"), str) or not call["id"]:
-                            raise AgentError("Некорректный ID вызова инструмента.")
+                        if not isinstance(call, dict):
+                            raise AgentError("Некорректный формат вызова инструмента.")
+                        if not isinstance(call.get('id'),str) or not call['id']:
+                            call['id']=f'dayout_{state.steps}_{index}'
                         if call["id"] in ids:
                             call["id"] = f"dayout_{state.steps}_{index}"
                             while call["id"] in ids:
@@ -730,6 +739,54 @@ class DayOutAgent:
                 raise AgentError("Истёк общий таймаут ответа. Ход сохранён в памяти; "
                                  "в течение 5 минут можно продолжить через /retry.") from None
             raise AgentError("Истёк общий таймаут ответа. Уточните запрос или повторите позже.") from None
+
+    def search_fallback(self,state):
+        """Use only the current search response if generated citations fail."""
+        if not state.plan or state.plan['task']!='search' or state.plan.get('geo_anchor'):
+            return None
+        if set(state.plan['required_tools'])-set(state.called):
+            return None
+        searches=[p for n,p in tool_evidence(state.messages[state.begin:]) if n=='search_places' and p.get('places')]
+        if not searches:
+            return None
+        candidates={}
+        for payload in searches:
+            all_sources=collect_sources(payload)
+            for place in payload['places']:
+                for url,title in collect_sources(place).items():
+                    paragraphs=[p for p in str(payload.get('summary','')).split('\n\n') if url in p]
+                    excerpt=next((p for p in paragraphs if not any(other!=url and other in p for other in all_sources)), '')
+                    excerpt=re.sub(r'\*\*.*?\*\*|https?://\S+|\([^)]*★[^)]*\)', '', excerpt).strip(' —-.,')
+                    words=excerpt.split()
+                    excerpt=' '.join(words[:35])+('…' if len(words)>35 else '')
+                    candidates[url]=(title.removesuffix(' - Google Maps'),excerpt)
+        lines=['По запросу найдены следующие кандидаты. Соответствие всем пожеланиям требует уточнения:']
+        for url,(title,excerpt) in list(candidates.items())[:3]:
+            title=title.replace('\n',' ').replace('[','').replace(']','')
+            lines.append(f"- **{title}** — {excerpt+' ' if excerpt else ''}[Google Maps]({url})")
+        return '\n\n'.join(lines) if candidates else None
+
+    def nearby_fallback(self,state):
+        """Render only route-verified nearby candidates if generated prose fails."""
+        if not state.plan or state.plan['task']!='search' or not state.plan.get('geo_anchor'):
+            return None
+        evidence=list(tool_evidence(state.messages[state.begin:]))
+        searches=[p for n,p in evidence if n=='search_places' and p.get('places')]
+        checks=[check for _,p in evidence for check in p.get('app_route_check',[])]
+        if len(searches)<2 or not checks:
+            return None
+        sources={url:title for p in searches[1:] for url,title in collect_sources(p).items()}
+        qualified={url:check['duration_seconds'] for check in checks if check['within_walk_limit']
+                   for url in check['candidate_urls'] if url in sources}
+        limit=state.plan.get('walk_limit_minutes')
+        if not qualified:
+            return f"В полученной выдаче не удалось подтвердить варианты в пределах {limit} минут пешком от {state.plan['geo_anchor']}. Найденные места не предлагаются как подходящие под этот предел."
+        lines=['По пешему маршруту подтверждены следующие кандидаты:']
+        for url,seconds in sorted(qualified.items(),key=lambda x:x[1])[:2]:
+            title=sources[url].removesuffix(' - Google Maps').replace('\n',' ').replace('[','').replace(']','')
+            lines.append(f"- **{title}** — около {math.ceil(seconds/60)} мин пешком. [Google Maps]({url})")
+        lines.append('Атмосфера и полная стоимость посещения требуют отдельной проверки.')
+        return '\n\n'.join(lines)
 
     def next_tool_choice(self, state):
         """Require missing planned actions, while keeping dependent routes last."""

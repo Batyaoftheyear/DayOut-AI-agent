@@ -404,3 +404,39 @@ def test_place_link_cannot_hide_a_route_over_the_requested_walking_limit():
     with pytest.raises(AnswerValidationError,match='21.6'):
         a.validate_geography(state,f'Подходящее кафе: [Google Maps]({FIRST}), 15 минут пешком.')
     a.validate_geography(state,f'Не подходит: [Google Maps]({FIRST}), путь превышает 15 минут.')
+
+
+def test_nearby_fallback_uses_only_verified_route_and_cannot_include_far_candidates():
+    from agent import TurnState
+    p=plan();p.update(geo_anchor='метро Синтетическая',walk_limit_minutes=15)
+    messages=[]
+    for index,(name,payload) in enumerate([
+        ('search_places',result('https://example.test/anchor').structuredContent),
+        ('search_places',{'places':[{'attribution':{'title':'Fixture','url':FIRST}},
+                                   {'attribution':{'title':'Far fixture','url':SECOND}}]}),
+        ('compute_routes',{'app_route_check':[{'candidate_urls':[FIRST],'duration_seconds':840,'within_walk_limit':True},
+                                              {'candidate_urls':[SECOND],'duration_seconds':1800,'within_walk_limit':False}]})]):
+        messages.extend([{'role':'assistant','tool_calls':[{'id':str(index),'function':{'name':name}}]},
+                         {'role':'tool','tool_call_id':str(index),'content':json.dumps(payload)}])
+    state=TurnState('test',messages,0,{},[],{});state.plan=p
+    text=agent([],[]).nearby_fallback(state)
+    assert FIRST in text and SECOND not in text and '14 мин' in text
+
+
+def test_grouped_source_markers_still_reject_unknown_sources():
+    from agent import render_sources,SourceValidationError
+    text=render_sources('Кандидаты [S1, S2].',{'[S1]':FIRST,'[S2]':SECOND})
+    assert FIRST in text and SECOND in text
+    with pytest.raises(SourceValidationError):
+        render_sources('Кандидаты [S1, S99].',{'[S1]':FIRST})
+
+
+def test_search_fallback_cannot_reuse_a_place_from_a_different_category():
+    from agent import TurnState
+    payload={'places':[{'attribution':{'title':'Synthetic bath - Google Maps','url':SECOND}}],
+             'summary':f'**Synthetic bath** {SECOND} — в описании указаны парная и душ.'}
+    messages=[call('бани'),{'role':'tool','tool_call_id':'one','content':json.dumps(payload)}]
+    state=TurnState('test',messages,0,{},['search_places'],{});state.plan=plan()
+    a=agent([],[]);a.last_place_turn=([{'role':'tool','tool_call_id':'old','content':json.dumps(result().structuredContent)}],{FIRST:'Old cafe'})
+    text=a.search_fallback(state)
+    assert SECOND in text and FIRST not in text and 'парная и душ' in text

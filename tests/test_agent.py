@@ -167,6 +167,16 @@ def test_duplicate_provider_ids_are_normalized_and_each_result_matches_its_call(
     assert agent.session.call_tool.await_count == 2
 
 
+def test_missing_provider_id_gets_a_local_id_without_losing_the_tool_result():
+    agent=fixture_agent([calling(tool_call(call_id=None)),answer()])
+    asyncio.run(agent.ask('Синтетический запрос'))
+    messages=agent.turns[0][0]
+    invocation=next(m['tool_calls'][0] for m in messages if m.get('tool_calls'))
+    result=next(m for m in messages if m['role']=='tool')
+    assert invocation['id'] and result['tool_call_id']==invocation['id']
+    agent.session.call_tool.assert_awaited_once()
+
+
 def test_history_is_bounded_and_resettable():
     agent = fixture_agent([answer("Уточнение.")] * 4)
     async def run():
