@@ -1,0 +1,11 @@
+{
+  "target": "https://dayout-ai-agent.streamlit.app/",
+  "scope": "cloud_browser_smoke",
+  "checked_at": "2026-10-27T16:04:52+03:00",
+  "case_id": "A01",
+  "raw_content_saved": false,
+  "checks": {
+    "page_rendered": false
+  },
+  "failure_category": "browser_render_timeout"
+}

@@ -1,0 +1,102 @@
+{
+  "metadata": {
+    "started_at": "2026-10-27T16:02:56+03:00",
+    "target": "offline_fault_injection",
+    "model": "scripted_mock",
+    "python": "3.14.4",
+    "code_sha256": "d851e0e8f3302237a6604f0ccad5b65bd465ce3ec0c5ff9ebd720f227b802fb8",
+    "dataset_sha256": "d447fe0d10b352825b5f78932b28ef86fbb0b84deeb8d6bbc972729788f92031",
+    "visit_date": null,
+    "interval_seconds": 65,
+    "raw_content_saved": false
+  },
+  "results": [
+    {
+      "controlled_checks": {
+        "empty_payload_forwarded": true,
+        "completed": true,
+        "no_source_invented": true
+      },
+      "execution_status": "completed",
+      "llm": "scripted_mock",
+      "external_requests": 0,
+      "mcp_calls": 1,
+      "scripted_model_posts": 2,
+      "case_id": "S01",
+      "mode": "simulated",
+      "repeat": 1,
+      "elapsed_seconds": 0.007
+    },
+    {
+      "controlled_checks": {
+        "failure_visible": true,
+        "secret_hidden": true,
+        "pending_saved": true,
+        "partial_sources_available": true,
+        "paused": true,
+        "manual_check": true,
+        "manual_resume_completed": true,
+        "mcp_not_repeated": true
+      },
+      "execution_status": "completed",
+      "llm": "scripted_mock",
+      "external_requests": 0,
+      "mcp_calls": 1,
+      "scripted_model_posts": 4,
+      "case_id": "S02",
+      "mode": "simulated",
+      "repeat": 1,
+      "elapsed_seconds": 0.007
+    },
+    {
+      "controlled_checks": {
+        "failure_visible": true,
+        "secret_hidden": true,
+        "pending_saved": true,
+        "partial_sources_available": true,
+        "paused": true
+      },
+      "execution_status": "completed",
+      "llm": "scripted_mock",
+      "external_requests": 0,
+      "mcp_calls": 1,
+      "scripted_model_posts": 2,
+      "case_id": "S03",
+      "mode": "simulated",
+      "repeat": 1,
+      "elapsed_seconds": 0.004
+    },
+    {
+      "controlled_checks": {
+        "failure_visible": true,
+        "secret_hidden": true,
+        "pending_saved": true,
+        "partial_sources_available": true,
+        "not_network_pause": true,
+        "manual_resume_completed": true,
+        "mcp_not_repeated": true
+      },
+      "execution_status": "completed",
+      "llm": "scripted_mock",
+      "external_requests": 0,
+      "mcp_calls": 1,
+      "scripted_model_posts": 3,
+      "case_id": "S04",
+      "mode": "simulated",
+      "repeat": 1,
+      "elapsed_seconds": 0.006
+    }
+  ],
+  "summary": {
+    "live_attempts": 0,
+    "live_completed": 0,
+    "live_quality_pass": 0,
+    "live_quality_fail": 0,
+    "live_quality_pending": 0,
+    "live_quality_pass_rate": null,
+    "live_median_seconds": null,
+    "live_p95_seconds": null,
+    "simulated_attempts": 4,
+    "simulated_pass": 4
+  }
+}

@@ -1,0 +1,142 @@
+{
+  "metadata": {
+    "started_at": "2026-11-02T12:24:04+03:00",
+    "target": "local_web_adapter",
+    "provider": "yandex",
+    "model": "aliceai-llm-flash/latest",
+    "variant": "candidate",
+    "split": "development",
+    "max_live_turns": 2,
+    "review_method": "llm_assisted_same_model",
+    "prices_rub_per_1k": [
+      0.1,
+      0.2
+    ],
+    "max_estimated_rub": null,
+    "cost_is_estimate_not_invoice": true,
+    "python": "3.14.4",
+    "code_sha256": "7345f8570ac385e7a79685b7e4f8c84317aff174f17c38fcb9d21457d78906d2",
+    "dataset_sha256": "3889646b74b13a09b39fad54515d64fe187a9e5d2a4303323ac78274d5dfee2d",
+    "dataset_file": "cases.json",
+    "visit_date": "2026-11-03",
+    "interval_seconds": 5,
+    "raw_content_saved": false
+  },
+  "results": [
+    {
+      "execution_status": "failed",
+      "stop_reason": null,
+      "auto_checks": {
+        "all_turns_completed": false,
+        "required_tools_called": true,
+        "forbidden_tools_absent": true,
+        "last_turn_tools_called": true,
+        "last_turn_forbidden_tools_absent": true,
+        "required_tools_succeeded": true,
+        "required_text_present": true,
+        "forbidden_text_absent": true,
+        "required_last_text_present": true,
+        "forbidden_last_text_absent": true,
+        "last_source_count_matches": true,
+        "no_invalid_tool_arguments": true,
+        "weather_parameters_match": true,
+        "dialogue_constraints_match": true
+      },
+      "turns": [
+        {
+          "completed": false,
+          "seconds": 49.477,
+          "tools": [
+            "search_places",
+            "search_places",
+            "compute_routes"
+          ],
+          "usage": {
+            "requests": 6,
+            "prompt_tokens": 15048,
+            "completion_tokens": 617,
+            "missing_usage": 0
+          },
+          "source_link_count": 0,
+          "failure_category": "source_validation",
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            },
+            {
+              "tool": "search_places",
+              "status": "success"
+            },
+            {
+              "tool": "compute_routes",
+              "status": "success"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": true,
+          "context": null
+        }
+      ],
+      "manual_scores": {
+        "relevance": "pending",
+        "constraints": "pending",
+        "grounding": "pending",
+        "honesty": "pending",
+        "tool_choice": "pending"
+      },
+      "case_id": "B07",
+      "mode": "live",
+      "repeat": 1,
+      "elapsed_seconds": 49.477
+    }
+  ],
+  "summary": {
+    "live_attempts": 1,
+    "live_completed": 0,
+    "live_infrastructure_failures": 0,
+    "live_stopped": 0,
+    "live_quality_evaluable": 1,
+    "live_quality_pass": 0,
+    "live_quality_fail": 1,
+    "live_quality_pending": 0,
+    "live_quality_pass_rate": 0.0,
+    "live_end_to_end_pass_rate": 0.0,
+    "usage": {
+      "requests": 6,
+      "prompt_tokens": 15048,
+      "completion_tokens": 617,
+      "missing_usage": 0
+    },
+    "review_usage": {
+      "requests": 0,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "missing_usage": 0
+    },
+    "total_usage": {
+      "requests": 6,
+      "prompt_tokens": 15048,
+      "completion_tokens": 617,
+      "missing_usage": 0
+    },
+    "estimated_rub": 1.6282000000000003,
+    "live_median_seconds": 49.477,
+    "live_p95_seconds": 49.477,
+    "turn_attempts": 1,
+    "turn_completed": 0,
+    "turn_median_seconds": 49.477,
+    "turn_p95_seconds": 49.477,
+    "tool_calls": {
+      "compute_routes": 1,
+      "lookup_weather": 0,
+      "resolve_maps_urls": 0,
+      "resolve_names": 0,
+      "search_places": 2
+    },
+    "simulated_attempts": 0,
+    "simulated_pass": 0
+  }
+}

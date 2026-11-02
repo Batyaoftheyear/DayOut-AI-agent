@@ -1,0 +1,99 @@
+{
+  "metadata": {
+    "started_at": "2026-10-27T16:04:39+03:00",
+    "target": "local_web_adapter",
+    "model": "qwen/qwen3.8-27b",
+    "python": "3.14.4",
+    "code_sha256": "d851e0e8f3302237a6604f0ccad5b65bd465ce3ec0c5ff9ebd720f227b802fb8",
+    "dataset_sha256": "d447fe0d10b352825b5f78932b28ef86fbb0b84deeb8d6bbc972729788f92031",
+    "visit_date": "2026-10-28",
+    "interval_seconds": 65,
+    "raw_content_saved": false
+  },
+  "results": [
+    {
+      "execution_status": "failed",
+      "auto_checks": {
+        "all_turns_completed": false,
+        "required_tools_called": false,
+        "forbidden_tools_absent": true,
+        "last_turn_tools_called": true
+      },
+      "turns": [
+        {
+          "completed": false,
+          "seconds": 3.233,
+          "tools": [],
+          "usage": {
+            "requests": 1,
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "missing_usage": 1
+          },
+          "source_link_count": 0,
+          "failure_category": "quota",
+          "partial_available": false
+        }
+      ],
+      "manual_scores": {
+        "relevance": "pending",
+        "constraints": "pending",
+        "grounding": "pending",
+        "honesty": "pending",
+        "tool_choice": "pending"
+      },
+      "case_id": "B02",
+      "mode": "live",
+      "repeat": 1,
+      "elapsed_seconds": 3.233
+    },
+    {
+      "execution_status": "failed",
+      "auto_checks": {
+        "all_turns_completed": false,
+        "required_tools_called": false,
+        "forbidden_tools_absent": true,
+        "last_turn_tools_called": true
+      },
+      "turns": [
+        {
+          "completed": false,
+          "seconds": 2.806,
+          "tools": [],
+          "usage": {
+            "requests": 1,
+            "prompt_tokens": 0,
+            "completion_tokens": 0,
+            "missing_usage": 1
+          },
+          "source_link_count": 0,
+          "failure_category": "quota",
+          "partial_available": false
+        }
+      ],
+      "manual_scores": {
+        "relevance": "pending",
+        "constraints": "pending",
+        "grounding": "pending",
+        "honesty": "pending",
+        "tool_choice": "pending"
+      },
+      "case_id": "C01",
+      "mode": "live",
+      "repeat": 1,
+      "elapsed_seconds": 67.807
+    }
+  ],
+  "summary": {
+    "live_attempts": 2,
+    "live_completed": 0,
+    "live_quality_pass": 0,
+    "live_quality_fail": 2,
+    "live_quality_pending": 0,
+    "live_quality_pass_rate": 0.0,
+    "live_median_seconds": 3.0195,
+    "live_p95_seconds": 3.233,
+    "simulated_attempts": 0,
+    "simulated_pass": 0
+  }
+}

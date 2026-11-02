@@ -1,0 +1,2064 @@
+{
+  "metadata": {
+    "started_at": "2026-11-02T12:31:45+03:00",
+    "target": "local_web_adapter",
+    "provider": "yandex",
+    "model": "aliceai-llm-flash/latest",
+    "variant": "release-r9",
+    "split": "all",
+    "max_live_turns": 74,
+    "review_method": "llm_assisted_same_model",
+    "prices_rub_per_1k": [
+      0.1,
+      0.2
+    ],
+    "max_estimated_rub": 100.0,
+    "cost_is_estimate_not_invoice": true,
+    "python": "3.14.4",
+    "code_sha256": "769830c3d355a4f993488692d680d2c61cd5ce6b96df1893e82f90f15ee1fd23",
+    "dataset_sha256": "3889646b74b13a09b39fad54515d64fe187a9e5d2a4303323ac78274d5dfee2d",
+    "dataset_file": "cases.json",
+    "visit_date": "2026-11-03",
+    "interval_seconds": 5,
+    "raw_content_saved": false,
+    "stopped_reason": "superseded_after_development_dialogue_defects",
+    "interruption_at": "2026-11-02T12:44:18.918766+03:00",
+    "inflight_usage_may_be_missing": true,
+    "superseded_by": "2026-11-02-r10"
+  },
+  "results": [
+    {
+      "execution_status": "completed",
+      "stop_reason": null,
+      "auto_checks": {
+        "all_turns_completed": true,
+        "required_tools_called": true,
+        "forbidden_tools_absent": true,
+        "last_turn_tools_called": true,
+        "last_turn_forbidden_tools_absent": true,
+        "required_tools_succeeded": true,
+        "required_text_present": true,
+        "forbidden_text_absent": true,
+        "required_last_text_present": true,
+        "forbidden_last_text_absent": true,
+        "last_source_count_matches": true,
+        "no_invalid_tool_arguments": true,
+        "weather_parameters_match": true,
+        "dialogue_constraints_match": true
+      },
+      "turns": [
+        {
+          "completed": true,
+          "seconds": 30.217,
+          "tools": [
+            "search_places",
+            "resolve_maps_urls"
+          ],
+          "usage": {
+            "requests": 4,
+            "prompt_tokens": 8396,
+            "completion_tokens": 335,
+            "missing_usage": 0
+          },
+          "source_link_count": 3,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            },
+            {
+              "tool": "resolve_maps_urls",
+              "status": "success"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": false,
+          "context": {
+            "city": "Москва",
+            "area": "центр",
+            "activity": "кафе",
+            "budget": {
+              "action": "keep",
+              "amount": null,
+              "currency": "unknown",
+              "people": null,
+              "scope": "unknown"
+            }
+          }
+        }
+      ],
+      "manual_scores": {
+        "relevance": "pass",
+        "constraints": "pass",
+        "grounding": "fail",
+        "honesty": "fail",
+        "tool_choice": "pass"
+      },
+      "model_review": {
+        "status": "completed",
+        "scores": {
+          "relevance": "pass",
+          "constraints": "pass",
+          "grounding": "fail",
+          "honesty": "fail",
+          "tool_choice": "pass"
+        },
+        "codes": [
+          "unsupported_claim",
+          "unsupported_claim"
+        ],
+        "usage": {
+          "requests": 1,
+          "prompt_tokens": 3616,
+          "completion_tokens": 55,
+          "missing_usage": 0
+        },
+        "seconds": 3.02
+      },
+      "case_id": "B01",
+      "mode": "live",
+      "repeat": 1,
+      "elapsed_seconds": 33.239
+    },
+    {
+      "execution_status": "completed",
+      "stop_reason": null,
+      "auto_checks": {
+        "all_turns_completed": true,
+        "required_tools_called": true,
+        "forbidden_tools_absent": true,
+        "last_turn_tools_called": true,
+        "last_turn_forbidden_tools_absent": true,
+        "required_tools_succeeded": true,
+        "required_text_present": true,
+        "forbidden_text_absent": true,
+        "required_last_text_present": true,
+        "forbidden_last_text_absent": true,
+        "last_source_count_matches": true,
+        "no_invalid_tool_arguments": true,
+        "weather_parameters_match": true,
+        "dialogue_constraints_match": true
+      },
+      "turns": [
+        {
+          "completed": true,
+          "seconds": 36.303,
+          "tools": [
+            "search_places",
+            "resolve_maps_urls"
+          ],
+          "usage": {
+            "requests": 5,
+            "prompt_tokens": 9893,
+            "completion_tokens": 317,
+            "missing_usage": 0
+          },
+          "source_link_count": 2,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            },
+            {
+              "tool": "resolve_maps_urls",
+              "status": "success"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": false,
+          "context": {
+            "city": "Москва",
+            "area": "",
+            "activity": "музеи",
+            "budget": {
+              "action": "keep",
+              "amount": null,
+              "currency": "unknown",
+              "people": 1,
+              "scope": "unknown"
+            }
+          }
+        }
+      ],
+      "manual_scores": {
+        "relevance": "pass",
+        "constraints": "pass",
+        "grounding": "fail",
+        "honesty": "pass",
+        "tool_choice": "pass"
+      },
+      "model_review": {
+        "status": "completed",
+        "scores": {
+          "relevance": "pass",
+          "constraints": "pass",
+          "grounding": "fail",
+          "honesty": "pass",
+          "tool_choice": "pass"
+        },
+        "codes": [
+          "missing_tool"
+        ],
+        "usage": {
+          "requests": 1,
+          "prompt_tokens": 2878,
+          "completion_tokens": 48,
+          "missing_usage": 0
+        },
+        "seconds": 4.315
+      },
+      "case_id": "B02",
+      "mode": "live",
+      "repeat": 1,
+      "elapsed_seconds": 42.597
+    },
+    {
+      "execution_status": "completed",
+      "stop_reason": null,
+      "auto_checks": {
+        "all_turns_completed": true,
+        "required_tools_called": true,
+        "forbidden_tools_absent": true,
+        "last_turn_tools_called": true,
+        "last_turn_forbidden_tools_absent": true,
+        "required_tools_succeeded": true,
+        "required_text_present": true,
+        "forbidden_text_absent": true,
+        "required_last_text_present": true,
+        "forbidden_last_text_absent": true,
+        "last_source_count_matches": true,
+        "no_invalid_tool_arguments": true,
+        "weather_parameters_match": true,
+        "dialogue_constraints_match": true
+      },
+      "turns": [
+        {
+          "completed": true,
+          "seconds": 27.484,
+          "tools": [
+            "search_places"
+          ],
+          "usage": {
+            "requests": 3,
+            "prompt_tokens": 4960,
+            "completion_tokens": 274,
+            "missing_usage": 0
+          },
+          "source_link_count": 2,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": false,
+          "context": {
+            "city": "Москва",
+            "area": "юг Москвы",
+            "activity": "парки",
+            "budget": {
+              "action": "keep",
+              "amount": null,
+              "currency": "unknown",
+              "people": null,
+              "scope": "unknown"
+            }
+          }
+        }
+      ],
+      "manual_scores": {
+        "relevance": "pass",
+        "constraints": "pass",
+        "grounding": "pass",
+        "honesty": "pass",
+        "tool_choice": "pass"
+      },
+      "model_review": {
+        "status": "completed",
+        "scores": {
+          "relevance": "pass",
+          "constraints": "pass",
+          "grounding": "pass",
+          "honesty": "pass",
+          "tool_choice": "pass"
+        },
+        "codes": [
+          "none"
+        ],
+        "usage": {
+          "requests": 1,
+          "prompt_tokens": 2138,
+          "completion_tokens": 46,
+          "missing_usage": 0
+        },
+        "seconds": 2.998
+      },
+      "case_id": "B03",
+      "mode": "live",
+      "repeat": 1,
+      "elapsed_seconds": 31.165
+    },
+    {
+      "execution_status": "completed",
+      "stop_reason": null,
+      "auto_checks": {
+        "all_turns_completed": true,
+        "required_tools_called": true,
+        "forbidden_tools_absent": true,
+        "last_turn_tools_called": true,
+        "last_turn_forbidden_tools_absent": true,
+        "required_tools_succeeded": true,
+        "required_text_present": true,
+        "forbidden_text_absent": true,
+        "required_last_text_present": true,
+        "forbidden_last_text_absent": true,
+        "last_source_count_matches": true,
+        "no_invalid_tool_arguments": true,
+        "weather_parameters_match": true,
+        "dialogue_constraints_match": true
+      },
+      "turns": [
+        {
+          "completed": true,
+          "seconds": 33.814,
+          "tools": [
+            "search_places",
+            "search_places"
+          ],
+          "usage": {
+            "requests": 3,
+            "prompt_tokens": 5627,
+            "completion_tokens": 367,
+            "missing_usage": 0
+          },
+          "source_link_count": 2,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            },
+            {
+              "tool": "search_places",
+              "status": "success"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": false,
+          "context": {
+            "city": "Москва",
+            "area": "",
+            "activity": "развлекательные центры, музеи, игровые зоны",
+            "budget": {
+              "action": "keep",
+              "amount": null,
+              "currency": "unknown",
+              "people": 2,
+              "scope": "unknown"
+            }
+          }
+        }
+      ],
+      "manual_scores": {
+        "relevance": "pass",
+        "constraints": "pass",
+        "grounding": "pass",
+        "honesty": "pass",
+        "tool_choice": "pass"
+      },
+      "model_review": {
+        "status": "completed",
+        "scores": {
+          "relevance": "pass",
+          "constraints": "pass",
+          "grounding": "pass",
+          "honesty": "pass",
+          "tool_choice": "pass"
+        },
+        "codes": [
+          "none"
+        ],
+        "usage": {
+          "requests": 1,
+          "prompt_tokens": 3128,
+          "completion_tokens": 46,
+          "missing_usage": 0
+        },
+        "seconds": 7.724
+      },
+      "case_id": "B04",
+      "mode": "live",
+      "repeat": 1,
+      "elapsed_seconds": 43.539
+    },
+    {
+      "execution_status": "completed",
+      "stop_reason": null,
+      "auto_checks": {
+        "all_turns_completed": true,
+        "required_tools_called": true,
+        "forbidden_tools_absent": true,
+        "last_turn_tools_called": true,
+        "last_turn_forbidden_tools_absent": true,
+        "required_tools_succeeded": true,
+        "required_text_present": true,
+        "forbidden_text_absent": true,
+        "required_last_text_present": true,
+        "forbidden_last_text_absent": true,
+        "last_source_count_matches": true,
+        "no_invalid_tool_arguments": true,
+        "weather_parameters_match": true,
+        "dialogue_constraints_match": true
+      },
+      "turns": [
+        {
+          "completed": true,
+          "seconds": 27.328,
+          "tools": [
+            "search_places",
+            "resolve_maps_urls"
+          ],
+          "usage": {
+            "requests": 4,
+            "prompt_tokens": 7325,
+            "completion_tokens": 269,
+            "missing_usage": 0
+          },
+          "source_link_count": 2,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            },
+            {
+              "tool": "resolve_maps_urls",
+              "status": "success"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": false,
+          "context": {
+            "city": "Москва",
+            "area": "центр",
+            "activity": "книжные магазины",
+            "budget": {
+              "action": "keep",
+              "amount": null,
+              "currency": "unknown",
+              "people": null,
+              "scope": "unknown"
+            }
+          }
+        }
+      ],
+      "manual_scores": {
+        "relevance": "pass",
+        "constraints": "pass",
+        "grounding": "pass",
+        "honesty": "pass",
+        "tool_choice": "pass"
+      },
+      "model_review": {
+        "status": "completed",
+        "scores": {
+          "relevance": "pass",
+          "constraints": "pass",
+          "grounding": "pass",
+          "honesty": "pass",
+          "tool_choice": "pass"
+        },
+        "codes": [
+          "none"
+        ],
+        "usage": {
+          "requests": 1,
+          "prompt_tokens": 2403,
+          "completion_tokens": 46,
+          "missing_usage": 0
+        },
+        "seconds": 3.146
+      },
+      "case_id": "B05",
+      "mode": "live",
+      "repeat": 1,
+      "elapsed_seconds": 30.476
+    },
+    {
+      "execution_status": "completed",
+      "stop_reason": null,
+      "auto_checks": {
+        "all_turns_completed": true,
+        "required_tools_called": true,
+        "forbidden_tools_absent": true,
+        "last_turn_tools_called": true,
+        "last_turn_forbidden_tools_absent": true,
+        "required_tools_succeeded": true,
+        "required_text_present": true,
+        "forbidden_text_absent": true,
+        "required_last_text_present": true,
+        "forbidden_last_text_absent": true,
+        "last_source_count_matches": true,
+        "no_invalid_tool_arguments": true,
+        "weather_parameters_match": true,
+        "dialogue_constraints_match": true
+      },
+      "turns": [
+        {
+          "completed": true,
+          "seconds": 29.064,
+          "tools": [
+            "search_places"
+          ],
+          "usage": {
+            "requests": 3,
+            "prompt_tokens": 4622,
+            "completion_tokens": 237,
+            "missing_usage": 0
+          },
+          "source_link_count": 1,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": false,
+          "context": {
+            "city": "Москва",
+            "area": "юг",
+            "activity": "кафе",
+            "budget": {
+              "action": "keep",
+              "amount": null,
+              "currency": "unknown",
+              "people": null,
+              "scope": "unknown"
+            }
+          }
+        }
+      ],
+      "manual_scores": {
+        "relevance": "fail",
+        "constraints": "pass",
+        "grounding": "pass",
+        "honesty": "pass",
+        "tool_choice": "pass"
+      },
+      "model_review": {
+        "status": "completed",
+        "scores": {
+          "relevance": "fail",
+          "constraints": "pass",
+          "grounding": "pass",
+          "honesty": "pass",
+          "tool_choice": "pass"
+        },
+        "codes": [
+          "missing_tool"
+        ],
+        "usage": {
+          "requests": 1,
+          "prompt_tokens": 1461,
+          "completion_tokens": 49,
+          "missing_usage": 0
+        },
+        "seconds": 3.925
+      },
+      "case_id": "C01",
+      "mode": "live",
+      "repeat": 1,
+      "elapsed_seconds": 34.842
+    },
+    {
+      "execution_status": "completed",
+      "stop_reason": null,
+      "auto_checks": {
+        "all_turns_completed": true,
+        "required_tools_called": true,
+        "forbidden_tools_absent": true,
+        "last_turn_tools_called": true,
+        "last_turn_forbidden_tools_absent": true,
+        "required_tools_succeeded": true,
+        "required_text_present": true,
+        "forbidden_text_absent": true,
+        "required_last_text_present": true,
+        "forbidden_last_text_absent": true,
+        "last_source_count_matches": true,
+        "no_invalid_tool_arguments": true,
+        "weather_parameters_match": true,
+        "dialogue_constraints_match": true
+      },
+      "turns": [
+        {
+          "completed": true,
+          "seconds": 19.464,
+          "tools": [
+            "search_places"
+          ],
+          "usage": {
+            "requests": 3,
+            "prompt_tokens": 5197,
+            "completion_tokens": 276,
+            "missing_usage": 0
+          },
+          "source_link_count": 2,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": true,
+          "context": {
+            "city": "Москва",
+            "area": "центр",
+            "activity": "кафе, рестораны",
+            "budget": {
+              "action": "set",
+              "amount": 1500,
+              "currency": "RUB",
+              "people": 2,
+              "scope": "total"
+            }
+          }
+        }
+      ],
+      "manual_scores": {
+        "relevance": "pass",
+        "constraints": "pass",
+        "grounding": "pass",
+        "honesty": "pass",
+        "tool_choice": "pass"
+      },
+      "model_review": {
+        "status": "completed",
+        "scores": {
+          "relevance": "pass",
+          "constraints": "pass",
+          "grounding": "pass",
+          "honesty": "pass",
+          "tool_choice": "pass"
+        },
+        "codes": [
+          "none"
+        ],
+        "usage": {
+          "requests": 1,
+          "prompt_tokens": 2162,
+          "completion_tokens": 46,
+          "missing_usage": 0
+        },
+        "seconds": 3.306
+      },
+      "case_id": "C02",
+      "mode": "live",
+      "repeat": 1,
+      "elapsed_seconds": 23.843
+    },
+    {
+      "execution_status": "completed",
+      "stop_reason": null,
+      "auto_checks": {
+        "all_turns_completed": true,
+        "required_tools_called": true,
+        "forbidden_tools_absent": true,
+        "last_turn_tools_called": true,
+        "last_turn_forbidden_tools_absent": true,
+        "required_tools_succeeded": true,
+        "required_text_present": true,
+        "forbidden_text_absent": true,
+        "required_last_text_present": true,
+        "forbidden_last_text_absent": true,
+        "last_source_count_matches": true,
+        "no_invalid_tool_arguments": true,
+        "weather_parameters_match": true,
+        "dialogue_constraints_match": true
+      },
+      "turns": [
+        {
+          "completed": true,
+          "seconds": 26.491,
+          "tools": [
+            "search_places"
+          ],
+          "usage": {
+            "requests": 4,
+            "prompt_tokens": 7448,
+            "completion_tokens": 399,
+            "missing_usage": 0
+          },
+          "source_link_count": 2,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": false,
+          "context": {
+            "city": "Москва",
+            "area": "центр",
+            "activity": "кафе",
+            "budget": {
+              "action": "keep",
+              "amount": null,
+              "currency": "unknown",
+              "people": null,
+              "scope": "unknown"
+            }
+          }
+        }
+      ],
+      "manual_scores": {
+        "relevance": "pass",
+        "constraints": "pass",
+        "grounding": "pass",
+        "honesty": "pass",
+        "tool_choice": "pass"
+      },
+      "model_review": {
+        "status": "completed",
+        "scores": {
+          "relevance": "pass",
+          "constraints": "pass",
+          "grounding": "pass",
+          "honesty": "pass",
+          "tool_choice": "pass"
+        },
+        "codes": [
+          "none"
+        ],
+        "usage": {
+          "requests": 1,
+          "prompt_tokens": 2273,
+          "completion_tokens": 46,
+          "missing_usage": 0
+        },
+        "seconds": 3.932
+      },
+      "case_id": "C03",
+      "mode": "live",
+      "repeat": 1,
+      "elapsed_seconds": 32.116
+    },
+    {
+      "execution_status": "completed",
+      "stop_reason": null,
+      "auto_checks": {
+        "all_turns_completed": true,
+        "required_tools_called": true,
+        "forbidden_tools_absent": true,
+        "last_turn_tools_called": true,
+        "last_turn_forbidden_tools_absent": true,
+        "required_tools_succeeded": true,
+        "required_text_present": true,
+        "forbidden_text_absent": true,
+        "required_last_text_present": true,
+        "forbidden_last_text_absent": true,
+        "last_source_count_matches": true,
+        "no_invalid_tool_arguments": true,
+        "weather_parameters_match": true,
+        "dialogue_constraints_match": true
+      },
+      "turns": [
+        {
+          "completed": true,
+          "seconds": 38.865,
+          "tools": [
+            "search_places",
+            "search_places",
+            "compute_routes",
+            "compute_routes"
+          ],
+          "usage": {
+            "requests": 5,
+            "prompt_tokens": 13620,
+            "completion_tokens": 728,
+            "missing_usage": 0
+          },
+          "source_link_count": 6,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            },
+            {
+              "tool": "search_places",
+              "status": "success"
+            },
+            {
+              "tool": "compute_routes",
+              "status": "success"
+            },
+            {
+              "tool": "compute_routes",
+              "status": "success"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": false,
+          "context": {
+            "city": "Москва",
+            "area": "центр",
+            "activity": "музей, кафе",
+            "budget": {
+              "action": "keep",
+              "amount": null,
+              "currency": "unknown",
+              "people": null,
+              "scope": "unknown"
+            }
+          }
+        }
+      ],
+      "manual_scores": {
+        "relevance": "pass",
+        "constraints": "pass",
+        "grounding": "pass",
+        "honesty": "pass",
+        "tool_choice": "pass"
+      },
+      "model_review": {
+        "status": "completed",
+        "scores": {
+          "relevance": "pass",
+          "constraints": "pass",
+          "grounding": "pass",
+          "honesty": "pass",
+          "tool_choice": "pass"
+        },
+        "codes": [
+          "none"
+        ],
+        "usage": {
+          "requests": 1,
+          "prompt_tokens": 5147,
+          "completion_tokens": 46,
+          "missing_usage": 0
+        },
+        "seconds": 3.409
+      },
+      "case_id": "C04",
+      "mode": "live",
+      "repeat": 1,
+      "elapsed_seconds": 43.341
+    },
+    {
+      "execution_status": "completed",
+      "stop_reason": null,
+      "auto_checks": {
+        "all_turns_completed": true,
+        "required_tools_called": true,
+        "forbidden_tools_absent": true,
+        "last_turn_tools_called": true,
+        "last_turn_forbidden_tools_absent": true,
+        "required_tools_succeeded": true,
+        "required_text_present": true,
+        "forbidden_text_absent": true,
+        "required_last_text_present": true,
+        "forbidden_last_text_absent": true,
+        "last_source_count_matches": true,
+        "no_invalid_tool_arguments": true,
+        "weather_parameters_match": true,
+        "dialogue_constraints_match": true
+      },
+      "turns": [
+        {
+          "completed": true,
+          "seconds": 20.761,
+          "tools": [
+            "search_places"
+          ],
+          "usage": {
+            "requests": 3,
+            "prompt_tokens": 4938,
+            "completion_tokens": 288,
+            "missing_usage": 0
+          },
+          "source_link_count": 2,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": false,
+          "context": {
+            "city": "Москва",
+            "area": "центр",
+            "activity": "помещения (кафе, музеи, бани и т. д.)",
+            "budget": {
+              "action": "keep",
+              "amount": null,
+              "currency": "unknown",
+              "people": 2,
+              "scope": "unknown"
+            }
+          }
+        }
+      ],
+      "manual_scores": {
+        "relevance": "pass",
+        "constraints": "pass",
+        "grounding": "pass",
+        "honesty": "pass",
+        "tool_choice": "pass"
+      },
+      "model_review": {
+        "status": "completed",
+        "scores": {
+          "relevance": "pass",
+          "constraints": "pass",
+          "grounding": "pass",
+          "honesty": "pass",
+          "tool_choice": "pass"
+        },
+        "codes": [
+          "none"
+        ],
+        "usage": {
+          "requests": 1,
+          "prompt_tokens": 2089,
+          "completion_tokens": 46,
+          "missing_usage": 0
+        },
+        "seconds": 2.88
+      },
+      "case_id": "C05",
+      "mode": "live",
+      "repeat": 1,
+      "elapsed_seconds": 25.229
+    },
+    {
+      "execution_status": "completed",
+      "stop_reason": null,
+      "auto_checks": {
+        "all_turns_completed": true,
+        "required_tools_called": true,
+        "forbidden_tools_absent": true,
+        "last_turn_tools_called": true,
+        "last_turn_forbidden_tools_absent": true,
+        "required_tools_succeeded": true,
+        "required_text_present": true,
+        "forbidden_text_absent": true,
+        "required_last_text_present": true,
+        "forbidden_last_text_absent": true,
+        "last_source_count_matches": true,
+        "no_invalid_tool_arguments": true,
+        "weather_parameters_match": true,
+        "dialogue_constraints_match": true
+      },
+      "turns": [
+        {
+          "completed": true,
+          "seconds": 16.934,
+          "tools": [
+            "search_places"
+          ],
+          "usage": {
+            "requests": 3,
+            "prompt_tokens": 5242,
+            "completion_tokens": 322,
+            "missing_usage": 0
+          },
+          "source_link_count": 3,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": true,
+          "context": {
+            "city": "Москва",
+            "area": "центр",
+            "activity": "места для встречи",
+            "budget": {
+              "action": "set",
+              "amount": 4000,
+              "currency": "RUB",
+              "people": 2,
+              "scope": "total"
+            }
+          }
+        },
+        {
+          "completed": true,
+          "seconds": 14.277,
+          "tools": [],
+          "usage": {
+            "requests": 2,
+            "prompt_tokens": 3676,
+            "completion_tokens": 296,
+            "missing_usage": 0
+          },
+          "source_link_count": 3,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [],
+          "task": "refine",
+          "weather_requests": [],
+          "budget_requested": true,
+          "context": {
+            "city": "Москва",
+            "area": "центр",
+            "activity": "места для встречи",
+            "budget": {
+              "action": "set",
+              "amount": 4000,
+              "currency": "RUB",
+              "people": 2,
+              "scope": "total"
+            }
+          }
+        }
+      ],
+      "manual_scores": {
+        "relevance": "pass",
+        "constraints": "pass",
+        "grounding": "fail",
+        "honesty": "pass",
+        "tool_choice": "pass",
+        "dialogue": "pass"
+      },
+      "model_review": {
+        "status": "completed",
+        "scores": {
+          "relevance": "pass",
+          "constraints": "pass",
+          "grounding": "fail",
+          "honesty": "pass",
+          "tool_choice": "pass",
+          "dialogue": "pass"
+        },
+        "codes": [
+          "missing_price_caveat"
+        ],
+        "usage": {
+          "requests": 1,
+          "prompt_tokens": 3066,
+          "completion_tokens": 59,
+          "missing_usage": 0
+        },
+        "seconds": 3.909
+      },
+      "case_id": "D01",
+      "mode": "live",
+      "repeat": 1,
+      "elapsed_seconds": 42.24
+    },
+    {
+      "execution_status": "completed",
+      "stop_reason": null,
+      "auto_checks": {
+        "all_turns_completed": true,
+        "required_tools_called": true,
+        "forbidden_tools_absent": true,
+        "last_turn_tools_called": true,
+        "last_turn_forbidden_tools_absent": true,
+        "required_tools_succeeded": true,
+        "required_text_present": true,
+        "forbidden_text_absent": true,
+        "required_last_text_present": true,
+        "forbidden_last_text_absent": true,
+        "last_source_count_matches": true,
+        "no_invalid_tool_arguments": true,
+        "weather_parameters_match": true,
+        "dialogue_constraints_match": true
+      },
+      "turns": [
+        {
+          "completed": true,
+          "seconds": 17.926,
+          "tools": [
+            "search_places"
+          ],
+          "usage": {
+            "requests": 3,
+            "prompt_tokens": 5399,
+            "completion_tokens": 270,
+            "missing_usage": 0
+          },
+          "source_link_count": 2,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": false,
+          "context": {
+            "city": "Москва",
+            "area": "центр",
+            "activity": "кафе",
+            "budget": {
+              "action": "keep",
+              "amount": null,
+              "currency": "unknown",
+              "people": null,
+              "scope": "unknown"
+            }
+          }
+        },
+        {
+          "completed": true,
+          "seconds": 19.324,
+          "tools": [
+            "search_places"
+          ],
+          "usage": {
+            "requests": 3,
+            "prompt_tokens": 7574,
+            "completion_tokens": 279,
+            "missing_usage": 0
+          },
+          "source_link_count": 2,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": false,
+          "context": {
+            "city": "Москва",
+            "area": "Нагатинский район",
+            "activity": "кафе",
+            "budget": {
+              "action": "keep",
+              "amount": null,
+              "currency": "unknown",
+              "people": null,
+              "scope": "unknown"
+            }
+          }
+        }
+      ],
+      "manual_scores": {
+        "relevance": "pass",
+        "constraints": "pass",
+        "grounding": "pass",
+        "honesty": "pass",
+        "tool_choice": "pass",
+        "dialogue": "pass"
+      },
+      "model_review": {
+        "status": "completed",
+        "scores": {
+          "relevance": "pass",
+          "constraints": "pass",
+          "grounding": "pass",
+          "honesty": "pass",
+          "tool_choice": "pass",
+          "dialogue": "pass"
+        },
+        "codes": [
+          "none"
+        ],
+        "usage": {
+          "requests": 1,
+          "prompt_tokens": 4860,
+          "completion_tokens": 53,
+          "missing_usage": 0
+        },
+        "seconds": 2.202
+      },
+      "case_id": "D02",
+      "mode": "live",
+      "repeat": 1,
+      "elapsed_seconds": 45.54
+    },
+    {
+      "execution_status": "completed",
+      "stop_reason": null,
+      "auto_checks": {
+        "all_turns_completed": true,
+        "required_tools_called": true,
+        "forbidden_tools_absent": true,
+        "last_turn_tools_called": false,
+        "last_turn_forbidden_tools_absent": true,
+        "required_tools_succeeded": true,
+        "required_text_present": true,
+        "forbidden_text_absent": true,
+        "required_last_text_present": true,
+        "forbidden_last_text_absent": true,
+        "last_source_count_matches": true,
+        "no_invalid_tool_arguments": true,
+        "weather_parameters_match": true,
+        "dialogue_constraints_match": true
+      },
+      "turns": [
+        {
+          "completed": true,
+          "seconds": 18.432,
+          "tools": [
+            "search_places"
+          ],
+          "usage": {
+            "requests": 3,
+            "prompt_tokens": 4558,
+            "completion_tokens": 251,
+            "missing_usage": 0
+          },
+          "source_link_count": 1,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": false,
+          "context": {
+            "city": "Москва",
+            "area": "юг города",
+            "activity": "кафе",
+            "budget": {
+              "action": "keep",
+              "amount": null,
+              "currency": "unknown",
+              "people": null,
+              "scope": "unknown"
+            }
+          }
+        },
+        {
+          "completed": true,
+          "seconds": 12.607,
+          "tools": [],
+          "usage": {
+            "requests": 2,
+            "prompt_tokens": 3092,
+            "completion_tokens": 187,
+            "missing_usage": 0
+          },
+          "source_link_count": 1,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [],
+          "task": "refine",
+          "weather_requests": [],
+          "budget_requested": false,
+          "context": {
+            "city": "Москва",
+            "area": "юг города",
+            "activity": "кафе",
+            "budget": {
+              "action": "keep",
+              "amount": null,
+              "currency": "unknown",
+              "people": null,
+              "scope": "unknown"
+            }
+          }
+        }
+      ],
+      "manual_scores": {
+        "relevance": "pass",
+        "constraints": "pass",
+        "grounding": "fail",
+        "honesty": "pass",
+        "tool_choice": "pass",
+        "dialogue": "pass"
+      },
+      "model_review": {
+        "status": "completed",
+        "scores": {
+          "relevance": "pass",
+          "constraints": "pass",
+          "grounding": "fail",
+          "honesty": "pass",
+          "tool_choice": "pass",
+          "dialogue": "pass"
+        },
+        "codes": [
+          "missing_price_caveat"
+        ],
+        "usage": {
+          "requests": 1,
+          "prompt_tokens": 1612,
+          "completion_tokens": 59,
+          "missing_usage": 0
+        },
+        "seconds": 3.722
+      },
+      "case_id": "D03",
+      "mode": "live",
+      "repeat": 1,
+      "elapsed_seconds": 42.557
+    },
+    {
+      "execution_status": "completed",
+      "stop_reason": null,
+      "auto_checks": {
+        "all_turns_completed": true,
+        "required_tools_called": true,
+        "forbidden_tools_absent": true,
+        "last_turn_tools_called": true,
+        "last_turn_forbidden_tools_absent": true,
+        "required_tools_succeeded": true,
+        "required_text_present": true,
+        "forbidden_text_absent": true,
+        "required_last_text_present": true,
+        "forbidden_last_text_absent": true,
+        "last_source_count_matches": true,
+        "no_invalid_tool_arguments": true,
+        "weather_parameters_match": true,
+        "dialogue_constraints_match": true
+      },
+      "turns": [
+        {
+          "completed": true,
+          "seconds": 11.752,
+          "tools": [],
+          "usage": {
+            "requests": 1,
+            "prompt_tokens": 1246,
+            "completion_tokens": 127,
+            "missing_usage": 0
+          },
+          "source_link_count": 0,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [],
+          "task": "clarify",
+          "weather_requests": [],
+          "budget_requested": false,
+          "context": {
+            "city": "",
+            "area": "",
+            "activity": "кафе",
+            "budget": {
+              "action": "keep",
+              "amount": null,
+              "currency": "unknown",
+              "people": null,
+              "scope": "unknown"
+            }
+          }
+        }
+      ],
+      "manual_scores": {
+        "honesty": "pass",
+        "tool_choice": "pass",
+        "clarification": "pass"
+      },
+      "model_review": {
+        "status": "completed",
+        "scores": {
+          "honesty": "pass",
+          "tool_choice": "pass",
+          "clarification": "pass"
+        },
+        "codes": [
+          "none"
+        ],
+        "usage": {
+          "requests": 1,
+          "prompt_tokens": 611,
+          "completion_tokens": 33,
+          "missing_usage": 0
+        },
+        "seconds": 2.789
+      },
+      "case_id": "A01",
+      "mode": "live",
+      "repeat": 1,
+      "elapsed_seconds": 15.817
+    },
+    {
+      "execution_status": "completed",
+      "stop_reason": null,
+      "auto_checks": {
+        "all_turns_completed": true,
+        "required_tools_called": true,
+        "forbidden_tools_absent": true,
+        "last_turn_tools_called": true,
+        "last_turn_forbidden_tools_absent": true,
+        "required_tools_succeeded": true,
+        "required_text_present": true,
+        "forbidden_text_absent": true,
+        "required_last_text_present": true,
+        "forbidden_last_text_absent": true,
+        "last_source_count_matches": true,
+        "no_invalid_tool_arguments": true,
+        "weather_parameters_match": true,
+        "dialogue_constraints_match": true
+      },
+      "turns": [
+        {
+          "completed": true,
+          "seconds": 20.973,
+          "tools": [
+            "search_places"
+          ],
+          "usage": {
+            "requests": 3,
+            "prompt_tokens": 5224,
+            "completion_tokens": 300,
+            "missing_usage": 0
+          },
+          "source_link_count": 3,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": true,
+          "context": {
+            "city": "Москва",
+            "area": "",
+            "activity": "кафе",
+            "budget": {
+              "action": "set",
+              "amount": 500,
+              "currency": "RUB",
+              "people": null,
+              "scope": "per_person"
+            }
+          }
+        }
+      ],
+      "manual_scores": {
+        "honesty": "fail",
+        "clarification": "fail"
+      },
+      "model_review": {
+        "status": "completed",
+        "scores": {
+          "honesty": "fail",
+          "clarification": "fail"
+        },
+        "codes": [
+          "unsupported_claim",
+          "missing_price_caveat"
+        ],
+        "usage": {
+          "requests": 1,
+          "prompt_tokens": 2272,
+          "completion_tokens": 38,
+          "missing_usage": 0
+        },
+        "seconds": 2.548
+      },
+      "case_id": "A02",
+      "mode": "live",
+      "repeat": 1,
+      "elapsed_seconds": 25.73
+    },
+    {
+      "execution_status": "completed",
+      "stop_reason": null,
+      "auto_checks": {
+        "all_turns_completed": true,
+        "required_tools_called": true,
+        "forbidden_tools_absent": true,
+        "last_turn_tools_called": true,
+        "last_turn_forbidden_tools_absent": true,
+        "required_tools_succeeded": true,
+        "required_text_present": true,
+        "forbidden_text_absent": true,
+        "required_last_text_present": true,
+        "forbidden_last_text_absent": true,
+        "last_source_count_matches": true,
+        "no_invalid_tool_arguments": true,
+        "weather_parameters_match": true,
+        "dialogue_constraints_match": true
+      },
+      "turns": [
+        {
+          "completed": true,
+          "seconds": 20.644,
+          "tools": [
+            "search_places"
+          ],
+          "usage": {
+            "requests": 3,
+            "prompt_tokens": 5207,
+            "completion_tokens": 297,
+            "missing_usage": 0
+          },
+          "source_link_count": 3,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": true,
+          "context": {
+            "city": "Москва",
+            "area": "центр",
+            "activity": "кафе",
+            "budget": {
+              "action": "set",
+              "amount": 1000,
+              "currency": "RUB",
+              "people": 2,
+              "scope": "total"
+            }
+          }
+        }
+      ],
+      "manual_scores": {
+        "relevance": "pass",
+        "grounding": "pass",
+        "honesty": "pass",
+        "tool_choice": "pass"
+      },
+      "model_review": {
+        "status": "completed",
+        "scores": {
+          "relevance": "pass",
+          "grounding": "pass",
+          "honesty": "pass",
+          "tool_choice": "pass"
+        },
+        "codes": [
+          "none"
+        ],
+        "usage": {
+          "requests": 1,
+          "prompt_tokens": 2360,
+          "completion_tokens": 40,
+          "missing_usage": 0
+        },
+        "seconds": 4.445
+      },
+      "case_id": "A03",
+      "mode": "live",
+      "repeat": 1,
+      "elapsed_seconds": 27.54
+    },
+    {
+      "execution_status": "completed",
+      "stop_reason": null,
+      "auto_checks": {
+        "all_turns_completed": true,
+        "required_tools_called": true,
+        "forbidden_tools_absent": true,
+        "last_turn_tools_called": true,
+        "last_turn_forbidden_tools_absent": true,
+        "required_tools_succeeded": true,
+        "required_text_present": true,
+        "forbidden_text_absent": true,
+        "required_last_text_present": true,
+        "forbidden_last_text_absent": true,
+        "last_source_count_matches": true,
+        "no_invalid_tool_arguments": true,
+        "weather_parameters_match": true,
+        "dialogue_constraints_match": true
+      },
+      "turns": [
+        {
+          "completed": true,
+          "seconds": 23.54,
+          "tools": [
+            "search_places"
+          ],
+          "usage": {
+            "requests": 3,
+            "prompt_tokens": 5058,
+            "completion_tokens": 284,
+            "missing_usage": 0
+          },
+          "source_link_count": 2,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": false,
+          "context": {
+            "city": "Москва",
+            "area": "Нагатино",
+            "activity": "кафе, рестораны",
+            "budget": {
+              "action": "keep",
+              "amount": null,
+              "currency": "unknown",
+              "people": null,
+              "scope": "unknown"
+            }
+          }
+        }
+      ],
+      "manual_scores": {
+        "relevance": "pass",
+        "constraints": "pass",
+        "grounding": "pass",
+        "honesty": "pass",
+        "tool_choice": "pass"
+      },
+      "model_review": {
+        "status": "completed",
+        "scores": {
+          "relevance": "pass",
+          "constraints": "pass",
+          "grounding": "pass",
+          "honesty": "pass",
+          "tool_choice": "pass"
+        },
+        "codes": [
+          "none"
+        ],
+        "usage": {
+          "requests": 1,
+          "prompt_tokens": 2259,
+          "completion_tokens": 46,
+          "missing_usage": 0
+        },
+        "seconds": 4.145
+      },
+      "case_id": "B06",
+      "mode": "live",
+      "repeat": 1,
+      "elapsed_seconds": 28.238
+    },
+    {
+      "execution_status": "completed",
+      "stop_reason": null,
+      "auto_checks": {
+        "all_turns_completed": true,
+        "required_tools_called": true,
+        "forbidden_tools_absent": true,
+        "last_turn_tools_called": true,
+        "last_turn_forbidden_tools_absent": true,
+        "required_tools_succeeded": true,
+        "required_text_present": true,
+        "forbidden_text_absent": true,
+        "required_last_text_present": true,
+        "forbidden_last_text_absent": true,
+        "last_source_count_matches": true,
+        "no_invalid_tool_arguments": true,
+        "weather_parameters_match": true,
+        "dialogue_constraints_match": true
+      },
+      "turns": [
+        {
+          "completed": true,
+          "seconds": 32.002,
+          "tools": [
+            "search_places",
+            "search_places",
+            "compute_routes"
+          ],
+          "usage": {
+            "requests": 6,
+            "prompt_tokens": 16658,
+            "completion_tokens": 447,
+            "missing_usage": 0
+          },
+          "source_link_count": 0,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            },
+            {
+              "tool": "search_places",
+              "status": "success"
+            },
+            {
+              "tool": "compute_routes",
+              "status": "success"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": true,
+          "context": {
+            "city": "Москва",
+            "area": "",
+            "activity": "рестораны",
+            "budget": {
+              "action": "set",
+              "amount": 3000,
+              "currency": "RUB",
+              "people": 2,
+              "scope": "total"
+            }
+          }
+        }
+      ],
+      "manual_scores": {
+        "relevance": "pass",
+        "constraints": "pass",
+        "grounding": "pass",
+        "honesty": "pass",
+        "tool_choice": "pass"
+      },
+      "model_review": {
+        "status": "completed",
+        "scores": {
+          "relevance": "pass",
+          "constraints": "pass",
+          "grounding": "pass",
+          "honesty": "pass",
+          "tool_choice": "pass"
+        },
+        "codes": [
+          "none"
+        ],
+        "usage": {
+          "requests": 1,
+          "prompt_tokens": 3303,
+          "completion_tokens": 46,
+          "missing_usage": 0
+        },
+        "seconds": 1.825
+      },
+      "case_id": "B07",
+      "mode": "live",
+      "repeat": 1,
+      "elapsed_seconds": 34.68
+    },
+    {
+      "execution_status": "completed",
+      "stop_reason": null,
+      "auto_checks": {
+        "all_turns_completed": true,
+        "required_tools_called": true,
+        "forbidden_tools_absent": true,
+        "last_turn_tools_called": true,
+        "last_turn_forbidden_tools_absent": true,
+        "required_tools_succeeded": true,
+        "required_text_present": true,
+        "forbidden_text_absent": true,
+        "required_last_text_present": true,
+        "forbidden_last_text_absent": true,
+        "last_source_count_matches": true,
+        "no_invalid_tool_arguments": true,
+        "weather_parameters_match": true,
+        "dialogue_constraints_match": true
+      },
+      "turns": [
+        {
+          "completed": true,
+          "seconds": 21.752,
+          "tools": [
+            "search_places",
+            "lookup_weather",
+            "lookup_weather",
+            "lookup_weather"
+          ],
+          "usage": {
+            "requests": 4,
+            "prompt_tokens": 9854,
+            "completion_tokens": 499,
+            "missing_usage": 0
+          },
+          "source_link_count": 3,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            },
+            {
+              "tool": "lookup_weather",
+              "status": "success"
+            },
+            {
+              "tool": "lookup_weather",
+              "status": "success"
+            },
+            {
+              "tool": "lookup_weather",
+              "status": "success"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [
+            {
+              "date": null,
+              "hour": null
+            },
+            {
+              "date": null,
+              "hour": null
+            },
+            {
+              "date": null,
+              "hour": null
+            }
+          ],
+          "budget_requested": true,
+          "context": {
+            "city": "Москва",
+            "area": "",
+            "activity": "кафе",
+            "budget": {
+              "action": "set",
+              "amount": 1500,
+              "currency": "RUB",
+              "people": 2,
+              "scope": "per_person"
+            }
+          }
+        }
+      ],
+      "manual_scores": {
+        "relevance": "pass",
+        "constraints": "pass",
+        "grounding": "fail",
+        "honesty": "pass",
+        "tool_choice": "pass"
+      },
+      "model_review": {
+        "status": "completed",
+        "scores": {
+          "relevance": "pass",
+          "constraints": "pass",
+          "grounding": "fail",
+          "honesty": "pass",
+          "tool_choice": "pass"
+        },
+        "codes": [
+          "missing_price_caveat"
+        ],
+        "usage": {
+          "requests": 1,
+          "prompt_tokens": 3629,
+          "completion_tokens": 52,
+          "missing_usage": 0
+        },
+        "seconds": 3.074
+      },
+      "case_id": "C06",
+      "mode": "live",
+      "repeat": 1,
+      "elapsed_seconds": 27.999
+    },
+    {
+      "execution_status": "completed",
+      "stop_reason": null,
+      "auto_checks": {
+        "all_turns_completed": true,
+        "required_tools_called": true,
+        "forbidden_tools_absent": true,
+        "last_turn_tools_called": true,
+        "last_turn_forbidden_tools_absent": true,
+        "required_tools_succeeded": true,
+        "required_text_present": true,
+        "forbidden_text_absent": true,
+        "required_last_text_present": true,
+        "forbidden_last_text_absent": true,
+        "last_source_count_matches": true,
+        "no_invalid_tool_arguments": true,
+        "weather_parameters_match": true,
+        "dialogue_constraints_match": true
+      },
+      "turns": [
+        {
+          "completed": true,
+          "seconds": 33.503,
+          "tools": [
+            "search_places",
+            "lookup_weather",
+            "lookup_weather",
+            "lookup_weather"
+          ],
+          "usage": {
+            "requests": 4,
+            "prompt_tokens": 9794,
+            "completion_tokens": 645,
+            "missing_usage": 0
+          },
+          "source_link_count": 3,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            },
+            {
+              "tool": "lookup_weather",
+              "status": "success"
+            },
+            {
+              "tool": "lookup_weather",
+              "status": "success"
+            },
+            {
+              "tool": "lookup_weather",
+              "status": "success"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [
+            {
+              "date": null,
+              "hour": null
+            },
+            {
+              "date": null,
+              "hour": null
+            },
+            {
+              "date": null,
+              "hour": null
+            }
+          ],
+          "budget_requested": true,
+          "context": {
+            "city": "Москва",
+            "area": "",
+            "activity": "бани",
+            "budget": {
+              "action": "set",
+              "amount": 2500,
+              "currency": "RUB",
+              "people": 2,
+              "scope": "per_hour"
+            }
+          }
+        }
+      ],
+      "manual_scores": {
+        "relevance": "pass",
+        "constraints": "pass",
+        "grounding": "pass",
+        "honesty": "pass",
+        "tool_choice": "pass"
+      },
+      "model_review": {
+        "status": "completed",
+        "scores": {
+          "relevance": "pass",
+          "constraints": "pass",
+          "grounding": "pass",
+          "honesty": "pass",
+          "tool_choice": "pass"
+        },
+        "codes": [
+          "none"
+        ],
+        "usage": {
+          "requests": 1,
+          "prompt_tokens": 3790,
+          "completion_tokens": 46,
+          "missing_usage": 0
+        },
+        "seconds": 3.239
+      },
+      "case_id": "C07",
+      "mode": "live",
+      "repeat": 1,
+      "elapsed_seconds": 38.666
+    }
+  ],
+  "summary": {
+    "live_attempts": 20,
+    "live_completed": 20,
+    "live_infrastructure_failures": 0,
+    "live_stopped": 0,
+    "live_quality_evaluable": 20,
+    "live_quality_pass": 13,
+    "live_quality_fail": 7,
+    "live_quality_pending": 0,
+    "live_quality_pass_rate": 0.65,
+    "live_end_to_end_pass_rate": 0.65,
+    "usage": {
+      "requests": 77,
+      "prompt_tokens": 154608,
+      "completion_tokens": 7694,
+      "missing_usage": 0
+    },
+    "review_usage": {
+      "requests": 20,
+      "prompt_tokens": 55057,
+      "completion_tokens": 946,
+      "missing_usage": 0
+    },
+    "total_usage": {
+      "requests": 97,
+      "prompt_tokens": 209665,
+      "completion_tokens": 8640,
+      "missing_usage": 0
+    },
+    "estimated_rub": 22.6945,
+    "live_median_seconds": 28.274,
+    "live_p95_seconds": 37.25,
+    "turn_attempts": 23,
+    "turn_completed": 23,
+    "turn_median_seconds": 21.752,
+    "turn_p95_seconds": 36.303,
+    "tool_calls": {
+      "compute_routes": 3,
+      "lookup_weather": 6,
+      "resolve_maps_urls": 3,
+      "resolve_names": 0,
+      "search_places": 23
+    },
+    "simulated_attempts": 0,
+    "simulated_pass": 0
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "scope": "direct_mcp_quota_diagnostic",
+  "date": "2026-11-02",
+  "provider": "Google Maps",
+  "http_status": 429,
+  "daily_limit_explicit_in_response": true,
+  "minute_limit_explicit_in_response": false,
+  "retry_after": null,
+  "exact_reset_time_known": false,
+  "llm_requests": 0,
+  "raw_response_saved": false
+}

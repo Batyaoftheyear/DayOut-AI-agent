@@ -1,0 +1,655 @@
+{
+  "metadata": {
+    "started_at": "2026-11-02T13:27:31+03:00",
+    "scope": "real_llm_synthetic_maps_dialogue",
+    "release": "2026-11-02-r12",
+    "code_sha256": "6a183def0ec639e3d632c4ba9913a75f56c5385dd83150bc0b5c9dcdf2dc7878",
+    "maps_data": "fictional_fixtures",
+    "external_maps_requests": 0,
+    "raw_maps_content_saved": false,
+    "provider": "yandex",
+    "review_method": "llm_assisted_same_model",
+    "prices_rub_per_1k": [
+      0.1,
+      0.2
+    ],
+    "visit_date": "2026-11-03",
+    "not_a_live_maps_integration_test": true
+  },
+  "results": [
+    {
+      "execution_status": "completed",
+      "stop_reason": null,
+      "auto_checks": {
+        "all_turns_completed": true,
+        "required_tools_called": true,
+        "forbidden_tools_absent": true,
+        "last_turn_tools_called": true,
+        "last_turn_forbidden_tools_absent": true,
+        "required_tools_succeeded": true,
+        "required_text_present": true,
+        "forbidden_text_absent": true,
+        "required_last_text_present": true,
+        "forbidden_last_text_absent": true,
+        "last_source_count_matches": true,
+        "no_invalid_tool_arguments": true,
+        "weather_parameters_match": true,
+        "dialogue_constraints_match": true
+      },
+      "turns": [
+        {
+          "completed": true,
+          "seconds": 17.669,
+          "tools": [],
+          "usage": {
+            "requests": 3,
+            "prompt_tokens": 4233,
+            "completion_tokens": 285,
+            "missing_usage": 0
+          },
+          "source_link_count": 0,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [],
+          "task": "chat",
+          "weather_requests": [],
+          "budget_requested": true,
+          "context": {
+            "city": "Москва",
+            "area": "",
+            "activity": "",
+            "budget": {
+              "action": "set",
+              "amount": 3000,
+              "currency": "RUB",
+              "people": 2,
+              "scope": "total"
+            }
+          }
+        },
+        {
+          "completed": true,
+          "seconds": 15.28,
+          "tools": [
+            "search_places"
+          ],
+          "usage": {
+            "requests": 3,
+            "prompt_tokens": 4870,
+            "completion_tokens": 265,
+            "missing_usage": 0
+          },
+          "source_link_count": 2,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": true,
+          "context": {
+            "city": "Москва",
+            "area": "центр",
+            "activity": "кафе",
+            "budget": {
+              "action": "set",
+              "amount": 3000,
+              "currency": "RUB",
+              "people": 2,
+              "scope": "total"
+            }
+          }
+        },
+        {
+          "completed": true,
+          "seconds": 11.312,
+          "tools": [],
+          "usage": {
+            "requests": 2,
+            "prompt_tokens": 3326,
+            "completion_tokens": 219,
+            "missing_usage": 0
+          },
+          "source_link_count": 2,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [],
+          "task": "refine",
+          "weather_requests": [],
+          "budget_requested": true,
+          "context": {
+            "city": "Москва",
+            "area": "центр",
+            "activity": "кафе",
+            "budget": {
+              "action": "set",
+              "amount": 3000,
+              "currency": "RUB",
+              "people": 2,
+              "scope": "total"
+            }
+          }
+        },
+        {
+          "completed": true,
+          "seconds": 13.469,
+          "tools": [
+            "search_places"
+          ],
+          "usage": {
+            "requests": 3,
+            "prompt_tokens": 5826,
+            "completion_tokens": 297,
+            "missing_usage": 0
+          },
+          "source_link_count": 2,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": true,
+          "context": {
+            "city": "Москва",
+            "area": "юг",
+            "activity": "кафе",
+            "budget": {
+              "action": "set",
+              "amount": 3000,
+              "currency": "RUB",
+              "people": 2,
+              "scope": "total"
+            }
+          }
+        },
+        {
+          "completed": true,
+          "seconds": 15.922,
+          "tools": [
+            "search_places"
+          ],
+          "usage": {
+            "requests": 3,
+            "prompt_tokens": 5840,
+            "completion_tokens": 274,
+            "missing_usage": 0
+          },
+          "source_link_count": 2,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": true,
+          "context": {
+            "city": "Москва",
+            "area": "Нагатино",
+            "activity": "кафе",
+            "budget": {
+              "action": "set",
+              "amount": 3000,
+              "currency": "RUB",
+              "people": 2,
+              "scope": "total"
+            }
+          }
+        },
+        {
+          "completed": true,
+          "seconds": 17.293,
+          "tools": [
+            "search_places"
+          ],
+          "usage": {
+            "requests": 3,
+            "prompt_tokens": 5992,
+            "completion_tokens": 274,
+            "missing_usage": 0
+          },
+          "source_link_count": 2,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": true,
+          "context": {
+            "city": "Москва",
+            "area": "Нагатино",
+            "activity": "рестораны",
+            "budget": {
+              "action": "set",
+              "amount": 3000,
+              "currency": "RUB",
+              "people": 2,
+              "scope": "total"
+            }
+          }
+        },
+        {
+          "completed": true,
+          "seconds": 16.143,
+          "tools": [
+            "search_places"
+          ],
+          "usage": {
+            "requests": 3,
+            "prompt_tokens": 6016,
+            "completion_tokens": 266,
+            "missing_usage": 0
+          },
+          "source_link_count": 2,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": true,
+          "context": {
+            "city": "Москва",
+            "area": "Нагатино",
+            "activity": "рестораны",
+            "budget": {
+              "action": "set",
+              "amount": 2000,
+              "currency": "RUB",
+              "people": 2,
+              "scope": "total"
+            }
+          }
+        },
+        {
+          "completed": true,
+          "seconds": 12.632,
+          "tools": [],
+          "usage": {
+            "requests": 2,
+            "prompt_tokens": 3547,
+            "completion_tokens": 229,
+            "missing_usage": 0
+          },
+          "source_link_count": 2,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [],
+          "task": "refine",
+          "weather_requests": [],
+          "budget_requested": true,
+          "context": {
+            "city": "Москва",
+            "area": "Нагатино",
+            "activity": "рестораны",
+            "budget": {
+              "action": "set",
+              "amount": 2000,
+              "currency": "RUB",
+              "people": 2,
+              "scope": "total"
+            }
+          }
+        },
+        {
+          "completed": true,
+          "seconds": 17.828,
+          "tools": [
+            "search_places"
+          ],
+          "usage": {
+            "requests": 3,
+            "prompt_tokens": 5750,
+            "completion_tokens": 230,
+            "missing_usage": 0
+          },
+          "source_link_count": 2,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": false,
+          "context": {
+            "city": "Москва",
+            "area": "Нагатино",
+            "activity": "рестораны",
+            "budget": {
+              "action": "clear",
+              "amount": null,
+              "currency": "unknown",
+              "people": null,
+              "scope": "unknown"
+            }
+          }
+        },
+        {
+          "completed": true,
+          "seconds": 9.808,
+          "tools": [],
+          "usage": {
+            "requests": 2,
+            "prompt_tokens": 3373,
+            "completion_tokens": 186,
+            "missing_usage": 0
+          },
+          "source_link_count": 2,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [],
+          "task": "refine",
+          "weather_requests": [],
+          "budget_requested": false,
+          "context": {
+            "city": "Москва",
+            "area": "Нагатино",
+            "activity": "рестораны",
+            "budget": {
+              "action": "clear",
+              "amount": null,
+              "currency": "unknown",
+              "people": null,
+              "scope": "unknown"
+            }
+          }
+        },
+        {
+          "completed": true,
+          "seconds": 16.106,
+          "tools": [
+            "lookup_weather"
+          ],
+          "usage": {
+            "requests": 3,
+            "prompt_tokens": 5208,
+            "completion_tokens": 234,
+            "missing_usage": 0
+          },
+          "source_link_count": 1,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "lookup_weather",
+              "status": "success"
+            }
+          ],
+          "task": "weather",
+          "weather_requests": [
+            {
+              "date": {
+                "year": 2026,
+                "month": 11,
+                "day": 3
+              },
+              "hour": null
+            }
+          ],
+          "budget_requested": false,
+          "context": {
+            "city": "Москва",
+            "area": "",
+            "activity": "",
+            "budget": {
+              "action": "clear",
+              "amount": null,
+              "currency": "unknown",
+              "people": null,
+              "scope": "unknown"
+            }
+          }
+        },
+        {
+          "completed": true,
+          "seconds": 17.194,
+          "tools": [
+            "compute_routes"
+          ],
+          "usage": {
+            "requests": 3,
+            "prompt_tokens": 5064,
+            "completion_tokens": 226,
+            "missing_usage": 0
+          },
+          "source_link_count": 1,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "compute_routes",
+              "status": "success"
+            }
+          ],
+          "task": "route",
+          "weather_requests": [],
+          "budget_requested": false,
+          "context": {
+            "city": "Москва",
+            "area": "",
+            "activity": "",
+            "budget": {
+              "action": "clear",
+              "amount": null,
+              "currency": "unknown",
+              "people": null,
+              "scope": "unknown"
+            }
+          }
+        },
+        {
+          "completed": true,
+          "seconds": 9.255,
+          "tools": [],
+          "usage": {
+            "requests": 2,
+            "prompt_tokens": 3520,
+            "completion_tokens": 182,
+            "missing_usage": 0
+          },
+          "source_link_count": 0,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [],
+          "task": "chat",
+          "weather_requests": [],
+          "budget_requested": false,
+          "context": {
+            "city": "Москва",
+            "area": "юг Москвы, Нагатино",
+            "activity": "рестораны",
+            "budget": {
+              "action": "clear",
+              "amount": null,
+              "currency": "unknown",
+              "people": null,
+              "scope": "unknown"
+            }
+          }
+        },
+        {
+          "completed": true,
+          "seconds": 15.218,
+          "tools": [
+            "search_places"
+          ],
+          "usage": {
+            "requests": 3,
+            "prompt_tokens": 5973,
+            "completion_tokens": 290,
+            "missing_usage": 0
+          },
+          "source_link_count": 2,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": false,
+          "context": {
+            "city": "Москва",
+            "area": "Нагатино",
+            "activity": "рестораны",
+            "budget": {
+              "action": "clear",
+              "amount": null,
+              "currency": "unknown",
+              "people": null,
+              "scope": "unknown"
+            }
+          }
+        },
+        {
+          "completed": true,
+          "seconds": 7.93,
+          "tools": [],
+          "usage": {
+            "requests": 2,
+            "prompt_tokens": 3590,
+            "completion_tokens": 209,
+            "missing_usage": 0
+          },
+          "source_link_count": 2,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [],
+          "task": "refine",
+          "weather_requests": [],
+          "budget_requested": false,
+          "context": {
+            "city": "Москва",
+            "area": "Нагатино",
+            "activity": "рестораны",
+            "budget": {
+              "action": "clear",
+              "amount": null,
+              "currency": "unknown",
+              "people": null,
+              "scope": "unknown"
+            }
+          }
+        }
+      ],
+      "manual_scores": {
+        "relevance": "pass",
+        "constraints": "pass",
+        "grounding": "pass",
+        "honesty": "pass",
+        "tool_choice": "pass",
+        "dialogue": "pass"
+      },
+      "model_review": {
+        "status": "completed",
+        "scores": {
+          "relevance": "pass",
+          "constraints": "pass",
+          "grounding": "pass",
+          "honesty": "pass",
+          "tool_choice": "pass",
+          "dialogue": "pass"
+        },
+        "codes": [
+          "none"
+        ],
+        "usage": {
+          "requests": 1,
+          "prompt_tokens": 7475,
+          "completion_tokens": 53,
+          "missing_usage": 0
+        },
+        "seconds": 2.923
+      },
+      "case_id": "L01",
+      "mode": "live",
+      "repeat": 1,
+      "elapsed_seconds": 243.989
+    }
+  ],
+  "fixture_calls": [
+    "search_places",
+    "search_places",
+    "search_places",
+    "search_places",
+    "search_places",
+    "search_places",
+    "lookup_weather",
+    "compute_routes",
+    "search_places"
+  ],
+  "summary": {
+    "live_attempts": 1,
+    "live_completed": 1,
+    "live_infrastructure_failures": 0,
+    "live_stopped": 0,
+    "live_quality_evaluable": 1,
+    "live_quality_pass": 1,
+    "live_quality_fail": 0,
+    "live_quality_pending": 0,
+    "live_quality_pass_rate": 1.0,
+    "live_end_to_end_pass_rate": 1.0,
+    "usage": {
+      "requests": 40,
+      "prompt_tokens": 72128,
+      "completion_tokens": 3666,
+      "missing_usage": 0
+    },
+    "review_usage": {
+      "requests": 1,
+      "prompt_tokens": 7475,
+      "completion_tokens": 53,
+      "missing_usage": 0
+    },
+    "total_usage": {
+      "requests": 41,
+      "prompt_tokens": 79603,
+      "completion_tokens": 3719,
+      "missing_usage": 0
+    },
+    "estimated_rub": 8.7041,
+    "live_median_seconds": 213.059,
+    "live_p95_seconds": 213.059,
+    "turn_attempts": 15,
+    "turn_completed": 15,
+    "turn_median_seconds": 15.28,
+    "turn_p95_seconds": 17.828,
+    "tool_calls": {
+      "compute_routes": 1,
+      "lookup_weather": 1,
+      "resolve_maps_urls": 0,
+      "resolve_names": 0,
+      "search_places": 7
+    },
+    "simulated_attempts": 0,
+    "simulated_pass": 0
+  }
+}

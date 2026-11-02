@@ -1,0 +1,7 @@
+﻿case_id,repeat,criterion,verdict,note
+E05,1,relevance,pass,
+E05,1,constraints,pass,
+E05,1,grounding,pass,
+E05,1,honesty,pass,
+E05,1,tool_choice,pass,
+E05,1,clarification,pass,

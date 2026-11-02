@@ -1,0 +1,165 @@
+{
+  "metadata": {
+    "started_at": "2026-11-02T13:01:15+03:00",
+    "target": "local_web_adapter",
+    "provider": "yandex",
+    "model": "aliceai-llm-flash/latest",
+    "variant": "release-r10",
+    "split": "all",
+    "max_live_turns": 1,
+    "review_method": "llm_assisted_same_model",
+    "prices_rub_per_1k": [
+      0.1,
+      0.2
+    ],
+    "max_estimated_rub": null,
+    "cost_is_estimate_not_invoice": true,
+    "python": "3.14.4",
+    "code_sha256": "8bba527dcce723e6c3dd8e4501e7f52406bc53694cd0f8f88750db18372df48f",
+    "dataset_sha256": "75eb0c46f1fd66ed8384cdb1efdc55e9799c74410b9c2a3f774389631c811423",
+    "dataset_file": "extended_cases.json",
+    "visit_date": "2026-11-03",
+    "interval_seconds": 5,
+    "raw_content_saved": false
+  },
+  "results": [
+    {
+      "execution_status": "completed",
+      "stop_reason": null,
+      "auto_checks": {
+        "all_turns_completed": true,
+        "required_tools_called": true,
+        "forbidden_tools_absent": true,
+        "last_turn_tools_called": true,
+        "last_turn_forbidden_tools_absent": true,
+        "required_tools_succeeded": true,
+        "required_text_present": true,
+        "forbidden_text_absent": true,
+        "required_last_text_present": true,
+        "forbidden_last_text_absent": true,
+        "last_source_count_matches": true,
+        "no_invalid_tool_arguments": true,
+        "weather_parameters_match": true,
+        "dialogue_constraints_match": true
+      },
+      "turns": [
+        {
+          "completed": true,
+          "seconds": 31.489,
+          "tools": [
+            "search_places"
+          ],
+          "usage": {
+            "requests": 3,
+            "prompt_tokens": 4991,
+            "completion_tokens": 272,
+            "missing_usage": 0
+          },
+          "source_link_count": 3,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": false,
+          "context": {
+            "city": "Москва",
+            "area": "юг Москвы",
+            "activity": "парки",
+            "budget": {
+              "action": "keep",
+              "amount": null,
+              "currency": "unknown",
+              "people": 2,
+              "scope": "unknown"
+            }
+          }
+        }
+      ],
+      "manual_scores": {
+        "relevance": "pass",
+        "constraints": "pass",
+        "grounding": "pass",
+        "honesty": "pass",
+        "tool_choice": "pass",
+        "clarification": "pass"
+      },
+      "model_review": {
+        "status": "completed",
+        "scores": {
+          "relevance": "pass",
+          "constraints": "pass",
+          "grounding": "pass",
+          "honesty": "pass",
+          "tool_choice": "pass",
+          "clarification": "pass"
+        },
+        "codes": [
+          "none"
+        ],
+        "usage": {
+          "requests": 1,
+          "prompt_tokens": 2283,
+          "completion_tokens": 53,
+          "missing_usage": 0
+        },
+        "seconds": 3.937
+      },
+      "case_id": "E05",
+      "mode": "live",
+      "repeat": 1,
+      "elapsed_seconds": 35.428
+    }
+  ],
+  "summary": {
+    "live_attempts": 1,
+    "live_completed": 1,
+    "live_infrastructure_failures": 0,
+    "live_stopped": 0,
+    "live_quality_evaluable": 1,
+    "live_quality_pass": 1,
+    "live_quality_fail": 0,
+    "live_quality_pending": 0,
+    "live_quality_pass_rate": 1.0,
+    "live_end_to_end_pass_rate": 1.0,
+    "usage": {
+      "requests": 3,
+      "prompt_tokens": 4991,
+      "completion_tokens": 272,
+      "missing_usage": 0
+    },
+    "review_usage": {
+      "requests": 1,
+      "prompt_tokens": 2283,
+      "completion_tokens": 53,
+      "missing_usage": 0
+    },
+    "total_usage": {
+      "requests": 4,
+      "prompt_tokens": 7274,
+      "completion_tokens": 325,
+      "missing_usage": 0
+    },
+    "estimated_rub": 0.7924000000000001,
+    "live_median_seconds": 31.489,
+    "live_p95_seconds": 31.489,
+    "turn_attempts": 1,
+    "turn_completed": 1,
+    "turn_median_seconds": 31.489,
+    "turn_p95_seconds": 31.489,
+    "tool_calls": {
+      "compute_routes": 0,
+      "lookup_weather": 0,
+      "resolve_maps_urls": 0,
+      "resolve_names": 0,
+      "search_places": 1
+    },
+    "simulated_attempts": 0,
+    "simulated_pass": 0
+  }
+}

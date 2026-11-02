@@ -1,0 +1,6 @@
+﻿case_id,repeat,criterion,verdict,note
+T07,1,relevance,pending,
+T07,1,constraints,pending,
+T07,1,grounding,pending,
+T07,1,honesty,pending,
+T07,1,tool_choice,pending,
