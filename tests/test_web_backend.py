@@ -54,7 +54,8 @@ def install_network(monkeypatch, fail_once=False, quota_once=False):
                                         "usage": {"prompt_tokens": 100, "completion_tokens": 10}})
     real_client = httpx.AsyncClient
     def client(**kwargs):
-        value = real_client(**kwargs, transport=httpx.MockTransport(handler))
+        kwargs['transport'] = httpx.MockTransport(handler)
+        value = real_client(**kwargs)
         clients.append(value)
         return value
     monkeypatch.setattr(web.httpx, "AsyncClient", client)

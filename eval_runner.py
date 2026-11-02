@@ -92,6 +92,20 @@ def weather_parameters_match(requests, case, visit_date):
     return True
 
 
+def dialogue_constraints_match(turns, case):
+    for check in case.get('budget_checks', []):
+        index = check['turn'] - 1
+        if index >= len(turns) or not turns[index]['completed']:
+            return False
+        actual = (turns[index].get('context') or {}).get('budget') or {}
+        if any(actual.get(key) != value for key,value in check['expected'].items()):
+            return False
+    for index in case.get('no_tools_turns', []):
+        if index > len(turns) or turns[index-1]['tools']:
+            return False
+    return True
+
+
 def run_live(case, config, gate, visit_date, interval, pace, inspect=False, limits=None, reviewer=None):
     memory, turns, all_tools = WebMemory(), [], []
     successful_tools, texts, observations = [], [], []
@@ -141,7 +155,8 @@ def run_live(case, config, gate, visit_date, interval, pace, inspect=False, limi
                       "failure_category": category, "partial_available": bool(result.partial),
                       "tool_outcomes": outcomes, "task": observed.get("task"),
                       "weather_requests": observed.get("weather_requests", []),
-                      "budget_requested": observed.get("budget_requested")})
+                      "budget_requested": observed.get("budget_requested"),
+                      "context": {key:(memory.last_plan or {}).get(key) for key in ('city','area','activity','budget')} if result.reply else None})
         if limits:
             limits["turns"] += 1
             for key, value in usage.items():
@@ -157,7 +172,7 @@ def run_live(case, config, gate, visit_date, interval, pace, inspect=False, limi
                             print(config.redact(json.dumps({"tool_request": call.get("function", {})}, ensure_ascii=False)))
                 for name, payload in tool_evidence(messages):
                     print(config.redact(json.dumps({"tool": name, "evidence": payload}, ensure_ascii=False)))
-        if result.error or category in INFRASTRUCTURE_FAILURES:
+        if result.error or (category in INFRASTRUCTURE_FAILURES and not result.reply):
             break  # Preserve the failed first attempt; never replace it with a successful retry.
     last_tools = turns[-1]["tools"] if turns else []
     last_text = texts[-1] if texts else ""
@@ -175,6 +190,7 @@ def run_live(case, config, gate, visit_date, interval, pace, inspect=False, limi
         "last_source_count_matches": "last_source_links" not in case or bool(turns and turns[-1]["source_link_count"] == case["last_source_links"]),
         "no_invalid_tool_arguments": not any(item["status"] == "invalid_arguments" for observed in observations for item in observed.get("tool_outcomes", [])),
         "weather_parameters_match": weather_parameters_match([request for observed in observations for request in observed.get("weather_requests", [])], case, visit_date),
+        "dialogue_constraints_match": dialogue_constraints_match(turns, case),
     }
     infrastructure_failed = any(turn["failure_category"] in INFRASTRUCTURE_FAILURES for turn in turns)
     result = {"execution_status": "stopped" if stop_reason else "completed" if auto["all_turns_completed"] and not infrastructure_failed else "failed",

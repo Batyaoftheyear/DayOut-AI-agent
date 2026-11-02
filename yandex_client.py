@@ -39,7 +39,7 @@ class YandexClient(GroqClient):
     token_parameter = "max_tokens"
 
     def request_options(self):
-        return {}  # Do not send Groq-only reasoning controls.
+        return {"temperature": 0.2}
 
     def update_limits(self, headers):
         # Groq's token-window headers and 8000-TPM assumptions do not apply here.

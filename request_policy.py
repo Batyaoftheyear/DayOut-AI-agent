@@ -1,6 +1,7 @@
 """Semantic turn plan from user text, with deterministic constraint merging."""
 import copy
 import json
+import re
 from datetime import date
 from jsonschema import validate
 
@@ -47,6 +48,9 @@ def response_format():
 PLAN_PROMPT = """Разбери текущую просьбу для помощника по досугу. Верни только JSON по схеме.
 Это внутренний план, не ответ пользователю. Данные о реальных местах здесь отсутствуют.
 Сохрани применимые прежние условия, новые заменяют старые. Не угадывай город, цены или предпочтения.
+Название города в любом падеже считается указанным: «на юге Москвы», «в Москве», «из Москвы» → city="Москва".
+activity — тип места (рестораны, кафе, парки, музеи, бани), purpose — цель (свидание, разговор, отдых). Не подменяй рестораны словом «свидание» в activity.
+В «Найди красивые места для прогулки вдвоём на юге Москвы» уже есть город: task=search, city="Москва", required_tools=["search_places"].
 task=search: поиск новых мест, смена категории (кафе→баня), района, времени/бюджета или иных условий поиска.
 refine: только сократить/объяснить уже выбранные варианты, без новых фактов. chat: общая беседа или объяснение ошибки.
 Явное «не ищи», «только запомни», «перечисли условия» означает refine/chat и required_tools=[], даже если в просьбе есть слово «найди» в описании будущей цели.
@@ -81,7 +85,7 @@ def plan_messages(history, query, previous, now):
     ]
 
 
-def parse_plan(message, previous=None):
+def parse_plan(message, previous=None, query=""):
     if message.get("tool_calls"):
         raise ValueError("Unexpected tool call in planner")
     content = (message.get("content") or "").strip()
@@ -89,6 +93,21 @@ def parse_plan(message, previous=None):
         content = content.split("\n", 1)[1].rsplit("```", 1)[0]
     plan = json.loads(content)
     validate(plan, PLAN_SCHEMA)
+    if plan['task'] == 'search':
+        requested = query.lower().split('вместо', 1)[0]
+        categories = [name for pattern,name in ((r'ресторан', 'рестораны'), (r'кафе|кофейн', 'кафе'),
+            (r'музе', 'музеи'), (r'бан[ияьюе]|саун', 'бани'), (r'аквапарк', 'аквапарки')) if re.search(pattern, requested)]
+        if len(categories) == 1:
+            plan['activity'] = categories[0]
+    # The MVP focuses on Moscow. Preserve an explicitly supplied city even if
+    # the planner put its inflected name only in area and left city blank.
+    explicit_moscow = bool(re.search(r"\bмоскв(?:а|е|ы|у|ой)\b", query, re.I))
+    if not plan["city"].strip() and explicit_moscow:
+        plan["city"] = "Москва"
+        if plan["task"] == "clarify" and re.search(r"найди|подбери|посоветуй|ищи|покажи|прогул|кафе|ресторан|музе", query, re.I):
+            plan["task"] = "search"
+    elif not plan["city"].strip() and previous and previous.get("city") and plan["task"] != "clarify":
+        plan["city"] = previous["city"]
     if plan["weather_date"] is not None and date.fromisoformat(plan["weather_date"]).isoformat() != plan["weather_date"]:
         raise ValueError("invalid forecast date")
     if plan["weather_hour"] is not None and plan["weather_date"] is None:
@@ -122,12 +141,14 @@ def instructions(plan):
     text = "\nПлан текущего хода (условия пользователя, не данные о местах): " + json.dumps(plan, ensure_ascii=False, separators=(",", ":"))
     text += "\nВыполни необходимые инструменты перед итогом. Новую категорию нельзя объявлять отсутствующей по старой выдаче."
     text += "\nВыбирай и объясняй варианты для цели пользователя; не пересказывай нерелевантные свойства карточек."
+    text += "\nЕсли summary не подтверждает район, не утверждай точное соответствие району: сообщи, что это кандидаты по запросу, и предложи проверить расположение по ссылке."
     if budget["amount"] is not None:
         text += ("\nДенежное ограничение учитывай при отборе: сумма, единица и число людей хранятся в плане. "
                  "Первичный textQuery — короткий тип места + область + город; не перегружай его бюджетом и всеми пожеланиями. "
                  "Разные единицы цены не сравнивай без данных. Если цен нет, сделай не более одного дополнительного "
                  "поиска цен для выбранных кандидатов; без подтверждения не гарантируй бюджет. "
                  "Не пиши «в рамках бюджета», если цена неизвестна: назови варианты кандидатами при заданном ориентире.")
+        text += "\nСумму и предупреждение о неподтверждённой полной стоимости приложение добавит само. Не повторяй одинаковую оговорку у каждого места. Если найдены конкретные цены, укажи их с единицей и источником."
     else:
         text += "\nБюджет не задан: не добавляй шаблон о попадании в бюджет. Цены обсуждай только по просьбе."
     if plan["strict_area"]:

@@ -71,6 +71,22 @@ def test_yandex_tool_round_trip_uses_expected_headers_fields_and_usage():
     assert len(sent) == 2
 
 
+def test_named_tool_choice_reaches_yandex_http_request():
+    sent=[]
+    def handler(request):
+        body=json.loads(request.content);sent.append(body)
+        return httpx.Response(200,json={'choices':[{'finish_reason':'tool_calls','message':{
+            'role':'assistant','content':None,'tool_calls':[{'id':'one','type':'function','function':{
+                'name':'search_places','arguments':'{}'}}]}}], 'usage':{'prompt_tokens':10,'completion_tokens':10}})
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as http:
+            await YandexClient(http,MODEL).complete([], [{'type':'function','function':{'name':'search_places'}}],
+                tool_choice={'type':'function','function':{'name':'search_places'}})
+    asyncio.run(run())
+    assert sent[0]['tool_choice']=={'type':'function','function':{'name':'search_places'}}
+    assert sent[0]['temperature']==0.2
+
+
 @pytest.mark.parametrize("status,kind", [(400, AgentError), (401, GroqConnectionError), (402, GroqConnectionError),
                                         (403, GroqConnectionError), (404, AgentError), (429, QuotaPauseError)])
 def test_yandex_errors_are_safe_name_correct_provider_and_never_auto_retry(status, kind):

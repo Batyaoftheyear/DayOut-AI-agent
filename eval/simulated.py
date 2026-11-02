@@ -44,7 +44,8 @@ def run_simulated(scenario):
         return httpx.Response(200, json={"choices": [{"finish_reason": "stop", "message": message}]})
     real_client = httpx.AsyncClient
     def client(**kwargs):
-        return real_client(**kwargs, transport=httpx.MockTransport(handler))
+        kwargs['transport'] = httpx.MockTransport(handler)
+        return real_client(**kwargs)
     @asynccontextmanager
     async def transport(*args, **kwargs):
         yield None, None, None

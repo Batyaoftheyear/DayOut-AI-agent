@@ -293,3 +293,61 @@ def test_weather_uses_api_default_language_and_preserves_requested_date():
     asyncio.run(a.execute(wrong, p))
     sent = a.session.call_tool.await_args.kwargs["arguments"]
     assert sent["date"] == {"year": 2026, "month": 10, "day": 31} and "hour" not in sent
+
+
+def test_explicit_moscow_in_area_does_not_trigger_a_city_question():
+    p=plan('clarify')
+    p.update(city='',area='юг Москвы',activity='прогулка')
+    a=agent([planned(p),call('парки на юге Москвы'),answer('Кандидат для прогулки [S1].')],[result()])
+    reply=asyncio.run(a.ask('Найди красивые места для прогулки вдвоём на юге Москвы.'))
+    assert a.last_plan['city']=='Москва' and a.last_plan['task']=='search'
+    assert reply.tools==['search_places'] and FIRST in reply.text
+    assert a.llm.complete.await_args_list[1].kwargs['tool_choice']['function']['name']=='search_places'
+
+
+def test_missing_city_is_still_a_question_without_a_search():
+    p=plan('search');p.update(city='',area='')
+    a=agent([planned(p)],[])
+    reply=asyncio.run(a.ask('Найди красивые места для прогулки вдвоём.'))
+    assert reply.text=='В каком городе искать места?'
+    a.session.call_tool.assert_not_awaited()
+
+
+def test_printed_tool_syntax_does_not_count_as_a_real_result():
+    a=agent([planned(plan()),call('парки Москва'),answer('[search_places: парк Москва]'),
+             answer('Кандидат [S1].')],[result()])
+    reply=asyncio.run(a.ask('Найди парк в Москве'))
+    assert '[search_places:' not in reply.text and FIRST in reply.text
+    assert a.session.call_tool.await_count==1
+
+
+def test_restaurant_category_is_not_replaced_by_the_purpose_of_a_date():
+    p=plan();p['activity']='свидание'
+    parsed=parse_plan(planned(p),query='Найди два тихих ресторана для свидания рядом с метро Бутырская в Москве.')
+    assert parsed['activity']=='рестораны'
+
+
+def test_near_station_search_resolves_anchor_before_using_coordinates():
+    p=plan();p.update(geo_anchor='метро Синтетическая',activity='кафе')
+    center={'latitude':55.7,'longitude':37.6}
+    anchor=result();anchor.structuredContent['places'][0]['location']=center
+    found=result(SECOND);found.structuredContent['places'][0]['location']=dict(center,latitude=55.7001)
+    a=agent([planned(p),call('свидание'),call('кафе','two'),answer('Можно рассмотреть [S2].')],[anchor,found])
+    a.tools['search_places'].inputSchema['properties'].update({'pageSize':{'type':'integer'},'locationBias':{'type':'object'}})
+    reply=asyncio.run(a.ask('Найди кафе рядом с метро Синтетическая, Москва'))
+    first,second=[c.kwargs['arguments'] for c in a.session.call_tool.await_args_list]
+    assert 'Синтетическая' in first['textQuery'] and 'locationBias' not in first
+    assert second['textQuery']=='кафе' and second['locationBias']['circle']['center']==center
+    assert SECOND in reply.text
+
+
+def test_place_link_cannot_hide_a_route_over_the_requested_walking_limit():
+    from agent import TurnState, AnswerValidationError
+    p=plan();p['walk_limit_minutes']=15
+    state=TurnState('test',[{'role':'tool','tool_call_id':'route','content':json.dumps({'app_route_check':[{
+        'candidate_urls':[FIRST], 'duration_seconds':1296,'within_walk_limit':False}]})}],0,{},[],{})
+    state.plan=p
+    a=agent([],[])
+    with pytest.raises(AnswerValidationError,match='21.6'):
+        a.validate_geography(state,f'Подходящее кафе: [Google Maps]({FIRST}), 15 минут пешком.')
+    a.validate_geography(state,f'Не подходит: [Google Maps]({FIRST}), путь превышает 15 минут.')

@@ -129,7 +129,10 @@ async def _perform(config, memory, gate, action, query, emit):
             emit(text)
 
     try:
-        async with httpx.AsyncClient(headers=config.headers, timeout=45) as http:
+        # Retry only connection establishment, before a request can be sent.
+        # Responses/timeouts after sending and HTTP errors are never replayed.
+        async with httpx.AsyncClient(headers=config.headers, timeout=45,
+                                     transport=httpx.AsyncHTTPTransport(retries=1)) as http:
             llm = make_client(http, config, emit=event)
             llm.usage_totals = dict(memory.usage_totals)
             llm.prompt_ratios = list(memory.prompt_ratios)

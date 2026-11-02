@@ -1,5 +1,5 @@
 {
-  "version": 1,
+  "version": 2,
   "cases": [
     {
       "id": "E01",
@@ -164,7 +164,135 @@
         "compute_routes",
         "resolve_names",
         "resolve_maps_urls"
+      ],
+      "no_tools_turns": [
+        1,
+        3,
+        8,
+        10,
+        13,
+        15
+      ],
+      "budget_checks": [
+        {
+          "turn": 1,
+          "expected": {
+            "amount": 3000,
+            "people": 2,
+            "scope": "total"
+          }
+        },
+        {
+          "turn": 2,
+          "expected": {
+            "amount": 3000,
+            "people": 2,
+            "scope": "total"
+          }
+        },
+        {
+          "turn": 4,
+          "expected": {
+            "amount": 3000,
+            "people": 2,
+            "scope": "total"
+          }
+        },
+        {
+          "turn": 5,
+          "expected": {
+            "amount": 3000,
+            "people": 2,
+            "scope": "total"
+          }
+        },
+        {
+          "turn": 6,
+          "expected": {
+            "amount": 3000,
+            "people": 2,
+            "scope": "total"
+          }
+        },
+        {
+          "turn": 7,
+          "expected": {
+            "amount": 2000,
+            "people": 2,
+            "scope": "total"
+          }
+        },
+        {
+          "turn": 8,
+          "expected": {
+            "amount": 2000,
+            "people": 2,
+            "scope": "total"
+          }
+        },
+        {
+          "turn": 9,
+          "expected": {
+            "amount": null
+          }
+        },
+        {
+          "turn": 10,
+          "expected": {
+            "amount": null
+          }
+        },
+        {
+          "turn": 13,
+          "expected": {
+            "amount": null
+          }
+        },
+        {
+          "turn": 14,
+          "expected": {
+            "amount": null
+          }
+        },
+        {
+          "turn": 15,
+          "expected": {
+            "amount": null
+          }
+        }
       ]
+    },
+    {
+      "id": "E05",
+      "title": "Город в родительном падеже",
+      "group": "regression",
+      "mode": "live",
+      "split": "development",
+      "turns": [
+        "Найди красивые места для прогулки вдвоём на юге Москвы."
+      ],
+      "required_tools": [
+        "search_places"
+      ],
+      "required_success_tools": [
+        "search_places"
+      ],
+      "forbidden_tools": [
+        "lookup_weather",
+        "compute_routes"
+      ],
+      "forbidden_text": [
+        "В каком городе"
+      ],
+      "criteria": [
+        "relevance",
+        "constraints",
+        "grounding",
+        "honesty",
+        "tool_choice",
+        "clarification"
+      ],
+      "expected": "Без повторного вопроса о городе. Реальный search_places и места-кандидаты по запросу с источниками; красота и романтичность не гарантируются."
     }
   ]
 }
