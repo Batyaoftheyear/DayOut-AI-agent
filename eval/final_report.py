@@ -15,7 +15,12 @@ def subset(report, rows):
     return summary({'metadata':report['metadata'],'results':rows})
 
 
-def build(main_path, additional_path, require_complete=False, regression_path=None, final_checks_path=None, controlled_path=None):
+def build(main_path, additional_path, require_complete=False, regression_path=None, final_checks_path=None, controlled_path=None, followup_paths=None):
+    followup_paths=list(followup_paths or [])
+    if len({p.resolve() for p in followup_paths}) != len(followup_paths):
+        raise ValueError('Duplicate follow-up report would count usage twice')
+    if any(not p.is_file() for p in followup_paths):
+        raise ValueError('Follow-up report is missing')
     main,extra=read(main_path),read(additional_path)
     if main['metadata']['code_sha256']!=extra['metadata']['code_sha256']:
         raise ValueError('Cannot combine releases with different runtime fingerprints')
@@ -74,7 +79,7 @@ def build(main_path, additional_path, require_complete=False, regression_path=No
         final=read(final_checks_path)
         intended={c['id'] for c in load_cases(ROOT/'eval/final_checks.json')}
         covered={r['case_id'] for r in final['results']}==intended and len(final['results'])==len(intended)
-        if require_complete and not covered:
+        if require_complete and not covered and not followup_paths:
             raise ValueError('Final release checks are not complete')
         report['metadata'].update(implementation_release='2026-11-02-r12',implementation_commit='2e48184',
             implementation_tag='eval-r12-2026-11-02',implementation_code_sha256=final['metadata']['code_sha256'],
@@ -100,6 +105,34 @@ def build(main_path, additional_path, require_complete=False, regression_path=No
                 usage[key]+=controlled['summary']['total_usage'][key]
             report['cost'].update(usage=usage,known_tokens_rub=(usage['prompt_tokens']*.1+usage['completion_tokens']*.2)/1000,
                                   complete_usage=not usage['missing_usage'])
+    if followup_paths:
+        intended={c['id'] for c in load_cases(ROOT/'eval/final_checks.json')}
+        rows=list(read(final_checks_path)['results']) if final_checks_path else []
+        report['followup_attempts']=[]
+        for path in followup_paths:
+            followup=read(path)
+            rows.extend(followup['results'])
+            report['metadata']['sources'].append({'file':path.relative_to(ROOT).as_posix(),
+                'sha256':hashlib.sha256(path.read_bytes()).hexdigest()})
+            report['followup_attempts'].append({'file':path.relative_to(ROOT).as_posix(),
+                'code_sha256':followup['metadata']['code_sha256'],'summary':followup['summary'],
+                'cases':[{'id':r['case_id'],'turns_attempted':len(r['turns']),
+                    'turns_completed':sum(t['completed'] for t in r['turns']),'execution_status':r['execution_status'],
+                    'auto_checks':r['auto_checks'],'scores':r['manual_scores'],
+                    'review_codes':r.get('model_review',{}).get('codes',[])} for r in followup['results']]})
+            for key in usage:
+                usage[key]+=followup['summary']['total_usage'][key]
+        covered=intended <= {r['case_id'] for r in rows}
+        completed=intended <= {r['case_id'] for r in rows if r['execution_status']=='completed'}
+        report['metadata'].update(
+            initial_final_checks_coverage_complete=report['metadata'].get('final_checks_coverage_complete',False),
+            final_checks_coverage_complete=covered,
+            final_release_checks_completed=completed,
+            followup_is_separate_attempt=True)
+        report['cost'].update(usage=usage,known_tokens_rub=(usage['prompt_tokens']*.1+usage['completion_tokens']*.2)/1000,
+                              complete_usage=not usage['missing_usage'])
+        if require_complete and not covered:
+            raise ValueError('Final release checks are not complete')
     return report
 
 
@@ -110,10 +143,11 @@ def main():
     parser.add_argument('--regression',type=Path,default=ROOT/'eval/results/regression-r11-2026-11-02.json')
     parser.add_argument('--final-checks',type=Path,default=ROOT/'eval/results/final-checks-r12-2026-11-02.json')
     parser.add_argument('--controlled',type=Path,default=ROOT/'eval/results/controlled-dialogue-r12-2026-11-02.json')
+    parser.add_argument('--followup',type=Path,action='append',help='Separate live attempt after restoring Maps access; repeat for each report')
     parser.add_argument('--output',type=Path,default=ROOT/'eval/results/defense-evaluation-2026-11-02.json')
-    parser.add_argument('--require-complete',action='store_true')
+    parser.add_argument('--require-complete',action='store_true',help='Require every planned case to be attempted; this does not assert all cases passed')
     args=parser.parse_args()
-    report=build(args.main.resolve(),args.additional.resolve(),args.require_complete,args.regression.resolve(),args.final_checks.resolve(),args.controlled.resolve())
+    report=build(args.main.resolve(),args.additional.resolve(),args.require_complete,args.regression.resolve(),args.final_checks.resolve(),args.controlled.resolve(),[p.resolve() for p in args.followup or []])
     args.output.write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
     print(json.dumps({'main':report['main'],'additional':report['additional'],'cost':report['cost']},indent=2))
 

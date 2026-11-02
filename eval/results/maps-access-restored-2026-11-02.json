@@ -1,0 +1,12 @@
+{
+  "scope": "direct_mcp_access_check_after_key_replacement",
+  "date": "2026-11-02",
+  "tool": "search_places",
+  "requests": 1,
+  "llm_requests": 0,
+  "call_returned": true,
+  "is_error": false,
+  "credentials_saved_in_report": false,
+  "raw_maps_content_saved": false,
+  "scope_limit": "Confirms local API access, not billing configuration or the key configured in Streamlit Secrets."
+}

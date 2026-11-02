@@ -1,0 +1,9 @@
+{
+  "scope": "followup_runtime_provenance",
+  "date": "2026-11-02",
+  "evaluated_source_tag": "eval-r12-2026-11-02",
+  "python_runtime_files_match_tag": true,
+  "dependency_versions_match_tag": true,
+  "current_fingerprint": "edcb9eb039844f0487cc32da335e907b261cefe0eb761caca0c04c05f3dabf9f",
+  "fingerprint_difference": "Only requirements.txt comments and ordering changed after the frozen r12 run; credentials are not included."
+}

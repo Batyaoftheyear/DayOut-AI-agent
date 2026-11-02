@@ -1,0 +1,15 @@
+{
+  "scope": "sanitized_transport_diagnostic",
+  "date": "2026-11-02",
+  "parent_report": "long-dialogue-repeat-r12-2026-11-02.json",
+  "case": "L01",
+  "logical_turn": 14,
+  "provider": "Yandex AI Studio",
+  "exception_type": "ReadTimeout",
+  "generation_attempts": 2,
+  "usage_missing_on_failed_turn": 2,
+  "maps_errors_in_this_attempt": 0,
+  "billing_of_lost_responses_known": false,
+  "raw_provider_response_saved": false,
+  "credentials_saved": false
+}

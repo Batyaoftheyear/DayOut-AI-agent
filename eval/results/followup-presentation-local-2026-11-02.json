@@ -1,0 +1,13 @@
+{
+  "scope": "updated_followup_presentation",
+  "date": "2026-11-02",
+  "external_api_calls": 0,
+  "checks": {
+    "ten_slides": true,
+    "metrics_loaded": true,
+    "followup_present": true,
+    "mobile_no_horizontal_overflow": true,
+    "print_no_overflow": true,
+    "pdf_ten_pages": true
+  }
+}

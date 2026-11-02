@@ -27,6 +27,14 @@
       {
         "file": "eval/results/controlled-dialogue-r12-2026-11-02.json",
         "sha256": "afc6a568a2fa4e6e3564e3196943ff96a8dfc81db469a7d5241567048fb7d20e"
+      },
+      {
+        "file": "eval/results/final-followup-r12-2026-11-02.json",
+        "sha256": "2213cf9afda25c0fdc1663121ce3fbc7a3e69431648a0e961576773e64284e86"
+      },
+      {
+        "file": "eval/results/long-dialogue-repeat-r12-2026-11-02.json",
+        "sha256": "7485097b7635ff341f6c4a3de0b9d8cf6826a3ddf24d834d526ce7bae9354748"
       }
     ],
     "raw_maps_content_saved": false,
@@ -40,8 +48,11 @@
     "implementation_code_sha256": "6a183def0ec639e3d632c4ba9913a75f56c5385dd83150bc0b5c9dcdf2dc7878",
     "targeted_coverage_complete": true,
     "quality_rates_are_not_pooled_across_versions": true,
-    "final_checks_coverage_complete": false,
-    "benchmark_code_sha256": "8bba527dcce723e6c3dd8e4501e7f52406bc53694cd0f8f88750db18372df48f"
+    "final_checks_coverage_complete": true,
+    "benchmark_code_sha256": "8bba527dcce723e6c3dd8e4501e7f52406bc53694cd0f8f88750db18372df48f",
+    "initial_final_checks_coverage_complete": false,
+    "final_release_checks_completed": false,
+    "followup_is_separate_attempt": true
   },
   "main": {
     "live_attempts": 30,
@@ -2147,16 +2158,16 @@
   ],
   "cost": {
     "usage": {
-      "requests": 315,
-      "prompt_tokens": 636325,
-      "completion_tokens": 27847,
-      "missing_usage": 3
+      "requests": 373,
+      "prompt_tokens": 752738,
+      "completion_tokens": 33410,
+      "missing_usage": 5
     },
     "prices_rub_per_1k": [
       0.1,
       0.2
     ],
-    "known_tokens_rub": 69.2019,
+    "known_tokens_rub": 81.9558,
     "complete_usage": false,
     "not_invoice": true
   },
@@ -3228,5 +3239,206 @@
       "simulated_attempts": 0,
       "simulated_pass": 0
     }
-  }
+  },
+  "followup_attempts": [
+    {
+      "file": "eval/results/final-followup-r12-2026-11-02.json",
+      "code_sha256": "edcb9eb039844f0487cc32da335e907b261cefe0eb761caca0c04c05f3dabf9f",
+      "summary": {
+        "live_attempts": 2,
+        "live_completed": 1,
+        "live_infrastructure_failures": 1,
+        "live_stopped": 0,
+        "live_quality_evaluable": 1,
+        "live_quality_pass": 1,
+        "live_quality_fail": 0,
+        "live_quality_pending": 0,
+        "live_quality_pass_rate": 1.0,
+        "live_end_to_end_pass_rate": 0.5,
+        "usage": {
+          "requests": 16,
+          "prompt_tokens": 29217,
+          "completion_tokens": 1512,
+          "missing_usage": 0
+        },
+        "review_usage": {
+          "requests": 1,
+          "prompt_tokens": 2291,
+          "completion_tokens": 53,
+          "missing_usage": 0
+        },
+        "total_usage": {
+          "requests": 17,
+          "prompt_tokens": 31508,
+          "completion_tokens": 1565,
+          "missing_usage": 0
+        },
+        "estimated_rub": null,
+        "live_median_seconds": 49.585499999999996,
+        "live_p95_seconds": 77.625,
+        "turn_attempts": 6,
+        "turn_completed": 5,
+        "turn_median_seconds": 16.035,
+        "turn_p95_seconds": 21.546,
+        "tool_calls": {
+          "compute_routes": 0,
+          "lookup_weather": 0,
+          "resolve_maps_urls": 0,
+          "resolve_names": 0,
+          "search_places": 4
+        },
+        "simulated_attempts": 0,
+        "simulated_pass": 0
+      },
+      "cases": [
+        {
+          "id": "L01",
+          "turns_attempted": 5,
+          "turns_completed": 4,
+          "execution_status": "failed",
+          "auto_checks": {
+            "all_turns_completed": false,
+            "required_tools_called": false,
+            "forbidden_tools_absent": true,
+            "last_turn_tools_called": true,
+            "last_turn_forbidden_tools_absent": false,
+            "required_tools_succeeded": true,
+            "required_text_present": true,
+            "forbidden_text_absent": true,
+            "required_last_text_present": true,
+            "forbidden_last_text_absent": true,
+            "last_source_count_matches": true,
+            "no_invalid_tool_arguments": true,
+            "weather_parameters_match": true,
+            "dialogue_constraints_match": false
+          },
+          "scores": {
+            "relevance": "pending",
+            "constraints": "pending",
+            "grounding": "pending",
+            "honesty": "pending",
+            "tool_choice": "pending",
+            "dialogue": "pending"
+          },
+          "review_codes": []
+        },
+        {
+          "id": "E05",
+          "turns_attempted": 1,
+          "turns_completed": 1,
+          "execution_status": "completed",
+          "auto_checks": {
+            "all_turns_completed": true,
+            "required_tools_called": true,
+            "forbidden_tools_absent": true,
+            "last_turn_tools_called": true,
+            "last_turn_forbidden_tools_absent": true,
+            "required_tools_succeeded": true,
+            "required_text_present": true,
+            "forbidden_text_absent": true,
+            "required_last_text_present": true,
+            "forbidden_last_text_absent": true,
+            "last_source_count_matches": true,
+            "no_invalid_tool_arguments": true,
+            "weather_parameters_match": true,
+            "dialogue_constraints_match": true
+          },
+          "scores": {
+            "relevance": "pass",
+            "constraints": "pass",
+            "grounding": "pass",
+            "honesty": "pass",
+            "tool_choice": "pass",
+            "clarification": "pass"
+          },
+          "review_codes": [
+            "none"
+          ]
+        }
+      ]
+    },
+    {
+      "file": "eval/results/long-dialogue-repeat-r12-2026-11-02.json",
+      "code_sha256": "edcb9eb039844f0487cc32da335e907b261cefe0eb761caca0c04c05f3dabf9f",
+      "summary": {
+        "live_attempts": 1,
+        "live_completed": 0,
+        "live_infrastructure_failures": 1,
+        "live_stopped": 0,
+        "live_quality_evaluable": 0,
+        "live_quality_pass": 0,
+        "live_quality_fail": 0,
+        "live_quality_pending": 0,
+        "live_quality_pass_rate": null,
+        "live_end_to_end_pass_rate": 0.0,
+        "usage": {
+          "requests": 41,
+          "prompt_tokens": 84905,
+          "completion_tokens": 3998,
+          "missing_usage": 2
+        },
+        "review_usage": {
+          "requests": 0,
+          "prompt_tokens": 0,
+          "completion_tokens": 0,
+          "missing_usage": 0
+        },
+        "total_usage": {
+          "requests": 41,
+          "prompt_tokens": 84905,
+          "completion_tokens": 3998,
+          "missing_usage": 2
+        },
+        "estimated_rub": null,
+        "live_median_seconds": 323.228,
+        "live_p95_seconds": 323.228,
+        "turn_attempts": 14,
+        "turn_completed": 13,
+        "turn_median_seconds": 17.4295,
+        "turn_p95_seconds": 98.195,
+        "tool_calls": {
+          "compute_routes": 1,
+          "lookup_weather": 1,
+          "resolve_maps_urls": 0,
+          "resolve_names": 0,
+          "search_places": 7
+        },
+        "simulated_attempts": 0,
+        "simulated_pass": 0
+      },
+      "cases": [
+        {
+          "id": "L01",
+          "turns_attempted": 14,
+          "turns_completed": 13,
+          "execution_status": "failed",
+          "auto_checks": {
+            "all_turns_completed": false,
+            "required_tools_called": true,
+            "forbidden_tools_absent": true,
+            "last_turn_tools_called": true,
+            "last_turn_forbidden_tools_absent": true,
+            "required_tools_succeeded": true,
+            "required_text_present": true,
+            "forbidden_text_absent": true,
+            "required_last_text_present": true,
+            "forbidden_last_text_absent": true,
+            "last_source_count_matches": true,
+            "no_invalid_tool_arguments": true,
+            "weather_parameters_match": true,
+            "dialogue_constraints_match": false
+          },
+          "scores": {
+            "relevance": "pending",
+            "constraints": "pending",
+            "grounding": "pending",
+            "honesty": "pending",
+            "tool_choice": "pending",
+            "dialogue": "pending"
+          },
+          "review_codes": []
+        }
+      ]
+    }
+  ]
 }
