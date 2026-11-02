@@ -1,0 +1,750 @@
+{
+  "metadata": {
+    "started_at": "2026-11-03T00:03:15+03:00",
+    "target": "local_web_adapter",
+    "provider": "yandex",
+    "model": "aliceai-llm-flash/latest",
+    "variant": "r14-general-preferences",
+    "split": "all",
+    "max_live_turns": 12,
+    "review_method": "llm_assisted_same_model",
+    "prices_rub_per_1k": [
+      0.1,
+      0.2
+    ],
+    "max_estimated_rub": null,
+    "cost_is_estimate_not_invoice": true,
+    "python": "3.14.4",
+    "code_sha256": "02e2ef1d937b538b73888ee8c46cad65bd1fefbcc75de33a8755312d78aca5bd",
+    "dataset_sha256": "baf148361bcdfa7d8fec621ca977ad9657501952d68f7bb2cf1672e0b3b0c2ec",
+    "dataset_file": "preferences_cases.json",
+    "visit_date": "2026-11-04",
+    "interval_seconds": 5,
+    "raw_content_saved": false
+  },
+  "results": [
+    {
+      "execution_status": "completed",
+      "stop_reason": null,
+      "auto_checks": {
+        "all_turns_completed": true,
+        "required_tools_called": true,
+        "forbidden_tools_absent": true,
+        "last_turn_tools_called": true,
+        "last_turn_forbidden_tools_absent": true,
+        "required_tools_succeeded": true,
+        "required_text_present": true,
+        "forbidden_text_absent": true,
+        "required_last_text_present": true,
+        "forbidden_last_text_absent": true,
+        "last_source_count_matches": true,
+        "no_invalid_tool_arguments": true,
+        "weather_parameters_match": true,
+        "dialogue_constraints_match": true
+      },
+      "turns": [
+        {
+          "completed": true,
+          "seconds": 8.373,
+          "tools": [
+            "search_places"
+          ],
+          "usage": {
+            "requests": 3,
+            "prompt_tokens": 5686,
+            "completion_tokens": 274,
+            "missing_usage": 0
+          },
+          "source_link_count": 2,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": true,
+          "context": {
+            "city": "Москва",
+            "area": "Кузьминки",
+            "activity": "рестораны",
+            "preferences": [
+              "нас двое",
+              "общий бюджет 3000 рублей"
+            ],
+            "data_action": "fetch",
+            "search_terms": "рестораны",
+            "budget": {
+              "action": "set",
+              "amount": 3000,
+              "currency": "RUB",
+              "people": 2,
+              "scope": "total"
+            }
+          }
+        },
+        {
+          "completed": true,
+          "seconds": 8.504,
+          "tools": [
+            "search_places"
+          ],
+          "usage": {
+            "requests": 3,
+            "prompt_tokens": 7426,
+            "completion_tokens": 297,
+            "missing_usage": 0
+          },
+          "source_link_count": 2,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": true,
+          "context": {
+            "city": "Москва",
+            "area": "Кузьминки",
+            "activity": "рестораны",
+            "preferences": [
+              "нас двое",
+              "общий бюджет 3000 рублей",
+              "грузинская кухня"
+            ],
+            "data_action": "fetch",
+            "search_terms": "рестораны грузинская кухня",
+            "budget": {
+              "action": "set",
+              "amount": 3000,
+              "currency": "RUB",
+              "people": 2,
+              "scope": "total"
+            }
+          }
+        },
+        {
+          "completed": true,
+          "seconds": 10.618,
+          "tools": [
+            "search_places"
+          ],
+          "usage": {
+            "requests": 3,
+            "prompt_tokens": 7951,
+            "completion_tokens": 400,
+            "missing_usage": 0
+          },
+          "source_link_count": 2,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": true,
+          "context": {
+            "city": "Москва",
+            "area": "Кузьминки",
+            "activity": "рестораны",
+            "preferences": [
+              "нас двое",
+              "общий бюджет 3000 рублей",
+              "грузинская кухня",
+              "веранда"
+            ],
+            "data_action": "fetch",
+            "search_terms": "рестораны грузинская кухня веранда",
+            "budget": {
+              "action": "set",
+              "amount": 3000,
+              "currency": "RUB",
+              "people": 2,
+              "scope": "total"
+            }
+          }
+        },
+        {
+          "completed": true,
+          "seconds": 10.75,
+          "tools": [
+            "search_places"
+          ],
+          "usage": {
+            "requests": 3,
+            "prompt_tokens": 8288,
+            "completion_tokens": 422,
+            "missing_usage": 0
+          },
+          "source_link_count": 2,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": true,
+          "context": {
+            "city": "Москва",
+            "area": "Кузьминки",
+            "activity": "рестораны",
+            "preferences": [
+              "нас двое",
+              "общий бюджет 3000 рублей",
+              "веранда",
+              "можно прийти с собакой"
+            ],
+            "data_action": "fetch",
+            "search_terms": "рестораны веранда с собакой",
+            "budget": {
+              "action": "set",
+              "amount": 3000,
+              "currency": "RUB",
+              "people": 2,
+              "scope": "total"
+            }
+          }
+        },
+        {
+          "completed": true,
+          "seconds": 7.819,
+          "tools": [],
+          "usage": {
+            "requests": 2,
+            "prompt_tokens": 4490,
+            "completion_tokens": 295,
+            "missing_usage": 0
+          },
+          "source_link_count": 2,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [],
+          "task": "refine",
+          "weather_requests": [],
+          "budget_requested": true,
+          "context": {
+            "city": "Москва",
+            "area": "Кузьминки",
+            "activity": "рестораны",
+            "preferences": [
+              "нас двое",
+              "общий бюджет 3000 рублей",
+              "веранда",
+              "можно прийти с собакой"
+            ],
+            "data_action": "reuse",
+            "search_terms": "рестораны веранда с собакой",
+            "budget": {
+              "action": "set",
+              "amount": 3000,
+              "currency": "RUB",
+              "people": 2,
+              "scope": "total"
+            }
+          }
+        },
+        {
+          "completed": true,
+          "seconds": 6.878,
+          "tools": [],
+          "usage": {
+            "requests": 2,
+            "prompt_tokens": 3723,
+            "completion_tokens": 183,
+            "missing_usage": 0
+          },
+          "source_link_count": 0,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [],
+          "task": "chat",
+          "weather_requests": [],
+          "budget_requested": true,
+          "context": {
+            "city": "Москва",
+            "area": "Кузьминки",
+            "activity": "рестораны",
+            "preferences": [
+              "нас двое",
+              "общий бюджет 3000 рублей",
+              "веранда",
+              "можно прийти с собакой",
+              "без живой музыки"
+            ],
+            "data_action": "none",
+            "search_terms": "",
+            "budget": {
+              "action": "set",
+              "amount": 3000,
+              "currency": "RUB",
+              "people": 2,
+              "scope": "total"
+            }
+          }
+        },
+        {
+          "completed": true,
+          "seconds": 14.816,
+          "tools": [
+            "search_places",
+            "search_places"
+          ],
+          "usage": {
+            "requests": 3,
+            "prompt_tokens": 8862,
+            "completion_tokens": 418,
+            "missing_usage": 0
+          },
+          "source_link_count": 2,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            },
+            {
+              "tool": "search_places",
+              "status": "success"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": true,
+          "context": {
+            "city": "Москва",
+            "area": "Кузьминки",
+            "activity": "рестораны",
+            "preferences": [
+              "нас двое",
+              "общий бюджет 3000 рублей",
+              "веранда",
+              "можно прийти с собакой",
+              "без живой музыки"
+            ],
+            "data_action": "fetch",
+            "search_terms": "ресторан с верандой, можно с собакой, без живой музыки",
+            "budget": {
+              "action": "set",
+              "amount": 3000,
+              "currency": "RUB",
+              "people": 2,
+              "scope": "total"
+            }
+          }
+        },
+        {
+          "completed": true,
+          "seconds": 7.345,
+          "tools": [],
+          "usage": {
+            "requests": 2,
+            "prompt_tokens": 5023,
+            "completion_tokens": 236,
+            "missing_usage": 0
+          },
+          "source_link_count": 0,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [],
+          "task": "refine",
+          "weather_requests": [],
+          "budget_requested": true,
+          "context": {
+            "city": "Москва",
+            "area": "Кузьминки",
+            "activity": "рестораны",
+            "preferences": [
+              "нас двое",
+              "общий бюджет 3000 рублей",
+              "веранда",
+              "можно прийти с собакой",
+              "без живой музыки"
+            ],
+            "data_action": "none",
+            "search_terms": "",
+            "budget": {
+              "action": "set",
+              "amount": 3000,
+              "currency": "RUB",
+              "people": 2,
+              "scope": "total"
+            }
+          }
+        }
+      ],
+      "manual_scores": {
+        "relevance": "pass",
+        "constraints": "pass",
+        "grounding": "pass",
+        "honesty": "pass",
+        "tool_choice": "pass",
+        "dialogue": "pass"
+      },
+      "model_review": {
+        "status": "completed",
+        "scores": {
+          "relevance": "pass",
+          "constraints": "pass",
+          "grounding": "pass",
+          "honesty": "pass",
+          "tool_choice": "pass",
+          "dialogue": "pass"
+        },
+        "codes": [
+          "none"
+        ],
+        "usage": {
+          "requests": 1,
+          "prompt_tokens": 11732,
+          "completion_tokens": 53,
+          "missing_usage": 0
+        },
+        "seconds": 1.866
+      },
+      "case_id": "P01",
+      "mode": "live",
+      "repeat": 1,
+      "elapsed_seconds": 111.973
+    },
+    {
+      "execution_status": "completed",
+      "stop_reason": null,
+      "auto_checks": {
+        "all_turns_completed": true,
+        "required_tools_called": true,
+        "forbidden_tools_absent": true,
+        "last_turn_tools_called": true,
+        "last_turn_forbidden_tools_absent": true,
+        "required_tools_succeeded": true,
+        "required_text_present": true,
+        "forbidden_text_absent": true,
+        "required_last_text_present": true,
+        "forbidden_last_text_absent": true,
+        "last_source_count_matches": true,
+        "no_invalid_tool_arguments": true,
+        "weather_parameters_match": true,
+        "dialogue_constraints_match": true
+      },
+      "turns": [
+        {
+          "completed": true,
+          "seconds": 9.848,
+          "tools": [
+            "search_places"
+          ],
+          "usage": {
+            "requests": 3,
+            "prompt_tokens": 4980,
+            "completion_tokens": 253,
+            "missing_usage": 0
+          },
+          "source_link_count": 1,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": false,
+          "context": {
+            "city": "Москва",
+            "area": "центр",
+            "activity": "музеи",
+            "preferences": [],
+            "data_action": "fetch",
+            "search_terms": "музеи для взрослого",
+            "budget": {
+              "action": "keep",
+              "amount": null,
+              "currency": "unknown",
+              "people": 1,
+              "scope": "unknown"
+            }
+          }
+        },
+        {
+          "completed": true,
+          "seconds": 7.809,
+          "tools": [
+            "search_places"
+          ],
+          "usage": {
+            "requests": 3,
+            "prompt_tokens": 5669,
+            "completion_tokens": 219,
+            "missing_usage": 0
+          },
+          "source_link_count": 0,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "empty"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": false,
+          "context": {
+            "city": "Москва",
+            "area": "центр",
+            "activity": "музеи",
+            "preferences": [
+              "без лестниц",
+              "доступность для человека на инвалидной коляске"
+            ],
+            "data_action": "fetch",
+            "search_terms": "музеи без лестниц, доступность для инвалидной коляски",
+            "budget": {
+              "action": "keep",
+              "amount": null,
+              "currency": "unknown",
+              "people": 1,
+              "scope": "unknown"
+            }
+          }
+        }
+      ],
+      "manual_scores": {
+        "relevance": "pass",
+        "constraints": "pass",
+        "grounding": "pass",
+        "honesty": "pass",
+        "tool_choice": "pass",
+        "dialogue": "pass"
+      },
+      "model_review": {
+        "status": "completed",
+        "scores": {
+          "relevance": "pass",
+          "constraints": "pass",
+          "grounding": "pass",
+          "honesty": "pass",
+          "tool_choice": "pass",
+          "dialogue": "pass"
+        },
+        "codes": [
+          "none"
+        ],
+        "usage": {
+          "requests": 1,
+          "prompt_tokens": 1538,
+          "completion_tokens": 53,
+          "missing_usage": 0
+        },
+        "seconds": 2.285
+      },
+      "case_id": "P02",
+      "mode": "live",
+      "repeat": 1,
+      "elapsed_seconds": 28.073
+    },
+    {
+      "execution_status": "completed",
+      "stop_reason": null,
+      "auto_checks": {
+        "all_turns_completed": true,
+        "required_tools_called": true,
+        "forbidden_tools_absent": true,
+        "last_turn_tools_called": true,
+        "last_turn_forbidden_tools_absent": true,
+        "required_tools_succeeded": true,
+        "required_text_present": true,
+        "forbidden_text_absent": true,
+        "required_last_text_present": true,
+        "forbidden_last_text_absent": true,
+        "last_source_count_matches": true,
+        "no_invalid_tool_arguments": true,
+        "weather_parameters_match": true,
+        "dialogue_constraints_match": true
+      },
+      "turns": [
+        {
+          "completed": true,
+          "seconds": 9.224,
+          "tools": [
+            "lookup_weather"
+          ],
+          "usage": {
+            "requests": 3,
+            "prompt_tokens": 5657,
+            "completion_tokens": 264,
+            "missing_usage": 0
+          },
+          "source_link_count": 1,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "lookup_weather",
+              "status": "success"
+            }
+          ],
+          "task": "weather",
+          "weather_requests": [
+            {
+              "date": {
+                "year": 2026,
+                "month": 11,
+                "day": 4
+              },
+              "hour": null
+            }
+          ],
+          "budget_requested": false,
+          "context": {
+            "city": "Москва",
+            "area": "",
+            "activity": "",
+            "preferences": [],
+            "data_action": "fetch",
+            "search_terms": "",
+            "budget": {
+              "action": "keep",
+              "amount": null,
+              "currency": "unknown",
+              "people": null,
+              "scope": "unknown"
+            }
+          }
+        },
+        {
+          "completed": true,
+          "seconds": 10.598,
+          "tools": [
+            "compute_routes"
+          ],
+          "usage": {
+            "requests": 3,
+            "prompt_tokens": 5639,
+            "completion_tokens": 253,
+            "missing_usage": 0
+          },
+          "source_link_count": 1,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "compute_routes",
+              "status": "success"
+            }
+          ],
+          "task": "route",
+          "weather_requests": [],
+          "budget_requested": false,
+          "context": {
+            "city": "Москва",
+            "area": "",
+            "activity": "",
+            "preferences": [],
+            "data_action": "fetch",
+            "search_terms": "",
+            "budget": {
+              "action": "keep",
+              "amount": null,
+              "currency": "unknown",
+              "people": null,
+              "scope": "unknown"
+            }
+          }
+        }
+      ],
+      "manual_scores": {
+        "relevance": "pass",
+        "grounding": "pass",
+        "honesty": "pass",
+        "tool_choice": "pass"
+      },
+      "model_review": {
+        "status": "completed",
+        "scores": {
+          "relevance": "pass",
+          "grounding": "pass",
+          "honesty": "pass",
+          "tool_choice": "pass"
+        },
+        "codes": [
+          "none"
+        ],
+        "usage": {
+          "requests": 1,
+          "prompt_tokens": 2286,
+          "completion_tokens": 40,
+          "missing_usage": 0
+        },
+        "seconds": 1.338
+      },
+      "case_id": "P03",
+      "mode": "live",
+      "repeat": 1,
+      "elapsed_seconds": 28.874
+    }
+  ],
+  "summary": {
+    "live_attempts": 3,
+    "live_completed": 3,
+    "live_infrastructure_failures": 0,
+    "live_stopped": 0,
+    "live_quality_evaluable": 3,
+    "live_quality_pass": 3,
+    "live_quality_fail": 0,
+    "live_quality_pending": 0,
+    "live_quality_pass_rate": 1.0,
+    "live_end_to_end_pass_rate": 1.0,
+    "usage": {
+      "requests": 33,
+      "prompt_tokens": 73394,
+      "completion_tokens": 3514,
+      "missing_usage": 0
+    },
+    "review_usage": {
+      "requests": 3,
+      "prompt_tokens": 15556,
+      "completion_tokens": 146,
+      "missing_usage": 0
+    },
+    "total_usage": {
+      "requests": 36,
+      "prompt_tokens": 88950,
+      "completion_tokens": 3660,
+      "missing_usage": 0
+    },
+    "estimated_rub": 9.627,
+    "live_median_seconds": 19.822000000000003,
+    "live_p95_seconds": 75.103,
+    "turn_attempts": 12,
+    "turn_completed": 12,
+    "turn_median_seconds": 8.864,
+    "turn_p95_seconds": 14.816,
+    "tool_calls": {
+      "compute_routes": 1,
+      "lookup_weather": 1,
+      "resolve_maps_urls": 0,
+      "resolve_names": 0,
+      "search_places": 8
+    },
+    "simulated_attempts": 0,
+    "simulated_pass": 0
+  }
+}
