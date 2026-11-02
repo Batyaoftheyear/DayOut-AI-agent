@@ -15,9 +15,10 @@ PLAN_SCHEMA = {
         "city": {"type": "string", "maxLength": 120},
         "area": {"type": "string", "maxLength": 160},
         "activity": {"type": "string", "maxLength": 160},
-        "cuisine": {"type": "string", "maxLength": 120},
+        "preferences": {"type": "array", "maxItems": 12, "items": {"type": "string", "maxLength": 160}},
+        "data_action": {"enum": ["fetch", "reuse", "none"]},
+        "search_terms": {"type": "string", "maxLength": 200},
         "purpose": {"type": "string", "maxLength": 200},
-        "other_constraints": {"type": "string", "maxLength": 500},
         "budget": {"type": "object", "additionalProperties": False, "properties": {
             "action": {"enum": ["keep", "set", "clear"]},
             "amount": {"type": ["number", "null"], "minimum": 0},
@@ -34,7 +35,7 @@ PLAN_SCHEMA = {
         "geo_anchor": {"type": ["string", "null"]},
         "walk_limit_minutes": {"type": ["integer", "null"], "minimum": 1, "maximum": 720},
     },
-    "required": ["task", "city", "area", "activity", "cuisine", "purpose", "other_constraints", "budget",
+    "required": ["task", "city", "area", "activity", "preferences", "data_action", "search_terms", "purpose", "budget",
                  "strict_area", "required_tools", "reference_kind", "price_requested", "weather_date", "weather_hour", "geo_anchor", "walk_limit_minutes"],
 }
 
@@ -51,8 +52,9 @@ PLAN_PROMPT = """Разбери текущую просьбу для помощ�
 Сохрани применимые прежние условия, новые заменяют старые. Не угадывай город, цены или предпочтения.
 Название города в любом падеже считается указанным: «на юге Москвы», «в Москве», «из Москвы» → city="Москва".
 activity — тип места (рестораны, кафе, парки, музеи, бани), purpose — цель (свидание, разговор, отдых). Не подменяй рестораны словом «свидание» в activity.
-cuisine — кухня для поиска еды, например «грузинская кухня», иначе пустая строка. Сохраняй выбранную кухню при дальнейших уточнениях; «любая кухня» отменяет это условие. Исправляй очевидные опечатки в названии кухни.
-После поиска ресторанов «хочу грузинскую кухню» (в том числе «грухинскую») означает новый search, cuisine="грузинская кухня"; сохрани прежние город, район, тип места и бюджет. Это не refine. Если явно просят только запомнить условие без поиска, поиск запрещён.
+preferences — полный текущий список любых пожеланий свободным текстом, без фиксированных классов. Сам пойми смысл уточнения из диалога: сохрани применимые условия, замени противоречащие, удали отменённые. Для неизменившихся условий сохраняй прежние формулировки. Очевидные опечатки исправляй. Не добавляй предпочтения от себя. Устаревшие previous.cuisine/other_constraints перенеси сюда при их наличии.
+data_action — решение о данных для ТЕКУЩЕЙ реплики: fetch — нужны новые сведения или новый подбор; reuse — достаточно объяснить/сократить полученные данные; none — только беседа, уточняющий вопрос или запоминание условий без поиска. Изменение пожеланий для подбора обычно требует fetch; объяснение их смысла не требует поиска мест. «Запомни, но не ищи» обновляет preferences с data_action=none. Позднейший явный поиск использует сохранённые условия.
+search_terms — короткая поисковая формулировка: тип места и существенные для поиска пожелания из preferences. Без города, района, бюджета и служебных фраз; город и район добавляет приложение. Например условие доступности или тип кухни включи, если это цель уточнения. Для прочих задач пустая строка. Выбор значимых условий делаешь ты по смыслу, фиксированного перечня нет.
 В «Найди красивые места для прогулки вдвоём на юге Москвы» уже есть город: task=search, city="Москва", required_tools=["search_places"].
 task=search: поиск новых мест, смена категории (кафе→баня), района, времени/бюджета или иных условий поиска.
 refine: только сократить/объяснить уже выбранные варианты, без новых фактов. chat: общая беседа или объяснение ошибки.
@@ -61,6 +63,7 @@ refine: только сократить/объяснить уже выбранн
 weather/route/resolve_names/resolve_maps_urls: соответствующая прямая просьба. clarify: критически не хватает города,
 условия противоречивы, неверная сумма/дата; дата не обязательна для обычного поиска.
 required_tools: все инструменты, необходимые в этом ходе, включая сочетания поиск+погода+маршрут.
+При data_action=fetch укажи соответствующую задачу и инструменты. При reuse/none список required_tools пуст. Не обещай выполнить проверку позже: либо выполни её сейчас, либо честно раскрой неизвестность.
 Если ищут места рядом с конкретной станцией метро или адресом, включи compute_routes: нужно проверить пешую близость кандидатов к ориентиру.
 Обычный район города без конкретного ориентира сам по себе не требует маршрута.
 geo_anchor: конкретная станция/адрес, вокруг которого ищут места, иначе null. Для такого поиска walk_limit_minutes=15 по умолчанию либо явный предел пользователя.
@@ -89,6 +92,20 @@ def plan_messages(history, query, previous, now):
     ]
 
 
+def preferences_from(plan):
+    """Migrate earlier sessions once; current preferences have no fixed types."""
+    if 'preferences' in plan:
+        return list(plan['preferences'])
+    return [str(plan[key]).strip() for key in ('cuisine','other_constraints') if plan.get(key)]
+
+
+def search_signature(plan):
+    budget=plan['budget']
+    return (plan['city'],plan['area'],plan['activity'],plan['purpose'],
+            tuple(sorted(preferences_from(plan))),plan['strict_area'],plan['geo_anchor'],plan['walk_limit_minutes'],
+            tuple(budget[key] for key in ('amount','currency','people','scope')))
+
+
 def parse_plan(message, previous=None, query=""):
     if message.get("tool_calls"):
         raise ValueError("Unexpected tool call in planner")
@@ -96,78 +113,74 @@ def parse_plan(message, previous=None, query=""):
     if content.startswith("```"):
         content = content.split("\n", 1)[1].rsplit("```", 1)[0]
     plan = json.loads(content)
-    # Accept plans from an older session while requesting the explicit field
-    # from the current model schema.
-    plan.setdefault('cuisine', (previous or {}).get('cuisine',''))
+    legacy=[str(plan.pop(key)).strip() for key in ('cuisine','other_constraints') if plan.get(key)]
+    for key in ('cuisine','other_constraints'):
+        plan.pop(key,None)
+    plan.setdefault('preferences',legacy or preferences_from(previous or {}))
+    plan.setdefault('data_action','fetch' if plan['task'] in TASK_TO_TOOL else 'reuse' if plan['task']=='refine' else 'none')
+    plan.setdefault('search_terms','')
     validate(plan, PLAN_SCHEMA)
+    plan['preferences']=list(dict.fromkeys(item.strip() for item in plan['preferences'] if item.strip()))
     no_search = re.search(r'не\s+ищи|не\s+искать|не\s+подбирай|без\s+(?:нового\s+)?поиска|только\s+запомни|пока\s+ничего',query,re.I)
-    explicit_search = re.search(r'\b(?:найди|подбери|поищи|покажи|предложи|посоветуй|переподбери|посмотри)\b',query,re.I)
-    verify_hours = re.search(r'проверь[^.!?]{0,50}(?:час|расписан|работ|открыт)',query,re.I)
-    requested = query.lower().split('вместо', 1)[0]
-    categories = [name for pattern,name in ((r'ресторан', 'рестораны'), (r'кафе|кофейн', 'кафе'),
-        (r'музе', 'музеи'), (r'бан[ияьюе]|саун', 'бани'), (r'аквапарк', 'аквапарки')) if re.search(pattern, requested)]
-    changed_category = bool(previous and len(categories)==1 and categories[0] != previous.get('activity')
-                            and re.search(r'\b(?:а|теперь|лучше)\b',query,re.I))
-    changed_area = bool(previous and plan['area'].strip() and plan['area'] != previous.get('area'))
-    broaden_area = bool(re.search(r'не\s+ограничива|по\s+всей\s+москве|любой\s+район',query,re.I))
-    clear_cuisine = bool(re.search(r'любая\s+кухня|кухня\s+не\s*важна|без\s+ограничений\s+по\s+кухне',query,re.I))
-    if clear_cuisine:
-        plan['cuisine']=''
-    elif previous and not plan['cuisine'].strip() and (plan['task']!='search' or
-            re.search(r'ресторан|кафе|кофейн|бар|еда|поесть',plan['activity'] or previous.get('activity',''),re.I)):
-        plan['cuisine']=previous.get('cuisine','')
-    changed_cuisine = bool(previous and plan['cuisine'] != previous.get('cuisine',''))
-    if changed_cuisine:
-        for key in ('city','area','activity'):
-            if not plan[key].strip():
-                plan[key]=previous.get(key,'')
-    if broaden_area and not no_search:
-        plan['strict_area']=False
-        if previous and plan['area']==previous.get('area'):
-            plan['area']=''
-        plan['geo_anchor']=None
-        plan['walk_limit_minutes']=None
-        if not re.search('маршрут',query,re.I):
-            plan['required_tools']=[t for t in plan['required_tools'] if t!='compute_routes']
-    if plan['task'] in {'refine','chat'} and (explicit_search or verify_hours or changed_category or changed_area or broaden_area or changed_cuisine) and not no_search:
-        plan['task']='search'
-    if plan['task'] == 'search':
-        if len(categories) == 1:
-            plan['activity'] = categories[0]
-    # The MVP focuses on Moscow. Preserve an explicitly supplied city even if
-    # the planner put its inflected name only in area and left city blank.
-    explicit_moscow = bool(re.search(r"\bмоскв(?:а|е|ы|у|ой)\b", query, re.I))
-    if not plan["city"].strip() and explicit_moscow:
-        plan["city"] = "Москва"
-        if plan["task"] == "clarify" and re.search(r"найди|подбери|посоветуй|ищи|покажи|прогул|кафе|ресторан|музе", query, re.I):
-            plan["task"] = "search"
-    elif not plan["city"].strip() and previous and previous.get("city") and plan["task"] != "clarify":
-        plan["city"] = previous["city"]
-    if plan["weather_date"] is not None and date.fromisoformat(plan["weather_date"]).isoformat() != plan["weather_date"]:
-        raise ValueError("invalid forecast date")
-    if plan["weather_hour"] is not None and plan["weather_date"] is None:
-        raise ValueError("weather hour requires date")
-    budget = plan["budget"]
-    if budget["action"] == "keep":
-        plan["budget"] = copy.deepcopy(previous["budget"]) if previous else {
-            "action": "keep", "amount": None, "currency": "unknown", "people": budget["people"], "scope": "unknown",
-        }
-    elif budget["action"] == "clear":
-        plan["budget"] = {"action": "clear", "amount": None, "currency": "unknown", "people": None, "scope": "unknown"}
+    # Explicit user controls override any contradictory model action.
+    if no_search and plan['task'] in {'search','refine','chat','clarify'}:
+        if plan['data_action']=='fetch':
+            plan['data_action']='reuse' if plan['task']=='refine' and plan['reference_kind']!='none' else 'none'
+        if plan['data_action']=='reuse' and plan['reference_kind']=='none':
+            plan['data_action']='none'
+        if plan['data_action']=='none':
+            plan['reference_kind']='none'
+    explicit_moscow=bool(re.search(r"\bмоскв(?:а|е|ы|у|ой)\b",query,re.I))
+    if not plan['city'].strip() and explicit_moscow:
+        plan['city']='Москва'
+        if plan['task']=='clarify' and re.search(r'найди|подбери|посоветуй|ищи|покажи|прогул|кафе|ресторан|музе',query,re.I):
+            plan['task']='search'
+            plan['data_action']='fetch'
+    elif not plan['city'].strip() and previous and previous.get('city') and plan['task']!='clarify':
+        plan['city']=previous['city']
+    if plan['weather_date'] is not None and date.fromisoformat(plan['weather_date']).isoformat()!=plan['weather_date']:
+        raise ValueError('invalid forecast date')
+    if plan['weather_hour'] is not None and plan['weather_date'] is None:
+        raise ValueError('weather hour requires date')
+    budget=plan['budget']
+    if budget['action']=='keep':
+        plan['budget']=copy.deepcopy(previous['budget']) if previous else {
+            'action':'keep','amount':None,'currency':'unknown','people':budget['people'],'scope':'unknown'}
+    elif budget['action']=='clear':
+        plan['budget']={'action':'clear','amount':None,'currency':'unknown','people':None,'scope':'unknown'}
     elif previous:
-        for key, empty in (("amount", None), ("currency", "unknown"), ("scope", "unknown")):
-            if budget[key] == empty:
-                budget[key] = previous["budget"][key]
-    if plan["task"] == "search" and not plan["city"].strip():
-        plan["task"] = "clarify"
-    required = set(plan["required_tools"])
-    if plan["task"] in TASK_TO_TOOL:
-        required.add(TASK_TO_TOOL[plan["task"]])
-    if plan["task"] == "refine" and plan["reference_kind"] == "none" and previous:
-        plan["reference_kind"] = {"search":"places", "weather":"weather", "route":"routes"}.get(previous["task"], previous["reference_kind"])
-    if plan["task"] in {"chat", "clarify", "refine"}:
+        for key,empty in (('amount',None),('currency','unknown'),('scope','unknown')):
+            if budget[key]==empty:
+                budget[key]=previous['budget'][key]
+    # One cache-invalidation rule for arbitrary changed selection conditions.
+    # No interpretation of cuisine, terrace, accessibility, or other wish types.
+    place_context=bool(previous and (previous['task']=='search' or plan['reference_kind']=='places'))
+    if (place_context and plan['task']=='refine' and plan['data_action']=='reuse'
+            and search_signature(plan)!=search_signature(previous) and not no_search):
+        plan['data_action']='fetch'
+        plan['required_tools']=['search_places']
+    if previous and (plan['city'],plan['area'])!=(previous['city'],previous['area']):
+        if plan['geo_anchor']==previous.get('geo_anchor'):
+            plan['geo_anchor']=None
+            plan['walk_limit_minutes']=None
+        if not plan['area']:
+            plan['strict_area']=False
+    if plan['data_action']=='fetch' and plan['task'] in {'chat','refine'}:
+        reverse={tool:task for task,tool in TASK_TO_TOOL.items()}
+        plan['task']=next((reverse[t] for t in plan['required_tools'] if t in reverse),'search')
+    if plan['task']=='search' and not plan['city'].strip():
+        plan['task']='clarify'
+        plan['data_action']='none'
+    required=set(plan['required_tools'])
+    if no_search:
+        required.discard('search_places')
+    if plan['data_action']=='fetch' and plan['task'] in TASK_TO_TOOL:
+        required.add(TASK_TO_TOOL[plan['task']])
+    else:
         required.clear()
-    plan["required_tools"] = sorted(required)
+    if plan['data_action']=='reuse' and plan['reference_kind']=='none' and previous:
+        plan['reference_kind']={'search':'places','weather':'weather','route':'routes'}.get(previous['task'],previous['reference_kind'])
+    plan['required_tools']=sorted(required)
     return plan
 
 
@@ -176,8 +189,7 @@ def instructions(plan):
     text = "\nПлан текущего хода (условия пользователя, не данные о местах): " + json.dumps(plan, ensure_ascii=False, separators=(",", ":"))
     text += "\nВыполни необходимые инструменты перед итогом. Новую категорию нельзя объявлять отсутствующей по старой выдаче."
     text += "\nВыбирай и объясняй варианты для цели пользователя; не пересказывай нерелевантные свойства карточек."
-    if plan.get('cuisine'):
-        text += '\nВ поисковый textQuery обязательно включи выбранную кухню: '+plan['cuisine']+'. Другую кухню не объявляй подходящей без данных.'
+    text += '\nВсе пожелания перечислены в preferences без фиксированных типов. Сохраняй их при отборе; отсутствие сведений о пожелании означает, что оно не подтверждено. Не обещай соответствие без данных.'
     text += "\nЕсли summary не подтверждает район, не утверждай точное соответствие району: сообщи, что это кандидаты по запросу, и предложи проверить расположение по ссылке."
     if budget["amount"] is not None:
         text += ("\nДенежное ограничение учитывай при отборе: сумма, единица и число людей хранятся в плане. "

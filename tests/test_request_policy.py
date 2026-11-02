@@ -92,12 +92,17 @@ def test_general_question_after_search_has_no_old_place_sources_or_new_search():
     assert not reply.tools and a.session.call_tool.await_count == 1
 
 
-@pytest.mark.parametrize('query',['Хочу грузинскую кухню.','Хочу грухинскую кухню.'])
-def test_cuisine_followup_searches_again_with_retained_district_and_budget(query):
+@pytest.mark.parametrize('query,preference,terms',[
+    ('Хочу грузинскую кухню.','грузинская кухня','рестораны грузинская кухня'),
+    ('Хочу грухинскую кухню.','грузинская кухня','рестораны грузинская кухня'),
+    ('А можно с собакой?','можно с собакой','рестораны с собакой'),
+    ('Лучше без фоновой музыки.','без фоновой музыки','тихие рестораны без музыки'),
+])
+def test_arbitrary_preference_change_repeats_search_with_retained_scope(query,preference,terms):
     first=plan(amount=3000,action='set')
     first.update(area='Кузьминки',activity='рестораны')
     followup=plan('refine')
-    followup.update(city='',area='',activity='',cuisine='грузинская кухня')
+    followup.update(city='Москва',area='Кузьминки',activity='рестораны',preferences=[preference],search_terms=terms)
     a=agent([planned(first),call('рестораны Кузьминки Москва'),answer('Кандидат [S1].'),
         planned(followup),call('рестораны','two'),answer('Новый кандидат [S2].')],[result(),result(SECOND)])
     async def run():
@@ -106,18 +111,19 @@ def test_cuisine_followup_searches_again_with_retained_district_and_budget(query
     reply=asyncio.run(run())
     assert reply.tools==['search_places'] and SECOND in reply.text and FIRST not in reply.text
     sent=a.session.call_tool.await_args.kwargs['arguments']['textQuery']
-    assert all(value in sent for value in ('грузинская кухня','Кузьминки','Москва','рестораны'))
+    assert all(value in sent for value in (terms,'Кузьминки','Москва'))
+    assert a.last_plan['preferences']==[preference]
     assert a.last_plan['budget']['amount']==3000 and a.last_plan['budget']['people']==2
     assert a.llm.complete.await_args_list[4].kwargs['tool_choice']['function']['name']=='search_places'
 
 
-def test_explicit_no_search_and_cuisine_cancellation_have_distinct_actions():
-    previous=plan();previous.update(activity='рестораны',cuisine='грузинская кухня')
-    changed=plan('refine');changed.update(activity='рестораны',cuisine='итальянская кухня')
+def test_explicit_no_search_and_preference_cancellation_have_distinct_actions():
+    previous=plan();previous.update(activity='рестораны',preferences=['грузинская кухня'])
+    changed=plan('refine');changed.update(activity='рестораны',preferences=['итальянская кухня'])
     paused=parse_plan(planned(changed),previous,'Хочу итальянскую кухню. Пока ничего не ищи.')
-    assert paused['task']=='refine' and not paused['required_tools'] and paused['cuisine']=='итальянская кухня'
-    cleared=parse_plan(planned(previous | {'task':'refine'}),previous,'Теперь подойдёт любая кухня.')
-    assert cleared['task']=='search' and cleared['cuisine']=='' and cleared['required_tools']==['search_places']
+    assert paused['task']=='refine' and not paused['required_tools'] and paused['preferences']==['итальянская кухня']
+    cleared=parse_plan(planned(previous | {'task':'refine','preferences':[]}),previous,'Теперь подойдёт любая кухня.')
+    assert cleared['task']=='search' and cleared['preferences']==[] and cleared['required_tools']==['search_places']
 
 
 def test_clarifying_question_after_a_search_does_not_need_a_place_citation():
@@ -138,6 +144,12 @@ def test_source_repair_instructions_are_not_shown_as_user_errors():
     detail='В ответе использованы данные MCP без ссылки. Укажи доступную метку.'
     message=safe_error(SourceValidationError(detail))
     assert 'проверенными ссылками' in message and 'Укажи' not in message and 'MCP' not in message
+
+
+def test_weather_without_place_search_still_allows_the_requested_forecast():
+    p=plan('weather');p['data_action']='fetch'
+    current=parse_plan(planned(p),query='Какая погода в Москве завтра, без поиска заведений?')
+    assert current['data_action']=='fetch' and current['required_tools']==['lookup_weather']
 
 
 def test_unrequested_budget_boilerplate_is_repaired_without_another_search():
@@ -287,7 +299,7 @@ def test_empty_search_does_not_force_a_route_between_invented_endpoints():
 
 def test_refinement_clears_unnecessary_tools_and_recovers_place_reference():
     previous=parse_plan(planned(plan()))
-    p=plan('refine')
+    p=plan('refine');p['data_action']='reuse'
     p['required_tools']=['search_places']
     refined=parse_plan(planned(p),previous)
     assert refined['required_tools'] == [] and refined['reference_kind'] == 'places'
@@ -355,7 +367,7 @@ def test_explicit_moscow_in_area_does_not_trigger_a_city_question():
 
 def test_new_search_request_overrides_a_previous_temporary_no_search_command():
     previous=parse_plan(planned(plan('chat',amount=3000,action='set')))
-    p=plan('refine')
+    p=plan('refine');p['data_action']='fetch'
     parsed=parse_plan(planned(p),previous,'Предложи два тихих кафе в центре Москвы.')
     assert parsed['task']=='search' and parsed['required_tools']==['search_places']
     assert parsed['budget']['amount']==3000
@@ -366,16 +378,16 @@ def test_new_search_request_overrides_a_previous_temporary_no_search_command():
     ('Удобно завтра в 22:00. Проверь часы работы этих вариантов.','кафе'),
     ('А теперь лучше бани, район и бюджет те же.','бани'),
 ])
-def test_hours_and_new_category_require_search_even_when_planner_calls_it_refinement(query,activity):
+def test_fetch_action_is_not_blocked_by_a_refinement_task_label(query,activity):
     previous=plan();previous['activity']='кафе'
-    p=plan('refine');p['activity']='кафе'
+    p=plan('refine');p.update(activity=activity,data_action='fetch')
     current=parse_plan(planned(p),previous,query)
     assert current['task']=='search' and current['activity']==activity and current['required_tools']==['search_places']
 
 
 def test_dropping_the_area_restarts_search_without_the_old_metro_radius():
     previous=plan();previous.update(area='Алтуфьево',geo_anchor='метро Алтуфьево',walk_limit_minutes=15)
-    p=dict(previous,task='refine')
+    p=dict(previous,task='refine',area='')
     current=parse_plan(planned(p),previous,'А если не ограничиваться Алтуфьево?')
     assert current['task']=='search' and current['area']=='' and current['geo_anchor'] is None
 
@@ -422,8 +434,8 @@ def test_printed_tool_syntax_does_not_count_as_a_real_result():
     assert a.session.call_tool.await_count==1
 
 
-def test_restaurant_category_is_not_replaced_by_the_purpose_of_a_date():
-    p=plan();p['activity']='свидание'
+def test_plan_preserves_separate_category_and_purpose():
+    p=plan();p.update(activity='рестораны',purpose='свидание')
     parsed=parse_plan(planned(p),query='Найди два тихих ресторана для свидания рядом с метро Бутырская в Москве.')
     assert parsed['activity']=='рестораны'
 
