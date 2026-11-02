@@ -1,0 +1,14 @@
+{
+  "scope": "public_cloud_clarification",
+  "date": "2026-11-02",
+  "release": "2026-11-02-r12",
+  "paid_generation_submitted": true,
+  "raw_response_saved": false,
+  "maps_search_required": false,
+  "checks": {
+    "real_generation_completed": true,
+    "city_question": true,
+    "zero_search_calls": true,
+    "no_place_links": true
+  }
+}
