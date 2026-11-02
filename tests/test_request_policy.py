@@ -279,12 +279,12 @@ def test_weather_uses_api_default_language_and_preserves_requested_date():
     a.tools["lookup_weather"] = Tool(name="lookup_weather", inputSchema={"type": "object", "properties": {
         "location": {"type": "object"}, "date": {"type": "object"}, "languageCode": {"type": "string"}},
         "required": ["location"]})
-    args = {"location": {"address": "Москва, Россия"}, "date": {"year": 2026, "month": 10, "day": 30}, "languageCode": "ru"}
+    args = {"location": {"address": "Москва, Россия"}, "date": {"year": 2026, "month": 10, "day": 30}, "languageCode": "ru", "capabilities": ["AIR_QUALITY"]}
     invocation = {"type": "function", "function": {"name": "lookup_weather", "arguments": json.dumps(args)}}
     payload, _ = asyncio.run(a.execute(invocation))
     sent = a.session.call_tool.await_args.kwargs["arguments"]
     assert sent["date"] == args["date"] and sent["location"] == args["location"]
-    assert "languageCode" not in sent and "error" not in payload
+    assert "languageCode" not in sent and "capabilities" not in sent and "error" not in payload
     p = plan("weather")
     p.update(weather_date="2026-10-31", weather_hour=None)
     p = parse_plan(planned(p))
@@ -303,6 +303,29 @@ def test_explicit_moscow_in_area_does_not_trigger_a_city_question():
     assert a.last_plan['city']=='Москва' and a.last_plan['task']=='search'
     assert reply.tools==['search_places'] and FIRST in reply.text
     assert a.llm.complete.await_args_list[1].kwargs['tool_choice']['function']['name']=='search_places'
+
+
+def test_new_search_request_overrides_a_previous_temporary_no_search_command():
+    previous=parse_plan(planned(plan('chat',amount=3000,action='set')))
+    p=plan('refine')
+    parsed=parse_plan(planned(p),previous,'Предложи два тихих кафе в центре Москвы.')
+    assert parsed['task']=='search' and parsed['required_tools']==['search_places']
+    assert parsed['budget']['amount']==3000
+    assert parse_plan(planned(p),previous,'Перечисли условия, новых мест не ищи.')['task']=='refine'
+
+
+def test_coordinates_from_retained_place_evidence_work_after_unrelated_turns():
+    center={'latitude':55.7,'longitude':37.6}
+    a=agent([], [result(SECOND)])
+    previous=result().structuredContent
+    previous['places'][0]['location']=center
+    a.last_place_turn=([call('кафе'),{'role':'tool','tool_call_id':'one','content':json.dumps(previous)}],{FIRST:'Fixture'})
+    a.tools['search_places'].inputSchema['properties']['locationBias']={'type':'object'}
+    invocation=call('рестораны')['tool_calls'][0]
+    invocation['function']['arguments']=json.dumps({'textQuery':'рестораны','locationBias':{'circle':{'center':center,'radiusMeters':1200}}})
+    payload,_=asyncio.run(a.execute(invocation))
+    assert 'error' not in payload
+    assert a.session.call_tool.await_args.kwargs['arguments']['locationBias']['circle']['center']==center
 
 
 def test_missing_city_is_still_a_question_without_a_search():

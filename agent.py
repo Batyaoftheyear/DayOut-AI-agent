@@ -17,7 +17,7 @@ from request_policy import response_format as plan_response_format, plan_message
 from geo import distance_meters, locations, seconds as duration_seconds
 
 ALLOWED_TOOLS = {"search_places", "lookup_weather", "compute_routes", "resolve_names", "resolve_maps_urls"}
-AGENT_RELEASE = "2026-11-02-r9"
+AGENT_RELEASE = "2026-11-02-r10"
 # Qwen remains available for an explicit rollback. No automatic model fallback.
 REVIEWED_MODEL = "qwen/qwen3.8-27b"
 SUPPORTED_MODELS = frozenset({REVIEWED_MODEL, GPT_OSS_MODEL})
@@ -888,6 +888,8 @@ class DayOutAgent:
                 circle = (arguments.get('locationBias') or {}).get('circle')
                 if circle:
                     known = [point for messages,_ in self.turns for _,payload in tool_evidence(messages) for point in locations(payload)]
+                    if self.last_place_turn:
+                        known += [point for _,payload in tool_evidence(self.last_place_turn[0]) for point in locations(payload)]
                     if self.current_state:
                         known += [point for _,payload in tool_evidence(self.current_state.messages[self.current_state.begin:]) for point in locations(payload)]
                     nearby = [point for point in known if distance_meters(circle['center'], point) < 100]
@@ -907,7 +909,13 @@ class DayOutAgent:
                 if field and field not in arguments:
                     arguments[field] = 3
             if name == "lookup_weather" and isinstance(arguments, dict):
+                # Use the basic forecast API; optional capability selections can
+                # require permissions beyond the demo integration.
+                for option in ('capabilities','airQualityOptions','weatherOptions'):
+                    arguments.pop(option,None)
                 if plan and "lookup_weather" in plan["required_tools"]:
+                    if plan.get('city','').strip().lower()=='москва':
+                        arguments['location']={'address':'Москва, Россия'}
                     requested = plan.get("weather_date")
                     if requested:
                         forecast_date = date.fromisoformat(requested)
