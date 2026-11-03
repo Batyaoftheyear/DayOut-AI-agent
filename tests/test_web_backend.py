@@ -10,6 +10,7 @@ from mcp.types import CallToolResult, Tool
 
 import web_backend as web
 from agent import AgentError, GPT_OSS_MODEL, REVIEWED_MODEL
+from conversation_context import empty_context
 
 SOURCE = "https://www.google.com/maps/place/synthetic-web-fixture"
 CONFIG = web.WebConfig("synthetic-groq-key", "synthetic-maps-key", REVIEWED_MODEL)
@@ -25,7 +26,10 @@ def install_network(monkeypatch, fail_once=False, quota_once=False):
             return httpx.Response(200, json={"data": [{"id": REVIEWED_MODEL}]})
         body = json.loads(request.content)
         requests.append(body)
-        if body["messages"][0]["content"].startswith("Разбери текущую просьбу"):
+        if isinstance(body.get('tool_choice'),dict) and body['tool_choice'].get('function',{}).get('name')=='remember_context':
+            message={'role':'assistant','content':None,'tool_calls':[{'id':'sync','type':'function','function':{
+                'name':'remember_context','arguments':json.dumps(empty_context(),ensure_ascii=False)}}]}
+        elif body["messages"][0]["content"].startswith("Разбери текущую просьбу"):
             message = {"role": "assistant", "content": json.dumps({
                 "task": "search", "city": "Москва", "area": "", "activity": "кафе", "purpose": "встреча",
                 "other_constraints": "", "budget": {"action": "keep", "amount": None, "currency": "unknown", "people": None, "scope": "unknown"},
@@ -233,11 +237,12 @@ def test_yandex_web_round_trip_uses_same_agent_and_isolates_groq_quota(monkeypat
         gate.remaining_tokens, gate.reset_at = 0, 10**15
     result = web.run_action(config, web.WebMemory(), gate, "ask", "Найди кафе")
     assert result.reply and SOURCE in result.reply.text
-    assert len(requests) == 2 and len(searches) == 1
+    assert len(requests) == 3 and len(searches) == 1
     assert all(body["model"] == config.model and "max_tokens" in body
                and "reasoning_effort" not in body for body in requests)
     assert all('response_format' not in body for body in requests)
     assert all({t['function']['name'] for t in body['tools']}=={'search_places','remember_context'} for body in requests)
+    assert requests[-1]['tool_choice']['function']['name']=='remember_context'
 
 
 @pytest.mark.parametrize("model", [GPT_OSS_MODEL, REVIEWED_MODEL, "unsupported-model"])

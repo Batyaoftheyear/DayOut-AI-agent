@@ -1,0 +1,155 @@
+{
+  "source": "MCP tools/list; input contracts only, no Maps place content",
+  "schemas": {
+    "search_places": {
+      "$defs": {
+        "Circle": {
+          "properties": {
+            "center": {
+              "$ref": "#/$defs/LatLng"
+            },
+            "radiusMeters": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "required": [
+            "center"
+          ],
+          "type": "object"
+        },
+        "LatLng": {
+          "properties": {
+            "latitude": {
+              "format": "double",
+              "type": "number"
+            },
+            "longitude": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "type": "object"
+        },
+        "LocationBias": {
+          "properties": {
+            "circle": {
+              "$ref": "#/$defs/Circle"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "properties": {
+        "includeExtendedDetails": {
+          "type": "boolean"
+        },
+        "languageCode": {
+          "type": "string"
+        },
+        "locationBias": {
+          "$ref": "#/$defs/LocationBias"
+        },
+        "pageSize": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "regionCode": {
+          "type": "string"
+        },
+        "textQuery": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "textQuery"
+      ],
+      "type": "object"
+    },
+    "compute_routes": {
+      "$defs": {
+        "LatLng": {
+          "properties": {
+            "latitude": {
+              "format": "double",
+              "type": "number"
+            },
+            "longitude": {
+              "format": "double",
+              "type": "number"
+            }
+          },
+          "type": "object"
+        },
+        "Waypoint": {
+          "properties": {
+            "address": {
+              "type": "string"
+            },
+            "latLng": {
+              "$ref": "#/$defs/LatLng"
+            },
+            "placeId": {
+              "type": "string"
+            }
+          },
+          "type": "object"
+        }
+      },
+      "properties": {
+        "arrivalTime": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "computeAlternativeRoutes": {
+          "type": "boolean"
+        },
+        "departureTime": {
+          "format": "date-time",
+          "type": "string"
+        },
+        "destination": {
+          "$ref": "#/$defs/Waypoint"
+        },
+        "includePolyline": {
+          "type": "boolean"
+        },
+        "intermediateWaypoints": {
+          "items": {
+            "$ref": "#/$defs/Waypoint"
+          },
+          "type": "array"
+        },
+        "locationBias": {
+          "$ref": "#/$defs/LatLng"
+        },
+        "origin": {
+          "$ref": "#/$defs/Waypoint"
+        },
+        "routingPreference": {
+          "enum": [
+            "ROUTING_PREFERENCE_UNSPECIFIED",
+            "ROUTING_PREFERENCE_TRAFFIC_UNAWARE",
+            "ROUTING_PREFERENCE_TRAFFIC_AWARE_OPTIMAL"
+          ],
+          "type": "string"
+        },
+        "travelMode": {
+          "enum": [
+            "ROUTE_TRAVEL_MODE_UNSPECIFIED",
+            "DRIVE",
+            "WALK",
+            "BICYCLE",
+            "TRANSIT"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "origin",
+        "destination"
+      ],
+      "type": "object"
+    }
+  }
+}

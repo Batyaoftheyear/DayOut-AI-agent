@@ -163,3 +163,17 @@ def test_local_memory_rejects_unknown_fields_and_preserves_other_state():
     with pytest.raises(Exception):
         update_context(context,{'arbitrary_command':'invalid'})
     assert context==empty_context()
+
+
+def test_context_is_synchronized_after_search_and_cannot_route_or_block_it():
+    snapshot=empty_context()
+    snapshot.update(city='Osaka',preferences=['можно с собакой'])
+    snapshot['budget'].update(action='set',amount=3000,currency='RUB',scope='total',people=2)
+    a=agent([search(),answer('Кандидат [S1].'),call(CONTEXT_TOOL_NAME,snapshot)],[place('near',NEAR)])
+    a.llm.context_sync_required=True
+    reply=asyncio.run(a.ask('Найди кафе в Осаке на двоих до 3000 рублей, можно с собакой.'))
+    assert a.session.call_tool.await_count==1 and reply.tools==['search_places']
+    assert a.llm.complete.await_count==3 and NEAR in reply.text
+    assert '3000' in reply.text and a.context['city']=='Osaka' and a.context['budget']['people']==2
+    assert 'tool_choice' not in a.llm.complete.await_args_list[0].kwargs
+    assert a.llm.complete.await_args_list[-1].kwargs['tool_choice']['function']['name']==CONTEXT_TOOL_NAME

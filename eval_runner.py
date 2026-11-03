@@ -20,7 +20,7 @@ from web_backend import RequestGate, WebMemory, load_web_config, run_action
 ROOT = Path(__file__).resolve().parent
 CASE_PATH = ROOT / "eval" / "cases.json"
 CRITERIA = {"relevance", "constraints", "grounding", "honesty", "tool_choice", "dialogue", "clarification", "controlled_behavior"}
-INFRASTRUCTURE_FAILURES = {"quota", "access_denied", "authentication", "billing", "timeout", "network", "tool_error", "tool_request", "adapter_error"}
+INFRASTRUCTURE_FAILURES = {"quota", "access_denied", "authentication", "billing", "timeout", "network", "tool_error", "tool_request", "adapter_error", "provider_filter"}
 
 
 def load_cases(path=CASE_PATH):
@@ -56,7 +56,8 @@ def fingerprint():
 def failure_category(error):
     if not error:
         return None
-    for marker, category in (("429", "quota"), ("403", "access_denied"), ("401", "authentication"),
+    for marker, category in (("сработал фильтр", "provider_filter"), ("finish_reason=content_filter", "provider_filter"),
+                             ("429", "quota"), ("403", "access_denied"), ("401", "authentication"),
                              ("402", "billing"), ("google maps: http 400", "tool_request"),
                              ("сбой запуска адаптера", "adapter_error"),
                              ("квот", "quota"), ("бюджет ожидания", "quota"), ("таймаут", "timeout"),
@@ -168,6 +169,7 @@ def run_live(case, config, gate, visit_date, interval, pace, inspect=False, limi
                       "tool_outcomes": outcomes, "task": observed.get("task"),
                       "weather_requests": observed.get("weather_requests", []),
                       "budget_requested": observed.get("budget_requested"),
+                      "context_updates": observed.get('context_updates',0),
                       "context": copy.deepcopy(memory.context) if result.reply else None})
         if limits:
             limits["turns"] += 1

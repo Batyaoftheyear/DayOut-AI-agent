@@ -24,15 +24,21 @@ CONTEXT_SCHEMA={
                 'people':{'type':['integer','null'],'minimum':1,'maximum':100},
                 'scope':{'enum':['total','per_person','per_hour','unknown']}}},
         'proximity':{'type':'object','additionalProperties':False,'required':['minutes','strict'],
-            'properties':{'minutes':{'type':'integer','minimum':1,'maximum':120},'strict':{'type':'boolean'}}}
+            'properties':{'minutes':{'type':'integer','minimum':1,'maximum':120,
+                'description':'Исходный ориентир или предел пользователя, по умолчанию 15. Не подменяй его временем найденного маршрута.'},'strict':{'type':'boolean'}}}
     }
 }
 CONTEXT_TOOL={'type':'function','function':{'name':CONTEXT_TOOL_NAME,
     'description':'Сохранить изменённые условия пользователя. Это локальная память, не поиск и не данные Maps. '
-        'Передай только изменённые поля. preferences — полный текущий список любых пожеланий; отменённые удали. '
+        'Передай полный текущий снимок условий. preferences — полный список любых пожеланий; отменённые удали. '
         'Бюджет clear отменяет денежное ограничение. proximity.strict=true только для явно жёсткого предела пользователя. '
-        'Незаполненные поля остаются прежними. Город необязателен; сначала можно определить ориентир через Maps.',
+        'Сохрани прежние условия, если пользователь их не менял. Неизвестный город — пустая строка; сначала можно определить ориентир через Maps.',
     'parameters':CONTEXT_SCHEMA}}
+
+# A complete snapshot is a final state check, not a preliminary action plan.
+CONTEXT_TOOL['function']['parameters']=copy.deepcopy(CONTEXT_SCHEMA)
+CONTEXT_TOOL['function']['parameters']['required']=list(CONTEXT_SCHEMA['properties'])
+CONTEXT_TOOL['function']['parameters']['properties']['budget']['required']=list(CONTEXT_SCHEMA['properties']['budget']['properties'])
 
 
 def empty_context():
@@ -50,6 +56,8 @@ def update_context(current, patch):
     if 'budget' in patch:
         change=patch['budget']
         budget=result['budget']
+        if change.get('people') is not None:
+            budget['people']=change['people']
         if change['action']=='clear':
             budget.update(action='clear',amount=None,currency='unknown',scope='unknown')
         else:

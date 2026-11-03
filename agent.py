@@ -18,7 +18,7 @@ from conversation_context import CONTEXT_TOOL, CONTEXT_TOOL_NAME, empty_context,
 from geo import distance_meters, locations, seconds as duration_seconds
 
 ALLOWED_TOOLS = {"search_places", "lookup_weather", "compute_routes", "resolve_names", "resolve_maps_urls"}
-AGENT_RELEASE = "2026-11-03-r15"
+AGENT_RELEASE = "2026-11-03-r16"
 # Qwen remains available for an explicit rollback. No automatic model fallback.
 REVIEWED_MODEL = "qwen/qwen3.8-27b"
 SUPPORTED_MODELS = frozenset({REVIEWED_MODEL, GPT_OSS_MODEL})
@@ -47,8 +47,8 @@ SYSTEM_PROMPT = """Ты DayOut, помощник по досугу. Отвеча
 дата, нужное время, «часы работы». Нет подтверждения — время работы неизвестно.
 Финальный ответ завершает ход: не пиши «проверяю», «проверю» или «сейчас найду».
 Нужно проверить — вызови инструмент в этом ходе; не обещай работу в фоне.
-При заданном бюджете и отсутствии цен: «Стоимость неизвестна; попадание в бюджет не подтверждено». Без бюджета не вставляй этот шаблон. Не выдумывай
-билеты, скидки, сеты или способы уложиться в бюджет без подтверждённых цен.
+При заданном бюджете и отсутствии цен: «Стоимость неизвестна; попадание в бюджет не подтверждено». Без бюджета не вставляй этот шаблон. Не выдумывай билеты, скидки, сеты или способы уложиться в бюджет без подтверждённых цен.
+Даже без числового бюджета не называй место дешёвым, доступным по цене или дорогим без подтверждённых цен. Не обещай пешую близость без данных о расположении или маршруте.
 Для перехода между двумя местами нужен compute_routes; иначе минуты пути неизвестны.
 Обычный поиск мест начинай с search_places. Погоду проверяй по прямой просьбе пользователя
 или для уличного плана на конкретный день. «Холодно, хочу заведение/в помещении» — готовое
@@ -69,7 +69,7 @@ SYSTEM_PROMPT = """Ты DayOut, помощник по досугу. Отвеча
 remember_context — локальная память условий, не MCP и не источник фактов. При изменении города, района, бюджета, числа людей, пожеланий или строгого пешего предела обнови её настоящим вызовом. Передай только изменённые поля; preferences — полный актуальный список. Бюджет clear отменяет сумму, не число участников. Память не выбирает инструменты и не заменяет диалог. Даже без города можешь сразу вызвать поиск ориентира. Ни одно сохранённое пожелание не подтверждает, что заведение ему соответствует. Нужны данные Maps или явная оговорка.
 """
 TOOL_DESCRIPTIONS = {
-    "search_places": "Поиск мест/адресов. В textQuery включи город, район и условия; для часов работы — название/тип, дату, время и «часы работы». Достаточно 2–3 мест.",
+    "search_places": "Поиск мест/адресов. Город необязателен для поиска названного ориентира. Для круговой области: locationBias={circle:{center:{latitude:...,longitude:...},radiusMeters:1200}}; координаты только из MCP. После неудачи мягкого начального поиска можно расширить radiusMeters до 2500–3000. Для часов работы — название/тип, дата, время и «часы работы». Достаточно 2–3 мест.",
     "lookup_weather": (
         "Погода по просьбе пользователя или для плана на конкретный день. Не нужна для обычного поиска мест. "
         "location: только одно из address/latLng/placeId. Сейчас — без date/hour; "
@@ -135,6 +135,9 @@ class TurnState:
     seconds: float = 0.0
     context: dict = field(default_factory=empty_context)
     context_calls: int = 0
+    context_synced: bool = False
+    sync_pending: bool = False
+    proposed_text: str | None = None
     tool_outcomes: list = field(default_factory=list)
     repair_codes: list = field(default_factory=list)
     weather_requests: list = field(default_factory=list)
@@ -594,7 +597,13 @@ class DayOutAgent:
                         waiting_for_llm=True
                         # Every discovered MCP tool remains available, including
                         # after a clarification or a failed answer repair.
-                        message=await self.llm.complete(wire,self.tool_definitions,len(state.called)<self.max_calls)
+                        if state.proposed_text is not None and state.context_synced and not state.sync_pending:
+                            message={'role':'assistant','content':state.proposed_text}
+                            state.proposed_text=None
+                        else:
+                            options={'tool_choice':{'type':'function','function':{'name':CONTEXT_TOOL_NAME}}} if state.sync_pending else {}
+                            message=await self.llm.complete(wire,self.tool_definitions,
+                                state.sync_pending or len(state.called)<self.max_calls,**options)
                         waiting_for_llm=False
                     except (GroqConnectionError,QuotaPauseError):
                         self.save_pending(state,usage_start,start)
@@ -608,6 +617,16 @@ class DayOutAgent:
                         if not isinstance(text,str) or not text.strip():
                             raise AgentError('Модель вернула пустой ответ.')
                         try:
+                            self.validate_protocol(text)
+                            if getattr(self.llm,'context_sync_required',False) and not state.context_synced:
+                                state.proposed_text=text
+                                state.sync_pending=True
+                                messages.append({'role':'user','content':'Служебная синхронизация перед показом готового ответа: вызови remember_context. '
+                                    'Передай полный текущий снимок: city, area, activity, preferences, budget и proximity. '
+                                    'Бери условия из всего диалога; однозначно подтверждённый город — из данных Maps. '
+                                    'Не добавляй новых пожеланий. При отмене бюджета сохрани число людей. '
+                                    'Это сохранение памяти, а не новый поиск и не изменение исходной задачи.'})
+                                continue
                             self.validate_policy(state,text)
                             text=render_sources(text.strip(),{tag:url for url,tag in refs.items()})
                             evidence=[p for turn,_ in self.turns for p in tool_evidence(turn)]
@@ -679,6 +698,9 @@ class DayOutAgent:
                         payload,name=await self.execute(call)
                         if name==CONTEXT_TOOL_NAME:
                             state.context_calls+=1
+                            if not payload.get('error'):
+                                state.context_synced=True
+                                state.sync_pending=False
                         else:
                             state.called.append(name)
                             status=('invalid_arguments' if payload.get('error_kind')=='argument_validation' else 'error') if payload.get('error') else 'success'
@@ -706,12 +728,16 @@ class DayOutAgent:
                'resolve_names':'resolve_names','resolve_maps_urls':'resolve_maps_urls'}
         return kinds.get(called[-1],'chat') if called else 'chat'
 
-    def validate_policy(self,state,text):
+    @staticmethod
+    def validate_protocol(text):
         if re.search(r'(?im)(?:^|\n|\{)\s*["\']?(?:tool_calls|tool_name)["\']?\s*:',text) or re.search(
                 r'\[(?:search_places|lookup_weather|compute_routes|resolve_names|resolve_maps_urls)\s*:',text):
             raise AnswerValidationError('Служебные команды напечатаны текстом. Выполни настоящий tool_call по исходному запросу, а затем дай человеку результат.')
         if re.search(r'"(?:function|parameters|arguments)"\s*:',text) and any(name in text for name in ALLOWED_TOOLS):
             raise AnswerValidationError('JSON с описанием инструмента не выполнен. Вызови инструмент через tool_calls, а не через текст ответа.')
+
+    def validate_policy(self,state,text):
+        self.validate_protocol(text)
         evidence=list(tool_evidence(state.messages[state.begin:]))
         searches=[p for n,p in evidence if n=='search_places']
         circles=[p.get('app_search_area') for p in searches if p.get('app_search_area')]
@@ -747,7 +773,8 @@ class DayOutAgent:
                 if check['duration_seconds']<=proximity['minutes']*60:
                     continue
                 for paragraph in re.split(r'\n\s*\n',text):
-                    if any(url in paragraph for url in check['candidate_urls']) and not re.search(
+                    checked_urls=set(check['candidate_urls']) | set(collect_sources(payload))
+                    if any(url in paragraph for url in checked_urls) and not re.search(
                             r'не подход|не рекоменд|превыш|слишком дал|за предел|дальше заданного',paragraph,re.I):
                         raise AnswerValidationError('Маршрут превышает строгий предел пользователя. Отклони этот вариант, проверь другой; не расширяй жёсткое ограничение.')
 
@@ -759,6 +786,8 @@ class DayOutAgent:
         if name==CONTEXT_TOOL_NAME:
             try:
                 arguments=json.loads(function['arguments'])
+                if getattr(self.llm,'context_sync_required',False):
+                    validators.validator_for(CONTEXT_TOOL['function']['parameters'])(CONTEXT_TOOL['function']['parameters']).validate(arguments)
                 self.current_state.context=update_context(self.current_state.context,arguments)
                 return {'context':self.current_state.context,'notice':'Это условия пользователя, не сведения Maps.'},name
             except (KeyError,TypeError,ValueError,ValidationError,AttributeError):
@@ -777,6 +806,7 @@ class DayOutAgent:
                     arguments[count]=3
                 circle=(arguments.get('locationBias') or {}).get('circle')
                 if circle:
+                    circle.setdefault('radiusMeters',1200)
                     known=[p for turn,_ in self.turns for _,payload in tool_evidence(turn) for p in locations(payload)]
                     if self.last_place_turn:
                         known.extend(p for _,payload in tool_evidence(self.last_place_turn[0]) for p in locations(payload))
@@ -842,6 +872,19 @@ class DayOutAgent:
 
 def validate_tool_semantics(name, arguments):
     """A few documented constraints not always represented in the JSON Schema."""
+    if name=='search_places':
+        bias=arguments.get('locationBias')
+        if bias is not None:
+            if not isinstance(bias,dict) or set(bias)!={'circle'} or not isinstance(bias['circle'],dict):
+                raise ValueError('locationBias requires circle')
+            circle=bias['circle']
+            point=circle.get('center')
+            if not isinstance(point,dict) or not {'latitude','longitude'}<=point.keys():
+                raise ValueError('circle center requires latitude and longitude')
+            radius=circle.get('radiusMeters')
+            if type(radius) not in (int,float) or not math.isfinite(radius) or radius<=0:
+                raise ValueError('positive finite radius required')
+        return
     if name not in {"lookup_weather", "compute_routes"}:
         return
     if name == "compute_routes":
