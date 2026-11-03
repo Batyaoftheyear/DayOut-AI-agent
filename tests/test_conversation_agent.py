@@ -177,3 +177,27 @@ def test_context_is_synchronized_after_search_and_cannot_route_or_block_it():
     assert '3000' in reply.text and a.context['city']=='Osaka' and a.context['budget']['people']==2
     assert 'tool_choice' not in a.llm.complete.await_args_list[0].kwargs
     assert a.llm.complete.await_args_list[-1].kwargs['tool_choice']['function']['name']==CONTEXT_TOOL_NAME
+
+
+def test_early_optional_memory_does_not_skip_final_snapshot():
+    first=empty_context()
+    final=empty_context()
+    final['proximity']['strict']=True
+    a=agent([call(CONTEXT_TOOL_NAME,first),answer('Условия сохранены.'),
+        call(CONTEXT_TOOL_NAME,final)],[])
+    a.llm.context_sync_required=True
+    reply=asyncio.run(a.ask('Только до 15 минут пешком, больший путь не подходит. Пока не ищи.'))
+    assert not reply.tools and a.context['proximity']['strict']
+    assert a.llm.complete.await_count==3
+    assert a.llm.complete.await_args_list[-1].kwargs['tool_choice']['function']['name']==CONTEXT_TOOL_NAME
+
+
+def test_resolver_without_coordinates_gives_actionable_recovery_instead_of_repeating_circle():
+    resolved=CallToolResult(content=[],structuredContent={'places':[{'id':'anchor','place':'places/anchor'}]})
+    a=agent([call('resolve_names',{'queries':['Synthetic anchor']}),search(1200),
+        search(),search(1200),answer('Кандидат [S1].')],[resolved,place('anchor',ANCHOR),place('near',NEAR)])
+    asyncio.run(a.ask('Найди место рядом с ориентиром.'))
+    payloads=[json.loads(m['content']) for m in a.turns[-1][0] if m.get('role')=='tool']
+    errors=[p for p in payloads if p.get('error')]
+    assert len(errors)==1 and 'БЕЗ locationBias' in errors[0]['error']
+    assert a.session.call_tool.await_count==3

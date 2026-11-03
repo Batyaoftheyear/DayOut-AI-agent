@@ -18,7 +18,7 @@ from conversation_context import CONTEXT_TOOL, CONTEXT_TOOL_NAME, empty_context,
 from geo import distance_meters, locations, seconds as duration_seconds
 
 ALLOWED_TOOLS = {"search_places", "lookup_weather", "compute_routes", "resolve_names", "resolve_maps_urls"}
-AGENT_RELEASE = "2026-11-03-r16"
+AGENT_RELEASE = "2026-11-03-r17"
 # Qwen remains available for an explicit rollback. No automatic model fallback.
 REVIEWED_MODEL = "qwen/qwen3.8-27b"
 SUPPORTED_MODELS = frozenset({REVIEWED_MODEL, GPT_OSS_MODEL})
@@ -35,7 +35,7 @@ SYSTEM_PROMPT = """Ты DayOut, помощник по досугу. Отвеча
 Места, адреса, цены, часы, погода и время пути — только из успешных данных инструментов.
 Не выводи район, метро или ориентиры по названию места: они должны быть прямо названы в данных MCP.
 Для поиска рядом с конкретной станцией метро или адресом проверь близость через compute_routes от ориентира к кандидатам.
-Сначала определи ориентир и проверь его название/расположение в Maps. Затем ищи нужные места с locationBias вокруг подтверждённых координат: начинай примерно с 1200 м.
+Сначала определи ориентир и проверь его название/расположение в Maps. resolve_names даёт Place ID, но не обязательно координаты: для координат вызови search_places с названием самого ориентира, без locationBias. Затем ищи нужные места с locationBias вокруг подтверждённых координат: начинай примерно с 1200 м.
 В locationBias используй только координаты из MCP. Это приоритет, не строгий фильтр. Для подтверждения пешего времени используй compute_routes, лучше по Place ID найденного кандидата.
 Для кафе после парка используй такой же поиск с приоритетом вокруг найденного парка. Слово «юг» не является названием кафе.
 Для «рядом» без строгого ограничения 15 минут — мягкий начальный ориентир. Если в нём подходящих мест не подтверждено, проверь других кандидатов и сделай один более широкий поиск, примерно 2500–3000 м. Подтверди маршрут к выбранным вариантам. Явно напиши «чуть дальше: ... минут пешком», не называй их вариантами в пределах 15 минут. Выбирай до двух мест.
@@ -66,7 +66,7 @@ SYSTEM_PROMPT = """Ты DayOut, помощник по досугу. Отвеча
 Сразу после подтверждаемого текста цитируй источник [S1], [S2] из метаданных:
 приложение подставит ссылку Google Maps. Не придумывай ссылки/метки.
 Не копируй в ответ числовые метки [0], [1]. JSON и рассуждения не выводи.
-remember_context — локальная память условий, не MCP и не источник фактов. При изменении города, района, бюджета, числа людей, пожеланий или строгого пешего предела обнови её настоящим вызовом. Передай только изменённые поля; preferences — полный актуальный список. Бюджет clear отменяет сумму, не число участников. Память не выбирает инструменты и не заменяет диалог. Даже без города можешь сразу вызвать поиск ориентира. Ни одно сохранённое пожелание не подтверждает, что заведение ему соответствует. Нужны данные Maps или явная оговорка.
+remember_context — локальная память условий, не MCP и не источник фактов. При изменении города, района, бюджета, числа людей, пожеланий или строгого пешего предела обнови её настоящим вызовом. Передай полный текущий снимок; preferences — полный актуальный список. Бюджет clear отменяет сумму, не число участников. Прямое указание пользователя важнее старого снимка: «только до 15 минут», «больше не подходит» означает proximity={minutes:15,strict:true}. Память не выбирает инструменты и не заменяет диалог. Даже без города можешь сразу вызвать поиск ориентира. Ни одно сохранённое пожелание не подтверждает, что заведение ему соответствует. Нужны данные Maps или явная оговорка.
 """
 TOOL_DESCRIPTIONS = {
     "search_places": "Поиск мест/адресов. Город необязателен для поиска названного ориентира. Для круговой области: locationBias={circle:{center:{latitude:...,longitude:...},radiusMeters:1200}}; координаты только из MCP. После неудачи мягкого начального поиска можно расширить radiusMeters до 2500–3000. Для часов работы — название/тип, дата, время и «часы работы». Достаточно 2–3 мест.",
@@ -624,6 +624,8 @@ class DayOutAgent:
                                 messages.append({'role':'user','content':'Служебная синхронизация перед показом готового ответа: вызови remember_context. '
                                     'Передай полный текущий снимок: city, area, activity, preferences, budget и proximity. '
                                     'Бери условия из всего диалога; однозначно подтверждённый город — из данных Maps. '
+                                    'Указания пользователя приоритетнее старого снимка. «Только до», «больший путь не подходит» задают proximity.strict=true; '
+                                    'не заменяй исходный предел временем найденного маршрута. '
                                     'Не добавляй новых пожеланий. При отмене бюджета сохрани число людей. '
                                     'Это сохранение памяти, а не новый поиск и не изменение исходной задачи.'})
                                 continue
@@ -698,7 +700,7 @@ class DayOutAgent:
                         payload,name=await self.execute(call)
                         if name==CONTEXT_TOOL_NAME:
                             state.context_calls+=1
-                            if not payload.get('error'):
+                            if not payload.get('error') and state.sync_pending:
                                 state.context_synced=True
                                 state.sync_pending=False
                         else:
@@ -794,6 +796,7 @@ class DayOutAgent:
                 return {'error':'Некорректное обновление контекста. Соблюдай схему remember_context.','error_kind':'argument_validation'},name
         if not isinstance(name,str) or name not in self.tools:
             return {'error':'Неизвестный инструмент. Используй только объявленные инструменты.','error_kind':'argument_validation'},'invalid'
+        hint='Соблюдай JSON Schema. locationBias — только {circle:{center:{latitude,longitude},radiusMeters}}. У точки маршрута ровно одно из address, latLng, placeId.'
         try:
             arguments=normalize_location_ids(json.loads(function['arguments']))
             if name=='search_places' and isinstance(arguments,dict):
@@ -805,15 +808,19 @@ class DayOutAgent:
                 if count and count not in arguments:
                     arguments[count]=3
                 circle=(arguments.get('locationBias') or {}).get('circle')
-                if circle:
+                if isinstance(circle,dict) and circle:
                     circle.setdefault('radiusMeters',1200)
                     known=[p for turn,_ in self.turns for _,payload in tool_evidence(turn) for p in locations(payload)]
                     if self.last_place_turn:
                         known.extend(p for _,payload in tool_evidence(self.last_place_turn[0]) for p in locations(payload))
                     if self.current_state:
                         known.extend(p for _,payload in tool_evidence(self.current_state.messages[self.current_state.begin:]) for p in locations(payload))
+                    if not known:
+                        hint='В полученных данных нет координат. resolve_names возвращает Place ID, а не центр круга. Сначала вызови search_places для самого ориентира: textQuery с его названием, БЕЗ locationBias. Затем возьми location.latitude/longitude из ответа.'
+                        raise ValueError('no grounded coordinates')
                     nearby=[p for p in known if distance_meters(circle['center'],p)<100]
                     if not nearby:
+                        hint='Центр круга не совпадает с координатами из MCP. Возьми location.latitude/longitude найденного ориентира; не подставляй Place ID или выдуманные координаты в center.'
                         raise ValueError('coordinates must come from MCP')
                     circle['center']=min(nearby,key=lambda p:distance_meters(circle['center'],p))
             if name=='lookup_weather' and isinstance(arguments,dict):
@@ -823,10 +830,10 @@ class DayOutAgent:
             if not isinstance(arguments,dict):
                 raise ValueError('arguments must be an object')
             validate_tool_semantics(name,arguments)
-        except (KeyError,TypeError,ValueError,ValidationError) as error:
+        except (KeyError,TypeError,ValueError,ValidationError,AttributeError) as error:
             location='.'.join(map(str,error.absolute_path)) if isinstance(error,ValidationError) else ''
             return {'error':f'Некорректные аргументы {name}'+(f' в поле {location}' if location else '')+
-                '. Соблюдай JSON Schema; координаты бери из MCP. У точки ровно одно из address, latLng, placeId.',
+                '. '+hint,
                 'error_kind':'argument_validation'},name
         self.emit(f'MCP → {name}')
         function['arguments']=json.dumps(arguments,ensure_ascii=False,separators=(',',':'))
