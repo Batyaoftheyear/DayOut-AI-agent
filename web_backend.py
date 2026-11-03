@@ -1,6 +1,7 @@
 """Streamlit adapter: session data only, fresh async transports per action."""
 
 import asyncio
+import copy
 import threading
 from contextlib import contextmanager
 from dataclasses import dataclass, field
@@ -19,6 +20,7 @@ from groq_check import quota_pause_message
 from mcp_check import MCP_URL
 from provider_config import CONFIG_NAMES, WebConfig, load_settings
 from yandex_client import make_client
+from conversation_context import empty_context
 
 ENV_PATH = Path(__file__).resolve().with_name(".env")
 
@@ -39,7 +41,7 @@ class WebMemory:
     prompt_ratios: list = field(default_factory=list)
     failed_query: str | None = None
     paused: bool = False
-    last_plan: dict | None = None
+    context: dict = field(default_factory=empty_context)
     last_place_turn: tuple | None = None
 
     def reset(self):
@@ -47,7 +49,7 @@ class WebMemory:
         self.user_history.clear()
         self.pending = None
         self.failed_query = None
-        self.last_plan = None
+        self.context = empty_context()
         self.last_place_turn = None
         # Resetting a conversation does not repair a failed connection.
 
@@ -152,7 +154,7 @@ async def _perform(config, memory, gate, action, query, emit):
                                 tools = await discover_tools(session)
                             agent = DayOutAgent(session, llm, tools, emit=event)
                             agent.turns, agent.user_history, agent.pending = memory.turns, memory.user_history, memory.pending
-                            agent.last_plan = memory.last_plan
+                            agent.context = copy.deepcopy(getattr(memory,'context',empty_context()))
                             agent.last_place_turn = memory.last_place_turn
                             event("Подбираю варианты…")
                             result.reply = await agent.ask(query, resume=action == "retry")
@@ -175,13 +177,13 @@ async def _perform(config, memory, gate, action, query, emit):
             gate.blocked_until, gate.quota_kind = llm.blocked_until, llm.quota_kind
         if agent is not None:
             memory.turns, memory.user_history, memory.pending = agent.turns, agent.user_history, agent.pending
-            memory.last_plan = agent.last_plan
+            memory.context = copy.deepcopy(agent.context)
             memory.last_place_turn = agent.last_place_turn
             if agent.current_state is not None:
                 state = agent.current_state
                 result.evidence_messages = state.messages[state.begin:]
-                result.observations = {"task": state.plan["task"] if state.plan else None,
-                    "budget_requested": bool(state.plan and state.plan["budget"]["amount"] is not None),
+                result.observations = {"task": agent.task_label(state.called),
+                    "budget_requested": state.context['budget']['amount'] is not None,
                     "tool_outcomes": list(state.tool_outcomes), "weather_requests": list(state.weather_requests)}
     return result
 

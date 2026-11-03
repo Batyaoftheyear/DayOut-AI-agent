@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id":"A01","title":"Ориентир без отдельно указанного города","group":"regression","mode":"live","split":"development",
+      "turns":["Куда сходить рядом с Osaka castle?"],
+      "required_any_tools":["search_places","resolve_names"],"context_fields_nonempty":["city"],
+      "forbidden_text":["В каком городе","tool_calls","tool_name"],
+      "criteria":["relevance","constraints","grounding","honesty","tool_choice","clarification"],
+      "expected":"Ориентир и город определены через Maps. Нет лишнего вопроса о городе, нет служебного JSON. Предложены кандидаты поблизости с источниками. Обоснованное уточнение допустимо при реально разных ориентирах, неизвестные свойства не гарантируются."
+    },
+    {
+      "id":"A02","title":"Ответ городом продолжает диалог","group":"regression","mode":"live","split":"development",
+      "turns":["Подбери два уютных кафе. Город я пока не указал.","Осака"],
+      "no_tools_turns":[1],"required_last_turn_tools":["search_places"],"context_fields_nonempty":["city"],
+      "forbidden_text":["tool_calls","tool_name"],
+      "criteria":["relevance","constraints","grounding","honesty","tool_choice","dialogue","clarification"],
+      "expected":"Первый ответ уточняет город без MCP. Осака дополняет исходный запрос кафе. Второй ход содержит настоящий поиск и ссылки, а не текст команд."
+    },
+    {
+      "id":"A03","title":"Рамен у храма с неясной транслитерацией","group":"regression","mode":"live","split":"development",
+      "turns":["Где поесть рамен в Осаке близ храма Синоидзи?"],
+      "forbidden_text":["tool_calls","tool_name"],
+      "criteria":["relevance","constraints","grounding","honesty","tool_choice","clarification"],
+      "expected":"Храм проверен либо запрошено уточнение точного названия/ссылки при неоднозначности. Нельзя выбрать неверный храм наугад. Если он подтверждён, поиск учитывает местоположение; 15 минут мягкие, более далёкие варианты явно обозначаются. Отсутствие подтверждения не выдаётся за отсутствие заведений."
+    },
+    {
+      "id":"A04","title":"Пожелания и бюджет без планировщика","group":"dialogue","mode":"live","split":"development",
+      "turns":["Найди ресторан в Кузьминках, Москва. Нас двое, общий бюджет 3000 рублей.","Хочу грухинскую кухню и чтобы можно было с собакой.","Отменяем денежное ограничение. Пока ничего не ищи, перечисли оставшиеся условия."],
+      "required_tools_by_turn":[{"turn":1,"tools":["search_places"]},{"turn":2,"tools":["search_places"]}],"no_tools_turns":[3],
+      "budget_checks":[{"turn":1,"expected":{"amount":3000,"people":2,"scope":"total"}},{"turn":2,"expected":{"amount":3000,"people":2,"scope":"total"}},{"turn":3,"expected":{"amount":null,"people":2}}],
+      "criteria":["relevance","constraints","grounding","honesty","tool_choice","dialogue"],
+      "expected":"Сохраняются район, город и двое. Опечатка понята как грузинская кухня, посещение с собакой проверено либо явно не подтверждено. После уточнения новый поиск. Бюджет сохранён, затем отменён без потери числа людей. На третьем ходе нет MCP и ненужных источников. Нет гарантий чека без цен."
+    },
+    {
+      "id":"A05","title":"Погода и маршрут в прямом цикле","group":"tools","mode":"live","split":"development",
+      "turns":["Какая погода в Москве {visit_date}? Нужен прогноз на день, без поиска заведений.","Построй пеший маршрут от Красной площади до Волхонки, 12, Москва. Места не ищи."],
+      "weather_mode":"daily","required_tools":["lookup_weather","compute_routes"],"forbidden_tools":["search_places"],
+      "criteria":["relevance","constraints","grounding","honesty","tool_choice"],
+      "expected":"Прогноз на указанную дату, маршрут WALK с верными точками. Запрет поиска заведений соблюдён. Данные и ссылки подтверждены либо ошибка раскрыта без выдумок."
+    },
+    {
+      "id":"A06","title":"Оба resolver в общем цикле","group":"tools","mode":"live","split":"development",
+      "turns":["Определи Place ID Osaka Castle через resolve_names и дай ссылку Maps.","Теперь определи Place ID по ссылке из предыдущего ответа через resolve_maps_urls."],
+      "required_tools":["resolve_names","resolve_maps_urls"],"required_last_turn_tools":["resolve_maps_urls"],
+      "criteria":["relevance","grounding","honesty","tool_choice","dialogue"],
+      "expected":"Идентификатор и ссылка из resolver. Второй ход использует реальную предыдущую ссылку. Для неподдерживаемого URL допустим отказ после вызова без выдуманного ID."
+    }
+  ]
+}

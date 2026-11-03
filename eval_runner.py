@@ -1,6 +1,7 @@
 """Reproducible Eval: aggregate metrics, optional explicit model-assisted review."""
 
 import argparse
+import copy
 import csv
 import hashlib
 import json
@@ -37,7 +38,7 @@ def load_cases(path=CASE_PATH):
             raise ValueError("Отсутствуют ходы live-сценария")
         if case.get("split", "development") not in {"development", "holdout"}:
             raise ValueError("Неизвестная часть набора")
-        for key in ("required_tools", "forbidden_tools", "required_last_turn_tools", "forbidden_last_tools", "required_success_tools"):
+        for key in ("required_tools", "required_any_tools", "forbidden_tools", "required_last_turn_tools", "forbidden_last_tools", "required_success_tools"):
             if not set(case.get(key, [])) <= ALLOWED_TOOLS:
                 raise ValueError("Неизвестный инструмент в критериях сценария")
     return cases
@@ -45,7 +46,7 @@ def load_cases(path=CASE_PATH):
 
 def fingerprint():
     digest = hashlib.sha256()
-    for name in ("app.py", "agent.py", "request_policy.py", "web_backend.py", "dayout.py", "mcp_check.py", "groq_check.py",
+    for name in ("app.py", "agent.py", "conversation_context.py", "web_backend.py", "dayout.py", "mcp_check.py", "groq_check.py",
                  "provider_config.py", "yandex_client.py", "geo.py", "eval_runner.py", "eval/reviewer.py", "eval/simulated.py", "requirements.txt"):
         digest.update(name.encode())
         digest.update((ROOT / name).read_bytes())
@@ -167,7 +168,7 @@ def run_live(case, config, gate, visit_date, interval, pace, inspect=False, limi
                       "tool_outcomes": outcomes, "task": observed.get("task"),
                       "weather_requests": observed.get("weather_requests", []),
                       "budget_requested": observed.get("budget_requested"),
-                      "context": {key:(memory.last_plan or {}).get(key) for key in ('city','area','activity','preferences','data_action','search_terms','budget')} if result.reply else None})
+                      "context": copy.deepcopy(memory.context) if result.reply else None})
         if limits:
             limits["turns"] += 1
             for key, value in usage.items():
@@ -188,6 +189,8 @@ def run_live(case, config, gate, visit_date, interval, pace, inspect=False, limi
     last_tools = turns[-1]["tools"] if turns else []
     last_text = texts[-1] if texts else ""
     auto = {
+        "any_required_tool_called": not case.get('required_any_tools') or bool(set(case['required_any_tools']) & set(all_tools)),
+        "context_fields_present": all(bool((turns[-1].get('context') or {}).get(key)) for key in case.get('context_fields_nonempty', [])) if turns else not case.get('context_fields_nonempty'),
         "all_turns_completed": len(turns) == len(case["turns"]) and all(turn["completed"] for turn in turns),
         "required_tools_called": set(case.get("required_tools", [])) <= set(all_tools),
         "forbidden_tools_absent": not set(case.get("forbidden_tools", [])) & set(all_tools),

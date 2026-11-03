@@ -134,10 +134,10 @@ def test_invented_url_blocks_answer():
 
 
 def test_uncited_answer_does_not_get_an_automatic_catalog_of_sources():
-    agent = fixture_agent([calling(tool_call()), answer("Вымышленный тестовый вариант.")])
-    result = asyncio.run(agent.ask("Тест"))
-    assert SOURCE not in result.text
-    assert "Источники Google Maps" not in result.text
+    agent = fixture_agent([calling(tool_call()), answer("Вымышленный тестовый вариант."), answer("Вымышленный тестовый вариант.")])
+    with pytest.raises(AnswerValidationError):
+        asyncio.run(agent.ask("Тест"))
+    assert not agent.turns
 
 
 def test_markdown_citation_is_accepted():
@@ -178,13 +178,13 @@ def test_missing_provider_id_gets_a_local_id_without_losing_the_tool_result():
 
 
 def test_history_is_bounded_and_resettable():
-    agent = fixture_agent([answer("Уточнение.")] * 4)
+    agent = fixture_agent([answer("Уточнение.")] * 21)
     async def run():
-        for _ in range(4):
+        for _ in range(21):
             await agent.ask("Тест")
     asyncio.run(run())
-    assert len(agent.turns) == 2
-    assert len(agent.user_history) == 4
+    assert len(agent.turns) == 20
+    assert len(agent.user_history) == 21
     agent.reset()
     assert not agent.turns
     assert not agent.user_history

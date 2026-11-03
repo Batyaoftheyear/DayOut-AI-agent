@@ -233,13 +233,11 @@ def test_yandex_web_round_trip_uses_same_agent_and_isolates_groq_quota(monkeypat
         gate.remaining_tokens, gate.reset_at = 0, 10**15
     result = web.run_action(config, web.WebMemory(), gate, "ask", "Найди кафе")
     assert result.reply and SOURCE in result.reply.text
-    assert len(requests) == 3 and len(searches) == 1
+    assert len(requests) == 2 and len(searches) == 1
     assert all(body["model"] == config.model and "max_tokens" in body
                and "reasoning_effort" not in body for body in requests)
-    planner_format = requests[0]["response_format"]
-    assert planner_format["type"] == "json_schema" and "tools" not in requests[0]
-    assert "uniqueItems" not in planner_format["json_schema"]["schema"]["properties"]["required_tools"]
-    assert all("response_format" not in body for body in requests[1:])
+    assert all('response_format' not in body for body in requests)
+    assert all({t['function']['name'] for t in body['tools']}=={'search_places','remember_context'} for body in requests)
 
 
 @pytest.mark.parametrize("model", [GPT_OSS_MODEL, REVIEWED_MODEL, "unsupported-model"])

@@ -23,7 +23,9 @@ def queue_action(action, query=""):
 
 
 def clear_chat():
-    st.session_state.memory.reset()
+    previous=st.session_state.memory
+    st.session_state.memory=WebMemory(paused=previous.paused, usage_totals=dict(previous.usage_totals),
+                                     prompt_ratios=list(previous.prompt_ratios))
     st.session_state.messages = []
     st.session_state.notice = None
     st.session_state.retry_action = None

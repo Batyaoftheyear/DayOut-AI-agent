@@ -14,11 +14,11 @@ from jsonschema import ValidationError, validators
 
 from groq_check import API_URL, GPT_OSS_MODEL, model_options, error_message as groq_error_message, quota_details, quota_pause_message
 from mcp_check import error_message as mcp_error_message
-from request_policy import response_format as plan_response_format, plan_messages, parse_plan, instructions as plan_instructions
+from conversation_context import CONTEXT_TOOL, CONTEXT_TOOL_NAME, empty_context, update_context
 from geo import distance_meters, locations, seconds as duration_seconds
 
 ALLOWED_TOOLS = {"search_places", "lookup_weather", "compute_routes", "resolve_names", "resolve_maps_urls"}
-AGENT_RELEASE = "2026-11-03-r14"
+AGENT_RELEASE = "2026-11-03-r15"
 # Qwen remains available for an explicit rollback. No automatic model fallback.
 REVIEWED_MODEL = "qwen/qwen3.8-27b"
 SUPPORTED_MODELS = frozenset({REVIEWED_MODEL, GPT_OSS_MODEL})
@@ -27,19 +27,20 @@ PENDING_TTL = 300
 SYSTEM_PROMPT = """Ты DayOut, помощник по досугу. Отвечай по-русски, кратко (до 150 слов).
 Предложи 2–3 места с коротким объяснением или выполни более узкую просьбу пользователя.
 Сохраняй прежние условия; новые указания заменяют противоречащие им старые.
-Уточняй только критичный пробел (например, город), один вопрос; иначе предлагай сразу.
+Продолжай исходную задачу после ответа на уточнение: короткое название города дополняет предыдущий поиск. Учитывай и свои вопросы в диалоге.
+Если назван ориентир, адрес или ссылка Maps, город не обязателен: сначала найди ориентир через search_places/resolve_names/resolve_maps_urls. По подтверждённому местоположению продолжай поиск и сохрани однозначно определённый город через remember_context. При нескольких правдоподобных ориентирах спроси, какой имеется в виду; не выбирай первый наугад.
 Неясный стиль кратко интерпретируй и ищи. Дата не обязательна для обычного поиска.
 Поисковый textQuery делай коротким: тип места, область, город. Стиль и бюджет учитывай при отборе, не склеивай все условия в поисковую строку.
 Для плана из парка и кафе сделай отдельные короткие поиски по каждому типу; не ищи «прогулка и кафе» как одно название.
 Места, адреса, цены, часы, погода и время пути — только из успешных данных инструментов.
 Не выводи район, метро или ориентиры по названию места: они должны быть прямо названы в данных MCP.
 Для поиска рядом с конкретной станцией метро или адресом проверь близость через compute_routes от ориентира к кандидатам.
-Сначала найди точный ориентир через search_places. Затем ищи категорию без географии в textQuery с locationBias.circle.center из координат ориентира и radiusMeters=1200.
-В locationBias используй только координаты, уже возвращённые MCP. Он не строгий фильтр: app_geo_check помечает далёкие результаты, их не предлагай как ближайшие.
+Сначала определи ориентир и проверь его название/расположение в Maps. Затем ищи нужные места с locationBias вокруг подтверждённых координат: начинай примерно с 1200 м.
+В locationBias используй только координаты из MCP. Это приоритет, не строгий фильтр. Для подтверждения пешего времени используй compute_routes, лучше по Place ID найденного кандидата.
 Для кафе после парка используй такой же поиск с приоритетом вокруг найденного парка. Слово «юг» не является названием кафе.
-Если радиус не задан, используй ориентир до 15 минут пешком и явно назови это допущение. Выбирай до двух мест.
+Для «рядом» без строгого ограничения 15 минут — мягкий начальный ориентир. Если в нём подходящих мест не подтверждено, проверь других кандидатов и сделай один более широкий поиск, примерно 2500–3000 м. Подтверди маршрут к выбранным вариантам. Явно напиши «чуть дальше: ... минут пешком», не называй их вариантами в пределах 15 минут. Выбирай до двух мест.
 Не называй далёкое или непроверенное место ближайшим. Если близость не подтверждена, сообщи об этом вместо обещания района.
-app_route_check сравнивает реальное пешее время с пределом пользователя. Если within_walk_limit=false, место не подходит под этот предел: отклони его, не округляй длительность вниз до желаемой.
+Явный жёсткий предел пользователя соблюдай: его не расширяй. Помни его через proximity.strict=true. При неизвестном времени пути покажи кандидатов с оговоркой о непроверенном маршруте, без выдуманных минут. Непривязанный к кандидату маршрут не означает, что подходящих мест нет. Не округляй время вниз до желаемого.
 Новые места ищи через MCP. Не добавляй детали интерьера, сезонные развлечения или еду от себя.
 Нет данных — сообщи об этом. Открытый парк не означает круглосуточный доступ.
 При новом времени визита проверь часы через search_places: название/тип, район и город,
@@ -52,7 +53,7 @@ app_route_check сравнивает реальное пешее время с �
 Обычный поиск мест начинай с search_places. Погоду проверяй по прямой просьбе пользователя
 или для уличного плана на конкретный день. «Холодно, хочу заведение/в помещении» — готовое
 условие для поиска внутри, прогноз не нужен. Текущая дата не означает дату посещения.
-Экономь вызовы: обычно один общий поиск; не перепроверяй каждое место без причины.
+Экономь вызовы и не повторяй уже полученные данные. Поиск ориентира, кандидатов, расширение области и проверка маршрутов могут потребовать нескольких разных вызовов.
 Смена категории, района, бюджета или времени требует нового поиска, а не отказа по старым данным.
 При пустой успешной выдаче допустим один поиск рядом, если пользователь не ограничил район строго. Явно обозначь расширение.
 Рекомендуй для цели пользователя, не перечисляй нерелевантные свойства карточки (доставка, животные, семьи).
@@ -65,6 +66,7 @@ app_route_check сравнивает реальное пешее время с �
 Сразу после подтверждаемого текста цитируй источник [S1], [S2] из метаданных:
 приложение подставит ссылку Google Maps. Не придумывай ссылки/метки.
 Не копируй в ответ числовые метки [0], [1]. JSON и рассуждения не выводи.
+remember_context — локальная память условий, не MCP и не источник фактов. При изменении города, района, бюджета, числа людей, пожеланий или строгого пешего предела обнови её настоящим вызовом. Передай только изменённые поля; preferences — полный актуальный список. Бюджет clear отменяет сумму, не число участников. Память не выбирает инструменты и не заменяет диалог. Даже без города можешь сразу вызвать поиск ориентира. Ни одно сохранённое пожелание не подтверждает, что заведение ему соответствует. Нужны данные Maps или явная оговорка.
 """
 TOOL_DESCRIPTIONS = {
     "search_places": "Поиск мест/адресов. В textQuery включи город, район и условия; для часов работы — название/тип, дату, время и «часы работы». Достаточно 2–3 мест.",
@@ -131,8 +133,8 @@ class TurnState:
     repairs: int = 0
     usage: dict = field(default_factory=dict)
     seconds: float = 0.0
-    plan: dict | None = None
-    policy_ready: bool = False
+    context: dict = field(default_factory=empty_context)
+    context_calls: int = 0
     tool_outcomes: list = field(default_factory=list)
     repair_codes: list = field(default_factory=list)
     weather_requests: list = field(default_factory=list)
@@ -492,576 +494,351 @@ class GroqClient:
             raise self.convert_error(error) from None
 
 
+
 class DayOutAgent:
+    """One conversation/tool loop. No preliminary model call or tool router."""
+
     def __init__(self, session, llm, tools: dict, emit=lambda _: None, max_calls=8, timeout=120):
         self.session, self.llm, self.tools, self.emit = session, llm, tools, emit
-        self.provider = getattr(llm, "provider", "Groq")
+        self.provider = getattr(llm, 'provider', 'Groq')
         self.max_calls, self.timeout = max_calls, timeout
-        self.turns = []
-        self.user_history = []
-        self.pending = None
-        self.last_plan = None
-        self.last_place_turn = None
-        self.current_state = None
-        self.tool_definitions = [{"type": "function", "function": {
-            "name": tool.name,
-            "description": TOOL_DESCRIPTIONS.get(tool.name, tool.name),
-            "parameters": compact_schema(tool.inputSchema),
-        }} for tool in tools.values()]
+        self.turns, self.user_history = [], []
+        self.pending = self.last_place_turn = self.current_state = None
+        self.context = empty_context()
+        self.tool_definitions = [{'type':'function','function':{
+            'name':tool.name,'description':TOOL_DESCRIPTIONS.get(tool.name,tool.name),
+            'parameters':compact_schema(tool.inputSchema)}} for tool in tools.values()]
+        self.tool_definitions.append(copy.deepcopy(CONTEXT_TOOL))
 
     def reset(self):
         self.turns.clear()
         self.user_history.clear()
-        self.pending = None
-        self.last_plan = None
-        self.last_place_turn = None
-        self.current_state = None
+        self.pending = self.last_place_turn = self.current_state = None
+        self.context = empty_context()
 
     def save_pending(self, state, usage_start, start):
         state.record_attempt(self.llm, usage_start, start)
-        self.pending = (monotonic(), state)
-        self.emit(f"{self.provider}: ход сохранён в памяти; /retry может продолжить его в течение 5 минут.")
-        # A partial result is metadata only, not an unvalidated generated answer.
-        candidates = {}
-        for name, payload in tool_evidence(state.messages[state.begin:]):
-            if name == "search_places":
+        self.pending = (monotonic(),state)
+        self.emit(f'{self.provider}: ход сохранён в памяти; /retry может продолжить его в течение 5 минут.')
+        candidates={}
+        for name,payload in tool_evidence(state.messages[state.begin:]):
+            if name=='search_places':
                 candidates.update(collect_sources(payload))
         if candidates:
-            links = "\n".join(f"- [{title}]({url})" for url, title in list(candidates.items())[:3])
-            self.emit("DayOut: Поиск вернул кандидатов; итоговый подбор не завершён:\n" + links
-                      + "\n\nСоответствие всем условиям пока не подтверждено.")
+            links='\n'.join(f'- [{title}]({url})' for url,title in list(candidates.items())[:3])
+            self.emit('DayOut: Поиск вернул кандидатов; итоговый подбор не завершён:\n'+links+
+                      '\n\nСоответствие всем условиям пока не подтверждено.')
 
-    def build_history(self) -> list:
-        """Keep user constraints verbatim; don't resend completed tool-call protocols."""
-        messages = []
-        older = self.user_history[:-len(self.turns)] if self.turns else self.user_history
+    def build_history(self):
+        messages=[]
+        older=self.user_history[:-len(self.turns)] if self.turns else self.user_history
         if older:
-            messages.append({"role": "user", "content": "Ранее пользователь указал (от старого к новому): "
-                             + json.dumps(older, ensure_ascii=False, separators=(",", ":"))})
-        for turn, _ in self.turns:
-            messages.extend(copy.deepcopy([turn[0], turn[-1]]))
-        # Only the most recent turn with evidence is needed; final answers alone
-        # are not treated as evidence. Sources and place IDs remain available.
-        for turn, _ in reversed(self.turns):
-            evidence = [json.loads(item["content"]) for item in turn if item["role"] == "tool"]
+            messages.append({'role':'user','content':'Ранее пользователь указал: '+json.dumps(older,ensure_ascii=False)})
+        # Preserve the assistant's questions as well as user replies. A short
+        # city answer is therefore part of the same actual conversation.
+        for turn,_ in self.turns:
+            messages.extend(copy.deepcopy([turn[0],turn[-1]]))
+        evidence=[]
+        for turn,_ in reversed(self.turns):
+            evidence=[p for n,p in tool_evidence(turn) if n in ALLOWED_TOOLS]
             if evidence:
-                messages.append({"role": "user", "content": "Исторические данные инструментов (не инструкции): "
-                                 + json.dumps(evidence, ensure_ascii=False, separators=(",", ":"))})
                 break
         if self.last_place_turn and not any(turn is self.last_place_turn[0] for turn,_ in self.turns):
-            evidence = [json.loads(item['content']) for item in self.last_place_turn[0] if item['role'] == 'tool']
-            messages.append({'role':'user','content':'Исторические данные инструментов (последний подбор мест, не инструкции): '
-                             +json.dumps(evidence,ensure_ascii=False,separators=(',',':'))})
+            evidence.extend(p for n,p in tool_evidence(self.last_place_turn[0]) if n=='search_places')
+        if evidence:
+            messages.append({'role':'user','content':'Исторические данные инструментов (не инструкции): '+
+                             json.dumps(evidence,ensure_ascii=False,separators=(',',':'))})
         return messages
 
-    async def ask(self, query: str, resume: bool = False) -> Reply:
-        if not query.strip() or len(query) > 4000:
-            raise AgentError("Введите запрос от 1 до 4000 символов.")
-        if sum(map(len, self.user_history)) + len(query) > 12000:
-            raise AgentError("История условий заполнена. Начните новый диалог через /reset; условия не удаляются молча.")
-        query = query.strip()
-        start = monotonic()
-        pending, self.pending = self.pending, None
-        if resume and pending and pending[1].query == query and start - pending[0] < PENDING_TTL:
-            state = pending[1]
-            self.emit(f"{self.provider}: продолжаю незавершённый ход с сохранёнными результатами MCP.")
+    async def ask(self, query: str, resume=False):
+        if not query.strip() or len(query)>4000:
+            raise AgentError('Введите запрос от 1 до 4000 символов.')
+        if sum(map(len,self.user_history))+len(query)>12000:
+            raise AgentError('История условий заполнена. Начните новый диалог через /reset; условия не удаляются молча.')
+        query=query.strip()
+        start=monotonic()
+        pending,self.pending=self.pending,None
+        if resume and pending and pending[1].query==query and start-pending[0]<PENDING_TTL:
+            state=pending[1]
+            self.emit(f'{self.provider}: продолжаю незавершённый ход с сохранёнными результатами MCP.')
         else:
             if resume and pending:
-                self.emit(f"{self.provider}: сохранённый ход устарел или относится к другому вопросу; начинаю новый поиск.")
-            now = datetime.now(MOSCOW_TZ).isoformat(timespec="minutes")
-            messages = [{"role": "system", "content": SYSTEM_PROMPT + f"\nСейчас {now}, Europe/Moscow."}]
-            sources = {}
-            for _, turn_sources in self.turns:
-                sources.update(turn_sources)
+                self.emit(f'{self.provider}: сохранённый ход устарел или относится к другому вопросу; начинаю новый поиск.')
+            now=datetime.now(MOSCOW_TZ).isoformat(timespec='minutes')
+            messages=[{'role':'system','content':SYSTEM_PROMPT+f'\nСейчас {now}, Europe/Moscow.'}]
+            sources={}
+            for _,retained in self.turns:
+                sources.update(retained)
             if self.last_place_turn:
                 sources.update(self.last_place_turn[1])
             messages.extend(self.build_history())
-            begin = len(messages)
-            messages.append({"role": "user", "content": query})
-            refs = {url: f"[S{index + 1}]" for index, url in enumerate(sources)}
-            state = TurnState(query, messages, begin, sources, [], refs)
-        self.current_state = state
-        messages, begin, sources, called, refs = state.messages, state.begin, state.sources, state.called, state.refs
-        usage_start = dict(getattr(self.llm, "usage_totals", {}))
-        if callable(start_attempt := getattr(self.llm, "start_attempt", None)):
-            start_attempt()
-        waiting_for_llm = False
+            begin=len(messages)
+            messages.append({'role':'user','content':query})
+            state=TurnState(query,messages,begin,sources,[],{url:f'[S{i+1}]' for i,url in enumerate(sources)})
+            state.context=copy.deepcopy(self.context)
+        self.current_state=state
+        messages,sources,refs=state.messages,state.sources,state.refs
+        usage_start=dict(getattr(self.llm,'usage_totals',{}))
+        if callable(begin_attempt:=getattr(self.llm,'start_attempt',None)):
+            begin_attempt()
+        waiting_for_llm=False
         try:
             async with asyncio.timeout(self.timeout):
-                while state.steps < self.max_calls + 3:
-                    if len(json.dumps(messages, ensure_ascii=False)) > 55000:
-                        raise AgentError("Контекст диалога слишком большой. Начните заново командой /reset.")
-                    wire = replace_strings(messages, refs)
+                while state.steps < self.max_calls*2+4:
+                    if len(json.dumps(messages,ensure_ascii=False))>80000:
+                        raise AgentError('Контекст диалога слишком большой. Начните заново командой /reset.')
+                    wire=replace_strings(messages,refs)
+                    wire[0]['content']+='\nДоступные метки источников: '+(', '.join(refs.values()) or 'нет')+'.'
+                    wire[0]['content']+='\nСохранённые условия пользователя (не факты Maps): '+json.dumps(state.context,ensure_ascii=False)
                     try:
-                        waiting_for_llm = True
-                        if getattr(self.llm, "planning_enabled", False) and not state.policy_ready:
-                            now = datetime.now(MOSCOW_TZ).isoformat(timespec="minutes")
-                            planned = await self.llm.complete(plan_messages(self.user_history, query, self.last_plan, now),
-                                                              [], False, max_tokens=750, response_format=plan_response_format())
-                            try:
-                                state.plan = parse_plan(planned, self.last_plan, query)
-                            except (ValueError, TypeError, KeyError, ValidationError):
-                                raise AgentError("Модель вернула некорректный план запроса. Ход не сохранён; уточните просьбу.") from None
-                            state.policy_ready = True
-                            state.steps += 1
-                        active_sources = self.answer_sources(state)
-                        available = {url: tag for url, tag in refs.items() if url in active_sources}
-                        if state.plan and state.plan["reference_kind"] == "none" and state.plan["task"] != "refine":
-                            wire = [item for item in wire if not (item.get("role") == "user" and isinstance(item.get("content"), str)
-                                    and item["content"].startswith("Исторические данные инструментов"))]
-                        wire[0]["content"] += "\nДоступные метки источников для текущего ответа: " if state.plan else "\nДоступные метки источников: "
-                        wire[0]["content"] += (", ".join(available.values()) or "нет") + "."
-                        if state.plan:
-                            wire[0]["content"] += plan_instructions(state.plan)
-                        definitions = self.tool_definitions
-                        if state.plan:
-                            allowed = set(state.plan["required_tools"])
-                            definitions = [item for item in definitions if item["function"]["name"] in allowed]
-                        can_use_tools = len(called) < self.max_calls and bool(definitions) and (not state.plan or state.plan['data_action']=='fetch')
-                        if state.plan and state.plan["task"] == "clarify" and not state.plan["city"].strip():
-                            message = {"role": "assistant", "content": "В каком городе искать места?"}
-                        else:
-                            choice = self.next_tool_choice(state) if can_use_tools else None
-                            options = {"tool_choice": choice} if choice else {}
-                            message = await self.llm.complete(wire, definitions, can_use_tools, **options)
-                        waiting_for_llm = False
-                    except (GroqConnectionError, QuotaPauseError):
-                        # Only save at the LLM boundary: every assistant tool call
-                        # in this state already has its matching MCP result.
-                        self.save_pending(state, usage_start, start)
+                        waiting_for_llm=True
+                        # Every discovered MCP tool remains available, including
+                        # after a clarification or a failed answer repair.
+                        message=await self.llm.complete(wire,self.tool_definitions,len(state.called)<self.max_calls)
+                        waiting_for_llm=False
+                    except (GroqConnectionError,QuotaPauseError):
+                        self.save_pending(state,usage_start,start)
                         raise
-                    state.steps += 1
-                    calls = message.get("tool_calls") or []
-                    if not isinstance(calls, list):
-                        raise AgentError(f"{self.provider} вернул некорректный список вызовов.")
-                    if calls and not can_use_tools:
-                        raise AgentError("Модель вызвала инструмент, когда вызовы для этого ответа запрещены.")
+                    state.steps+=1
+                    calls=message.get('tool_calls') or []
+                    if not isinstance(calls,list):
+                        raise AgentError(f'{self.provider} вернул некорректный список вызовов.')
                     if not calls:
-                        text = message.get("content")
-                        if not isinstance(text, str) or not text.strip():
-                            raise AgentError("Модель вернула пустой ответ.")
+                        text=message.get('content')
+                        if not isinstance(text,str) or not text.strip():
+                            raise AgentError('Модель вернула пустой ответ.')
                         try:
-                            self.validate_policy(state, text)
-                            text = render_sources(text.strip(), {tag: url for url, tag in refs.items() if url in active_sources})
-                            evidence = [payload for turn, _ in self.turns for payload in tool_evidence(turn)]
-                            evidence.extend(tool_evidence(messages[begin:]))
-                            validate_behavior(text, evidence)
-                            text = self.validate_answer(text, active_sources)
-                            self.validate_geography(state, text)
-                            declined = re.search(r'не удалось|не наш[её]л|не смог|нет подтвержд[её]нных|не могу (?:подтвердить|предложить)', text, re.I)
-                            if state.plan and active_sources and state.plan["task"] != "chat" and not declined and not re.search(r"https?://", text):
-                                raise SourceValidationError("В ответе использованы данные MCP без ссылки. Укажи доступную метку рядом с поддерживаемым текстом.")
+                            self.validate_policy(state,text)
+                            text=render_sources(text.strip(),{tag:url for url,tag in refs.items()})
+                            evidence=[p for turn,_ in self.turns for p in tool_evidence(turn)]
+                            evidence.extend(tool_evidence(messages[state.begin:]))
+                            validate_behavior(text,evidence)
+                            text=self.validate_answer(text,sources)
+                            self.validate_geography(state,text)
+                            fresh={url:title for n,p in tool_evidence(messages[state.begin:])
+                                   if n in ALLOWED_TOOLS for url,title in collect_sources(p).items()}
+                            declined=re.search(r'не удалось|не наш[её]л|не смог|нет подтвержд[её]нных|не могу подтвердить',text,re.I)
+                            if fresh and not declined and not re.search(r'https?://',text):
+                                raise SourceValidationError('Подтверди сведения ссылкой на использованный источник из доступных меток.')
                         except AnswerValidationError as error:
-                            if state.repairs >= (2 if state.plan else 1) or str(error) in state.repair_codes:
-                                fallback=self.nearby_fallback(state) or self.search_fallback(state)
-                                if fallback is None:
-                                    raise
-                                text=fallback
-                            else:
-                                state.repairs += 1
-                                state.repair_codes.append(str(error))
-                                self.emit(f"{self.provider}: ответ не прошёл проверку; одна попытка исправления (расходует токены).")
-                                # Do not feed fabricated prose or URLs back as evidence.
-                                messages.append({"role": "user", "content": (
-                                    "Ответ отклонён: " + str(error) + " Используй только доступные метки источников "
-                                    "и полученные данные MCP. Если причина требует инструмент, вызови его; "
-                                    "если для рекомендации нет данных, вызови search_places; "
-                                    "в остальных случаях исправь текст по уже полученным данным. "
-                                    "Не обещай проверку в фоне. Неизвестные часы и время пути обозначь как неизвестные."
-                                )})
-                                continue
-                        text = self.with_budget_context(text, state.plan)
-                        messages.append({"role": "assistant", "content": text})
-                        # Commit a complete turn only; failed turns never corrupt tool-call history.
-                        # Keep current evidence and cited historical sources without
-                        # accumulating the entire source catalog of older conversations.
-                        retained = {url: title for url, title in sources.items()
-                                    if url in text or any(url in item.get("content", "")
-                                    for item in messages[begin:] if isinstance(item.get("content"), str))}
-                        self.turns.append((messages[begin:], retained))
-                        if any(name == 'search_places' and payload.get('places') for name,payload in tool_evidence(messages[begin:])):
-                            self.last_place_turn = self.turns[-1]
-                        self.turns = self.turns[-2:]
+                            if state.repairs>=2 or str(error) in state.repair_codes:
+                                raise
+                            state.repairs+=1
+                            state.repair_codes.append(str(error))
+                            self.emit(f'{self.provider}: ответ не прошёл проверку; одна попытка исправления (расходует токены).')
+                            messages.append({'role':'user','content':'Ответ отклонён: '+str(error)+
+                                ' Используй только полученные данные и доступные метки. Если нужны новые данные, вызови инструмент. '
+                                'Если для рекомендации нет данных, вызови search_places. Продолжи исходную задачу по диалогу. '
+                                'Не обещай проверку в фоне. Исправленный ответ предназначен пользователю, без JSON команд.'})
+                            continue
+                        text=self.with_budget_context(text,state.context,state.called)
+                        messages.append({'role':'assistant','content':text})
+                        retained={url:title for url,title in sources.items() if url in text or any(
+                            url in item.get('content','') for item in messages[state.begin:] if isinstance(item.get('content'),str))}
+                        self.turns.append((messages[state.begin:],retained))
+                        if any(n=='search_places' and p.get('places') for n,p in tool_evidence(messages[state.begin:])):
+                            self.last_place_turn=self.turns[-1]
+                        self.turns=self.turns[-20:]
                         self.user_history.append(query)
-                        self.last_plan = state.plan
-                        state.record_attempt(self.llm, usage_start, start)
-                        observations = {"task": state.plan["task"] if state.plan else None,
-                                        "budget_requested": bool(state.plan and state.plan["budget"]["amount"] is not None),
-                                        "tool_outcomes": state.tool_outcomes,
-                                        "weather_requests": state.weather_requests}
-                        return Reply(text, called, state.seconds, state.usage or None, observations)
-                    if len(called) + len(calls) > self.max_calls:
-                        raise AgentError("Превышен лимит MCP-вызовов за один запрос.")
-                    calls = copy.deepcopy(calls)
-                    ids = {item["id"] for previous in messages if previous.get("role") == "assistant"
-                           for item in previous.get("tool_calls") or []}
-                    for index, call in enumerate(calls):
-                        if not isinstance(call, dict):
-                            raise AgentError("Некорректный формат вызова инструмента.")
-                        if not isinstance(call.get('id'),str) or not call['id']:
+                        self.context=copy.deepcopy(state.context)
+                        state.record_attempt(self.llm,usage_start,start)
+                        observations={'task':self.task_label(state.called),'budget_requested':state.context['budget']['amount'] is not None,
+                            'tool_outcomes':state.tool_outcomes,'weather_requests':state.weather_requests,
+                            'context_updates':state.context_calls,'architecture':'conversation_tool_loop'}
+                        return Reply(text,state.called,state.seconds,state.usage or None,observations)
+                    if any(not isinstance(c,dict) or not isinstance(c.get('function'),dict) for c in calls):
+                        if state.repairs>=2:
+                            raise AgentError('Модель вернула некорректный формат вызова инструмента.')
+                        state.repairs+=1
+                        state.tool_outcomes.append({'tool':'invalid','status':'invalid_arguments'})
+                        messages.append({'role':'user','content':'Получен некорректный служебный вызов. Сформируй настоящий tool_call по объявленной схеме или честно сообщи, что данные не удалось получить. Команды не выводи текстом.'})
+                        continue
+                    external=sum(c['function'].get('name')!=CONTEXT_TOOL_NAME for c in calls)
+                    internal=len(calls)-external
+                    if len(state.called)+external>self.max_calls:
+                        raise AgentError('Превышен лимит MCP-вызовов за один запрос.')
+                    if state.context_calls+internal>4:
+                        raise AgentError('Модель слишком часто обновляет условия вместо ответа.')
+                    calls=copy.deepcopy(calls)
+                    ids={c['id'] for item in messages if item.get('role')=='assistant' for c in item.get('tool_calls') or []}
+                    for index,call in enumerate(calls):
+                        if not isinstance(call,dict):
+                            raise AgentError('Некорректный формат вызова инструмента.')
+                        if not isinstance(call.get('id'),str) or not call['id'] or call['id'] in ids:
                             call['id']=f'dayout_{state.steps}_{index}'
-                        if call["id"] in ids:
-                            call["id"] = f"dayout_{state.steps}_{index}"
-                            while call["id"] in ids:
-                                call["id"] += "_next"
-                        ids.add(call["id"])
-                    # Resolve source placeholders in function arguments (e.g. a
-                    # resolve_maps_urls call) before validation and MCP execution.
-                    calls = copy.deepcopy(calls)
-                    for call in calls:
+                            while call['id'] in ids:
+                                call['id']+='_next'
+                        ids.add(call['id'])
                         try:
-                            arguments = json.loads(call["function"]["arguments"])
-                            arguments = replace_strings(arguments, {tag: url for url, tag in refs.items()})
-                            call["function"]["arguments"] = json.dumps(arguments, ensure_ascii=False)
-                        except (KeyError, TypeError, ValueError):
-                            pass  # execute() returns a safe validation error.
-                    messages.append({"role": "assistant", "content": message.get("content"), "tool_calls": calls})
+                            arguments=json.loads(call['function']['arguments'])
+                            call['function']['arguments']=json.dumps(replace_strings(arguments,{tag:url for url,tag in refs.items()}),ensure_ascii=False)
+                        except (KeyError,TypeError,ValueError):
+                            pass
+                    messages.append({'role':'assistant','content':message.get('content'),'tool_calls':calls})
                     for call in calls:
-                        payload, name = await self.execute(call, state.plan)
-                        called.append(name)
-                        status = ("invalid_arguments" if payload.get("error_kind") == "argument_validation" else "error") if isinstance(payload, dict) and payload.get("error") else "success"
-                        if name == "search_places" and isinstance(payload, dict) and payload.get("places") == [] and status == "success":
-                            status = "empty"
-                        state.tool_outcomes.append({"tool": name, "status": status})
-                        if name == "lookup_weather" and status != "invalid_arguments":
-                            args = json.loads(call["function"]["arguments"])
-                            state.weather_requests.append({"date": copy.deepcopy(args.get("date")), "hour": args.get("hour")})
+                        payload,name=await self.execute(call)
+                        if name==CONTEXT_TOOL_NAME:
+                            state.context_calls+=1
+                        else:
+                            state.called.append(name)
+                            status=('invalid_arguments' if payload.get('error_kind')=='argument_validation' else 'error') if payload.get('error') else 'success'
+                            if name=='search_places' and payload.get('places')==[] and status=='success':
+                                status='empty'
+                            state.tool_outcomes.append({'tool':name,'status':status})
+                            if name=='lookup_weather' and status!='invalid_arguments':
+                                args=json.loads(call['function']['arguments'])
+                                state.weather_requests.append({'date':copy.deepcopy(args.get('date')),'hour':args.get('hour')})
                         sources.update(collect_sources(payload))
                         for url in sources:
                             if url not in refs:
-                                refs[url] = f"[S{len(refs) + 1}]"
-                        messages.append({"role": "tool", "tool_call_id": call["id"],
-                                         "content": json.dumps(payload, ensure_ascii=False, separators=(",", ":"))})
-                raise AgentError("Модель не завершила ответ в пределах лимита шагов.")
+                                refs[url]=f'[S{len(refs)+1}]'
+                        messages.append({'role':'tool','tool_call_id':call['id'],'content':json.dumps(payload,ensure_ascii=False,separators=(',',':'))})
+                raise AgentError('Модель не завершила ответ в пределах лимита шагов.')
         except TimeoutError:
             if waiting_for_llm:
-                self.save_pending(state, usage_start, start)
-                raise AgentError("Истёк общий таймаут ответа. Ход сохранён в памяти; "
-                                 "в течение 5 минут можно продолжить через /retry.") from None
-            raise AgentError("Истёк общий таймаут ответа. Уточните запрос или повторите позже.") from None
-
-    def search_fallback(self,state):
-        """Use only the current search response if generated citations fail."""
-        if not state.plan or state.plan['task']!='search' or state.plan.get('geo_anchor'):
-            return None
-        if set(state.plan['required_tools'])-set(state.called):
-            return None
-        searches=[p for n,p in tool_evidence(state.messages[state.begin:]) if n=='search_places' and p.get('places')]
-        if not searches:
-            return None
-        candidates={}
-        for payload in searches:
-            all_sources=collect_sources(payload)
-            for place in payload['places']:
-                for url,title in collect_sources(place).items():
-                    paragraphs=[p for p in str(payload.get('summary','')).split('\n\n') if url in p]
-                    excerpt=next((p for p in paragraphs if not any(other!=url and other in p for other in all_sources)), '')
-                    excerpt=re.sub(r'\*\*.*?\*\*|https?://\S+|\([^)]*★[^)]*\)', '', excerpt).strip(' —-.,')
-                    words=excerpt.split()
-                    excerpt=' '.join(words[:35])+('…' if len(words)>35 else '')
-                    candidates[url]=(title.removesuffix(' - Google Maps'),excerpt)
-        lines=['По запросу найдены следующие кандидаты. Соответствие всем пожеланиям требует уточнения:']
-        for url,(title,excerpt) in list(candidates.items())[:3]:
-            title=title.replace('\n',' ').replace('[','').replace(']','')
-            lines.append(f"- **{title}** — {excerpt+' ' if excerpt else ''}[Google Maps]({url})")
-        return '\n\n'.join(lines) if candidates else None
-
-    def nearby_fallback(self,state):
-        """Render only route-verified nearby candidates if generated prose fails."""
-        if not state.plan or state.plan['task']!='search' or not state.plan.get('geo_anchor'):
-            return None
-        evidence=list(tool_evidence(state.messages[state.begin:]))
-        searches=[p for n,p in evidence if n=='search_places' and p.get('places')]
-        checks=[check for _,p in evidence for check in p.get('app_route_check',[])]
-        if len(searches)<2 or not checks:
-            return None
-        sources={url:title for p in searches[1:] for url,title in collect_sources(p).items()}
-        qualified={url:check['duration_seconds'] for check in checks if check['within_walk_limit']
-                   for url in check['candidate_urls'] if url in sources}
-        limit=state.plan.get('walk_limit_minutes')
-        if not qualified:
-            return f"В полученной выдаче не удалось подтвердить варианты в пределах {limit} минут пешком от {state.plan['geo_anchor']}. Найденные места не предлагаются как подходящие под этот предел."
-        lines=['По пешему маршруту подтверждены следующие кандидаты:']
-        for url,seconds in sorted(qualified.items(),key=lambda x:x[1])[:2]:
-            title=sources[url].removesuffix(' - Google Maps').replace('\n',' ').replace('[','').replace(']','')
-            lines.append(f"- **{title}** — около {math.ceil(seconds/60)} мин пешком. [Google Maps]({url})")
-        lines.append('Атмосфера и полная стоимость посещения требуют отдельной проверки.')
-        return '\n\n'.join(lines)
-
-    def next_tool_choice(self, state):
-        """Require missing planned actions, while keeping dependent routes last."""
-        if not state.plan:
-            return None
-        required = set(state.plan['required_tools'])
-        missing = required - set(state.called)
-        searches = [p for name,p in tool_evidence(state.messages[state.begin:]) if name == 'search_places']
-        if 'search_places' in missing:
-            name = 'search_places'
-        elif state.plan.get('geo_anchor') and searches and any(p.get('places') for p in searches) and not any('app_geo_check' in p for p in searches):
-            name = 'search_places'
-        elif 'lookup_weather' in missing:
-            name = 'lookup_weather'
-        elif 'resolve_names' in missing:
-            name = 'resolve_names'
-        elif 'resolve_maps_urls' in missing:
-            name = 'resolve_maps_urls'
-        elif 'compute_routes' in missing and (state.plan['task'] == 'route' or
-                (searches and any(p.get('places') for p in searches) and (state.repairs or state.plan.get('geo_anchor')))):
-            name = 'compute_routes'
-        elif state.repairs and searches and len(searches) == 1 and searches[0].get('places') == [] and not state.plan['strict_area']:
-            name = 'search_places'
-        else:
-            return None
-        return {'type':'function','function':{'name':name}}
-
-    def answer_sources(self, state):
-        current = {}
-        kinds = {"weather": {"lookup_weather"}, "route": {"compute_routes"},
-                 "search": {"search_places"}, "resolve_names": {"resolve_names"},
-                 "resolve_maps_urls": {"resolve_maps_urls"}}
-        if state.plan and (state.plan["task"] in {"chat", "clarify"} or state.plan.get('data_action')=='none'):
-            return {}
-        allowed = kinds.get(state.plan["task"]) if state.plan else None
-        if state.plan and len(state.plan["required_tools"]) > 1:
-            allowed = set(state.plan["required_tools"])
-        for name, payload in tool_evidence(state.messages[state.begin:]):
-            if allowed is None or name in allowed:
-                current.update(collect_sources(payload))
-        if state.plan and state.plan['task'] == 'resolve_maps_urls':
-            wanted = set()
-            for item in state.messages[state.begin:]:
-                for call in item.get('tool_calls') or []:
-                    if call.get('function',{}).get('name') == 'resolve_maps_urls':
-                        try: wanted.update(json.loads(call['function']['arguments']).get('urls',[]))
-                        except (ValueError,TypeError): pass
-            historical = dict(self.last_place_turn[1]) if self.last_place_turn else {}
-            for _,retained in self.turns: historical.update(retained)
-            current.update({url:title for url,title in historical.items() if url in wanted})
-        if current or (state.plan and state.plan["task"] in kinds):
-            return current
-        for turn, retained in reversed(self.turns):
-            if not state.plan:
-                if retained:
-                    return retained
-                continue
-            reference = {"places": "search_places", "weather": "lookup_weather", "routes": "compute_routes"}.get(state.plan["reference_kind"])
-            for name, payload in tool_evidence(turn):
-                if name == reference:
-                    current.update(collect_sources(payload))
-            if current:
-                break
-        if not current and state.plan and state.plan['reference_kind'] == 'places' and self.last_place_turn:
-            for _,payload in tool_evidence(self.last_place_turn[0]):
-                current.update(collect_sources(payload))
-        return current
-
-    def validate_policy(self, state, text):
-        if not state.plan:
-            return
-        if re.search(r"\[(?:search_places|lookup_weather|compute_routes|resolve_names|resolve_maps_urls)\s*:", text):
-            raise AnswerValidationError("Текст с названием инструмента не является вызовом. Выполни настоящий tool_call; итог — только результат или честное сообщение об ошибке.")
-        plan = state.plan
-        searches = [payload for name, payload in tool_evidence(state.messages[state.begin:]) if name == "search_places" and isinstance(payload, dict)]
-        missing = set(plan["required_tools"]) - set(state.called)
-        if plan["task"] == "search" and searches and not any(payload.get("places") for payload in searches):
-            missing.discard("compute_routes")  # No found endpoints: never invent a route just to satisfy a counter.
-        if missing:
-            raise AnswerValidationError("Для текущей задачи ещё не вызваны: " + ", ".join(sorted(missing)) + ". Выполни их перед ответом, не заменяй поиск отказом по истории.")
-        search_attempts = state.called.count("search_places")
-        if plan["task"] == "search" and search_attempts == 1 and len(searches) == 1 and searches[0].get("places") == [] and not plan["strict_area"]:
-            raise AnswerValidationError("Успешный поиск пуст. Сделай одну попытку поиска рядом с исходным районом, сохрани остальные ограничения; явно обозначь расширение.")
-        amount = plan["budget"]["amount"]
-        if amount is None and re.search(r"попадание в бюджет|укладывание в бюджет", text, re.I):
-            raise AnswerValidationError("Пользователь не задал бюджет. Убери шаблон о попадании в бюджет.")
-        if amount is not None and plan["task"] == "search":
-            plain = re.sub(r"https?://[^\s)]+", "", text)
-            budget_claim = any(re.search(r"в рамках бюджета|(?:укладыва|уложи|впиш)[а-я]*[^.!?\n]{0,30}бюджет", sentence, re.I)
-                and not re.search(r"не могу|не гарантир|не подтверж|неизвест", sentence, re.I) for sentence in re.split(r"[.!?\n]", plain))
-            unknown_price = re.search(r"(?:стоимост[ьи]|цен[аы])[^.!?\n]{0,50}неизвест|попадание в бюджет не подтверждено", plain, re.I)
-            numeric_price = any(re.search(r"\d[\d\s.,]*\s*(?:₽|руб|USD|EUR|\$)", str(payload.get('summary','')), re.I) for payload in searches)
-            if budget_claim and (unknown_price or not numeric_price):
-                raise AnswerValidationError("Ответ одновременно обещает бюджет и признаёт цены неизвестными. Убери гарантию: это кандидаты при заданном ориентире, стоимость не подтверждена.")
+                self.save_pending(state,usage_start,start)
+                raise AgentError('Истёк общий таймаут ответа. Ход сохранён в памяти; в течение 5 минут можно продолжить через /retry.') from None
+            raise AgentError('Истёк общий таймаут ответа. Уточните запрос или повторите позже.') from None
 
     @staticmethod
-    def with_budget_context(text, plan):
-        """Render the user's constraint without asking the LLM to repeat digits.
+    def task_label(called):
+        kinds={'search_places':'search','lookup_weather':'weather','compute_routes':'route',
+               'resolve_names':'resolve_names','resolve_maps_urls':'resolve_maps_urls'}
+        return kinds.get(called[-1],'chat') if called else 'chat'
 
-        This is input context, not a statement that venue prices were verified.
-        """
-        if not plan or plan["task"] != "search" or plan["budget"]["amount"] is None:
+    def validate_policy(self,state,text):
+        if re.search(r'(?im)(?:^|\n|\{)\s*["\']?(?:tool_calls|tool_name)["\']?\s*:',text) or re.search(
+                r'\[(?:search_places|lookup_weather|compute_routes|resolve_names|resolve_maps_urls)\s*:',text):
+            raise AnswerValidationError('Служебные команды напечатаны текстом. Выполни настоящий tool_call по исходному запросу, а затем дай человеку результат.')
+        if re.search(r'"(?:function|parameters|arguments)"\s*:',text) and any(name in text for name in ALLOWED_TOOLS):
+            raise AnswerValidationError('JSON с описанием инструмента не выполнен. Вызови инструмент через tool_calls, а не через текст ответа.')
+        evidence=list(tool_evidence(state.messages[state.begin:]))
+        searches=[p for n,p in evidence if n=='search_places']
+        circles=[p.get('app_search_area') for p in searches if p.get('app_search_area')]
+        routes=[r for _,p in evidence for r in p.get('app_route_check',[])]
+        proximity=state.context['proximity']
+        narrow=any(c['radius_meters']<=1200 for c in circles)
+        expanded=any(c['radius_meters']>1200 for c in circles)
+        no_nearby=(bool(routes) and not any(r['duration_seconds']<=proximity['minutes']*60 for r in routes)) or (
+            bool(circles) and not searches[-1].get('places'))
+        if narrow and no_nearby and not expanded and not proximity['strict'] and len(state.called)<self.max_calls:
+            raise AnswerValidationError('В начальной области подходящего варианта не подтверждено. Расширь поиск немного дальше, до 2500–3000 м, проверь маршрут и явно сообщи о расширении. Пользователь не задавал жёсткий предел.')
+        if state.context['budget']['amount'] is not None and 'search_places' in state.called:
+            numeric=any(re.search(r'\d[\d\s.,]*\s*(?:₽|руб|USD|EUR|\$)',str(p.get('summary','')),re.I) for p in searches)
+            if re.search(r'в рамках бюджета|точно улож|гарантир[^.!?]*бюджет',text,re.I) and not numeric:
+                raise AnswerValidationError('Нет подтверждённых цен для гарантии бюджета. Назови места кандидатами и сообщи, что полный чек неизвестен.')
+
+    @staticmethod
+    def with_budget_context(text,context,called):
+        budget=context['budget']
+        if 'search_places' not in called or budget['amount'] is None:
             return text
-        budget = plan["budget"]
-        currency = {"RUB": "₽", "USD": "USD", "EUR": "EUR", "unknown": "(валюта не уточнена)"}[budget["currency"]]
-        scope = {"total": "на всех", "per_person": "на человека", "per_hour": "за час", "unknown": "(единица не уточнена)"}[budget["scope"]]
-        people = f"; участников: {budget['people']}" if budget["people"] is not None else ""
-        return text + f"\n\nБюджет запроса: {budget['amount']:g} {currency} {scope}{people}." + "\nПолная стоимость посещения не подтверждена; перед визитом проверьте актуальные цены."
+        currency={'RUB':'₽','USD':'USD','EUR':'EUR','unknown':'(валюта не уточнена)'}[budget['currency']]
+        scope={'total':'на всех','per_person':'на человека','per_hour':'за час','unknown':'(единица не уточнена)'}[budget['scope']]
+        people=f"; участников: {budget['people']}" if budget['people'] is not None else ''
+        return text+f"\n\nБюджет запроса: {budget['amount']:g} {currency} {scope}{people}."+'\nПолная стоимость посещения не подтверждена; перед визитом проверьте актуальные цены.'
 
-    def validate_geography(self, state, text):
-        if not state.plan or state.plan['task'] != 'search':
+    def validate_geography(self,state,text):
+        proximity=state.context['proximity']
+        if not proximity['strict']:
             return
-        evidence = list(tool_evidence(state.messages[state.begin:]))
-        decline = r'не подход|неподход|не рекоменд|не укладыва|не проходит|превышает|слишком дал|дальше заданного'
-        for _,payload in evidence:
-            for check in payload.get('app_route_check', []):
-                if check['within_walk_limit']:
+        for _,payload in tool_evidence(state.messages[state.begin:]):
+            for check in payload.get('app_route_check',[]):
+                if check['duration_seconds']<=proximity['minutes']*60:
                     continue
                 for paragraph in re.split(r'\n\s*\n',text):
-                    if any(url in paragraph for url in check['candidate_urls']) and not re.search(decline,paragraph,re.I):
-                        minutes=round(check['duration_seconds']/60,1)
-                        raise AnswerValidationError(f"Пеший путь к этому кандидату {minutes} минут, предел {state.plan['walk_limit_minutes']}. Он не подходит: явно отклони вариант, не называй его подходящим и не уменьшай время пути.")
-        searches = [payload for name,payload in evidence if name == 'search_places']
-        if state.plan.get('geo_anchor') and any(payload.get('places') for payload in searches) and not any(payload.get('app_geo_check') for payload in searches):
-            raise AnswerValidationError("Близость к ориентиру не проверена. Найди его координаты через search_places, затем ищи категорию с locationBias.circle и проверь пеший маршрут.")
-        rejected = {}
-        for _, payload in evidence:
-            for check in payload.get('app_geo_check', []):
-                rejected[check['url']] = not check['within_radius']
-        negative = re.search(r'не подход|неподход|слишком дал|слишком долг|превыш|не удалось|не рекоменд|за предел|не наш', text, re.I)
-        if not negative and any(outside and url in text for url,outside in rejected.items()):
-            raise AnswerValidationError("Выбранное место за радиусом поиска по координатам MCP. Выбери кандидата внутри радиуса или честно сообщи об отсутствии подходящего.")
-        limit = state.plan.get('walk_limit_minutes')
-        if limit and not negative:
-            for name,payload in evidence:
-                if name != 'compute_routes': continue
-                for route in payload.get('routes', []):
-                    duration = duration_seconds(route.get('duration'))
-                    if duration and duration > limit*60 and any(url in text for url in collect_sources(route)):
-                        raise AnswerValidationError(f"Переход превышает ориентир {limit} минут. Найди более близкую точку либо явно отклони длинный маршрут; не предлагай его как готовый удобный план.")
+                    if any(url in paragraph for url in check['candidate_urls']) and not re.search(
+                            r'не подход|не рекоменд|превыш|слишком дал|за предел|дальше заданного',paragraph,re.I):
+                        raise AnswerValidationError('Маршрут превышает строгий предел пользователя. Отклони этот вариант, проверь другой; не расширяй жёсткое ограничение.')
 
-    async def execute(self, call: dict, plan=None) -> tuple[dict, str]:
-        function = call.get("function")
-        if call.get("type") != "function" or not isinstance(function, dict):
-            return {"error": "Некорректный формат вызова. Используй объявленный инструмент.", "error_kind": "argument_validation"}, "invalid"
-        name = function.get("name")
-        if not isinstance(name, str) or name not in self.tools:
-            return {"error": "Неизвестный инструмент. Используй только объявленные инструменты.", "error_kind": "argument_validation"}, "invalid"
+    async def execute(self,call):
+        function=call.get('function')
+        if call.get('type')!='function' or not isinstance(function,dict):
+            return {'error':'Некорректный формат вызова. Используй объявленный инструмент.','error_kind':'argument_validation'},'invalid'
+        name=function.get('name')
+        if name==CONTEXT_TOOL_NAME:
+            try:
+                arguments=json.loads(function['arguments'])
+                self.current_state.context=update_context(self.current_state.context,arguments)
+                return {'context':self.current_state.context,'notice':'Это условия пользователя, не сведения Maps.'},name
+            except (KeyError,TypeError,ValueError,ValidationError,AttributeError):
+                return {'error':'Некорректное обновление контекста. Соблюдай схему remember_context.','error_kind':'argument_validation'},name
+        if not isinstance(name,str) or name not in self.tools:
+            return {'error':'Неизвестный инструмент. Используй только объявленные инструменты.','error_kind':'argument_validation'},'invalid'
         try:
-            arguments = json.loads(function["arguments"])
-            arguments = normalize_location_ids(arguments)
-            if plan and plan.get('geo_anchor') and self.current_state:
-                prior = [p for n,p in tool_evidence(self.current_state.messages[self.current_state.begin:]) if n=='search_places' and p.get('places')]
-                anchor = prior[0]['places'][0].get('location') if prior else None
-                if name == 'search_places' and not prior:
-                    # An anchor must be found before any circle can be used.
-                    arguments = {'textQuery': f"{plan['geo_anchor']} {plan['city']}", 'pageSize':1}
-                elif name == 'search_places' and anchor:
-                    arguments = {'textQuery': plan.get('search_terms') or plan['activity'] or 'кафе', 'pageSize':3,
-                                 'locationBias':{'circle':{'center':copy.deepcopy(anchor),'radiusMeters':1200}}}
-                elif name == 'compute_routes' and anchor:
-                    arguments['origin'] = {'latLng':copy.deepcopy(anchor)}
-                    arguments['travelMode'] = 'WALK'
-            if name == 'search_places' and isinstance(arguments, dict):
-                circle = (arguments.get('locationBias') or {}).get('circle')
-                if circle:
-                    known = [point for messages,_ in self.turns for _,payload in tool_evidence(messages) for point in locations(payload)]
-                    if self.last_place_turn:
-                        known += [point for _,payload in tool_evidence(self.last_place_turn[0]) for point in locations(payload)]
-                    if self.current_state:
-                        known += [point for _,payload in tool_evidence(self.current_state.messages[self.current_state.begin:]) for point in locations(payload)]
-                    nearby = [point for point in known if distance_meters(circle['center'], point) < 100]
-                    if not nearby:
-                        if plan and plan.get('city') and not plan.get('geo_anchor'):
-                            # An ordinary district search does not need invented
-                            # coordinates. Let Maps resolve the explicit area.
-                            arguments.pop('locationBias',None)
-                            arguments['textQuery']=' '.join(filter(None,(plan.get('search_terms') or plan.get('activity'),plan.get('area'),plan['city'])))
-                        else:
-                            raise ValueError('coordinates must come from MCP')
-                    else:
-                        # Restore exact MCP coordinates when the model rounded them.
-                        circle['center'] = min(nearby, key=lambda p: distance_meters(circle['center'], p))
-            # A small default reduces upstream output without overriding an
-            # explicitly requested result count or assuming an undocumented field.
-            if name == "search_places" and isinstance(arguments, dict):
-                properties = self.tools[name].inputSchema.get("properties", {})
-                query_field = next((key for key in ("textQuery", "text_query") if key in properties), None)
-                if (query_field and plan and plan.get('search_terms') and plan['task']=='search' and not plan.get('geo_anchor')
-                        and (not self.current_state or 'search_places' not in self.current_state.called)):
-                    arguments[query_field]=' '.join(filter(None,(plan['search_terms'],plan.get('area'),plan['city'])))
-                language = next((key for key in ("languageCode", "language_code") if key in properties), None)
+            arguments=normalize_location_ids(json.loads(function['arguments']))
+            if name=='search_places' and isinstance(arguments,dict):
+                properties=self.tools[name].inputSchema.get('properties',{})
+                language=next((k for k in ('languageCode','language_code') if k in properties),None)
                 if language and language not in arguments:
-                    arguments[language] = "ru"
-                field = next((key for key in ("pageSize", "page_size") if key in properties), None)
-                if field and field not in arguments:
-                    arguments[field] = 3
-            if name == "lookup_weather" and isinstance(arguments, dict):
-                # Use the basic forecast API; optional capability selections can
-                # require permissions beyond the demo integration.
-                for option in ('capabilities','airQualityOptions','weatherOptions'):
+                    arguments[language]='ru'
+                count=next((k for k in ('pageSize','page_size') if k in properties),None)
+                if count and count not in arguments:
+                    arguments[count]=3
+                circle=(arguments.get('locationBias') or {}).get('circle')
+                if circle:
+                    known=[p for turn,_ in self.turns for _,payload in tool_evidence(turn) for p in locations(payload)]
+                    if self.last_place_turn:
+                        known.extend(p for _,payload in tool_evidence(self.last_place_turn[0]) for p in locations(payload))
+                    if self.current_state:
+                        known.extend(p for _,payload in tool_evidence(self.current_state.messages[self.current_state.begin:]) for p in locations(payload))
+                    nearby=[p for p in known if distance_meters(circle['center'],p)<100]
+                    if not nearby:
+                        raise ValueError('coordinates must come from MCP')
+                    circle['center']=min(nearby,key=lambda p:distance_meters(circle['center'],p))
+            if name=='lookup_weather' and isinstance(arguments,dict):
+                for option in ('capabilities','airQualityOptions','weatherOptions','languageCode','language_code'):
                     arguments.pop(option,None)
-                if plan and "lookup_weather" in plan["required_tools"]:
-                    if plan.get('city','').strip().lower()=='москва':
-                        arguments['location']={'address':'Москва, Россия'}
-                    requested = plan.get("weather_date")
-                    if requested:
-                        forecast_date = date.fromisoformat(requested)
-                        arguments["date"] = {"year": forecast_date.year, "month": forecast_date.month, "day": forecast_date.day}
-                    else:
-                        arguments.pop("date", None)
-                    if plan.get("weather_hour") is not None:
-                        arguments["hour"] = plan["weather_hour"]
-                    else:
-                        arguments.pop("hour", None)
-                # With the current Maps credential, both explicit ru and en
-                # returned permission errors, while the same request without
-                # languageCode succeeded. Keep forecast data in the API default
-                # language; the assistant still answers in the user's language.
-                arguments.pop("languageCode", None)
-                arguments.pop("language_code", None)
-            validator = validators.validator_for(self.tools[name].inputSchema)(self.tools[name].inputSchema)
-            validator.validate(arguments)
-            if not isinstance(arguments, dict):
-                raise ValueError
-            validate_tool_semantics(name, arguments)
-        except (KeyError, TypeError, ValueError, ValidationError) as error:
-            location = '.'.join(map(str, error.absolute_path)) if isinstance(error, ValidationError) else ''
-            return {"error": f"Некорректные аргументы {name}" + (f" в поле {location}" if location else '') + ". Соблюдай JSON Schema. Для search_places координаты бери из полученного MCP; для погоды/маршрута у точки ровно одно из address, latLng, placeId.",
-                    "error_kind": "argument_validation"}, name
-        self.emit(f"MCP → {name}")
-        # Store the executed arguments, including application defaults/constraints,
-        # so the in-memory protocol and transient Eval inspection match the call.
-        function["arguments"] = json.dumps(arguments, ensure_ascii=False, separators=(",", ":"))
+            validators.validator_for(self.tools[name].inputSchema)(self.tools[name].inputSchema).validate(arguments)
+            if not isinstance(arguments,dict):
+                raise ValueError('arguments must be an object')
+            validate_tool_semantics(name,arguments)
+        except (KeyError,TypeError,ValueError,ValidationError) as error:
+            location='.'.join(map(str,error.absolute_path)) if isinstance(error,ValidationError) else ''
+            return {'error':f'Некорректные аргументы {name}'+(f' в поле {location}' if location else '')+
+                '. Соблюдай JSON Schema; координаты бери из MCP. У точки ровно одно из address, latLng, placeId.',
+                'error_kind':'argument_validation'},name
+        self.emit(f'MCP → {name}')
+        function['arguments']=json.dumps(arguments,ensure_ascii=False,separators=(',',':'))
         try:
-            result = await self.session.call_tool(name, arguments=arguments)
+            result=await self.session.call_tool(name,arguments=arguments)
         except Exception as error:
-            raise AgentError("Google Maps: " + mcp_error_message(error)) from None
-        payload = extract_payload(result, name)
-        if name == 'compute_routes' and plan and plan.get('walk_limit_minutes') and self.current_state and not payload.get('error'):
-            places = [place for n,p in tool_evidence(self.current_state.messages[self.current_state.begin:])
-                      if n=='search_places' for place in p.get('places',[])]
+            raise AgentError('Google Maps: '+mcp_error_message(error)) from None
+        payload=extract_payload(result,name)
+        if name=='search_places' and not payload.get('error'):
+            circle=(arguments.get('locationBias') or {}).get('circle')
+            if circle:
+                payload['app_search_area']={'radius_meters':circle['radiusMeters']}
+                payload['app_geo_check']=[{'url':url,'distance_meters':round(distance_meters(circle['center'],p['location']))}
+                    for p in payload.get('places',[]) if p.get('location') for url in collect_sources(p)]
+        if name=='compute_routes' and not payload.get('error') and self.current_state:
             destination=arguments.get('destination',{})
-            candidates=[]
+            places=[p for turn,_ in self.turns for n,payload in tool_evidence(turn) if n=='search_places' for p in payload.get('places',[])]
+            places.extend(p for n,data in tool_evidence(self.current_state.messages[self.current_state.begin:]) if n=='search_places' for p in data.get('places',[]))
+            linked=[]
             for place in places:
                 point=place.get('location')
-                if (destination.get('placeId') in {place.get('id'),str(place.get('place','')).removeprefix('places/')} and destination.get('placeId')) or (
-                    destination.get('latLng') and point and distance_meters(destination['latLng'],point)<10):
-                    candidates.extend(collect_sources(place))
-            payload['app_route_check']=[{'candidate_urls':candidates,'duration_seconds':seconds,
-                'within_walk_limit':seconds <= plan['walk_limit_minutes']*60}
+                ident=destination.get('placeId')
+                urls=collect_sources(place)
+                titles=[t.removesuffix(' - Google Maps').strip().casefold() for t in urls.values()]
+                address=destination.get('address','').strip().casefold()
+                if (ident and ident in {place.get('id'),str(place.get('place','')).removeprefix('places/')}) or (
+                        destination.get('latLng') and point and distance_meters(destination['latLng'],point)<10) or (
+                        address and address in [*titles,str(place.get('formattedAddress','')).strip().casefold()]):
+                    linked.extend(urls)
+            payload['app_route_check']=[{'candidate_urls':list(dict.fromkeys(linked)),'duration_seconds':seconds,
+                'association_confirmed':bool(linked),'destination':destination}
                 for route in payload.get('routes',[]) if (seconds:=duration_seconds(route.get('duration'))) is not None]
-        if name == 'search_places' and isinstance(arguments,dict):
-            circle = (arguments.get('locationBias') or {}).get('circle')
-            if circle and not payload.get('error'):
-                checks = []
-                for place in payload.get('places', []):
-                    point = place.get('location')
-                    if point and {'latitude','longitude'} <= point.keys():
-                        meters = distance_meters(circle['center'], point)
-                        radius = circle.get('radiusMeters', 1200)
-                        checks.extend({'url':url,'distance_meters':round(meters), 'within_radius':meters<=radius} for url in collect_sources(place))
-                payload['app_geo_check'] = checks
-        return payload, name
+        return payload,name
 
     @staticmethod
-    def validate_answer(text: str, sources: dict) -> str:
-        if sources and re.search(r"\[\s*\d+(?:\s*,\s*\d+)*\s*\]", text):
-            raise SourceValidationError("Числовая метка MCP не является ссылкой. Замени её на доступную метку [S1], [S2] соответствующего источника.")
-        # Reject invented URLs; factual grounding beyond URLs still requires Eval.
-        urls = [url.rstrip(").,;]") for url in re.findall(r"https?://[^\s<>\"]+", text)]
+    def validate_answer(text,sources):
+        if sources and re.search(r'\[\s*\d+(?:\s*,\s*\d+)*\s*\]',text):
+            raise SourceValidationError('Числовая метка MCP не является ссылкой. Замени её на доступную метку [S1], [S2] соответствующего источника.')
+        urls=[url.rstrip(').,;]') for url in re.findall(r'https?://[^\s<>\"]+',text)]
         if any(url not in sources for url in urls):
-            raise SourceValidationError("Модель добавила ссылку, которой нет в источниках. Ответ не показан; уточните запрос.")
+            raise SourceValidationError('Модель добавила ссылку, которой нет в источниках. Ответ не показан; уточните запрос.')
         return text
-
 
 def validate_tool_semantics(name, arguments):
     """A few documented constraints not always represented in the JSON Schema."""
