@@ -18,7 +18,7 @@ from conversation_context import CONTEXT_TOOL, CONTEXT_TOOL_NAME, empty_context,
 from geo import distance_meters, locations, seconds as duration_seconds
 
 ALLOWED_TOOLS = {"search_places", "lookup_weather", "compute_routes", "resolve_names", "resolve_maps_urls"}
-AGENT_RELEASE = "2026-11-03-r17"
+AGENT_RELEASE = "2026-11-03-r18"
 # Qwen remains available for an explicit rollback. No automatic model fallback.
 REVIEWED_MODEL = "qwen/qwen3.8-27b"
 SUPPORTED_MODELS = frozenset({REVIEWED_MODEL, GPT_OSS_MODEL})
@@ -638,7 +638,7 @@ class DayOutAgent:
                             self.validate_geography(state,text)
                             fresh={url:title for n,p in tool_evidence(messages[state.begin:])
                                    if n in ALLOWED_TOOLS for url,title in collect_sources(p).items()}
-                            declined=re.search(r'не удалось|не наш[её]л|не смог|нет подтвержд[её]нных|не могу подтвердить',text,re.I)
+                            declined=re.search(r'не удалось|не наш[её]л|не смог|нет подтвержд[её]нных|не могу подтвердить|не подтвержд[её]н|не найден',text,re.I)
                             if fresh and not declined and not re.search(r'https?://',text):
                                 raise SourceValidationError('Подтверди сведения ссылкой на использованный источник из доступных меток.')
                         except AnswerValidationError as error:
@@ -777,7 +777,7 @@ class DayOutAgent:
                 for paragraph in re.split(r'\n\s*\n',text):
                     checked_urls=set(check['candidate_urls']) | set(collect_sources(payload))
                     if any(url in paragraph for url in checked_urls) and not re.search(
-                            r'не подход|не рекоменд|превыш|слишком дал|за предел|дальше заданного',paragraph,re.I):
+                            r'не подход|не рекоменд|превыш|слишком дал|за предел|дальше заданного|не удалось|не подтвержд[её]н|не найден|не наш[её]л',paragraph,re.I):
                         raise AnswerValidationError('Маршрут превышает строгий предел пользователя. Отклони этот вариант, проверь другой; не расширяй жёсткое ограничение.')
 
     async def execute(self,call):
@@ -810,6 +810,13 @@ class DayOutAgent:
                 circle=(arguments.get('locationBias') or {}).get('circle')
                 if isinstance(circle,dict) and circle:
                     circle.setdefault('radiusMeters',1200)
+                    state=self.current_state
+                    if state and state.context['proximity']['strict']:
+                        previous=[p['app_search_area']['radius_meters'] for n,p in tool_evidence(state.messages[state.begin:])
+                                  if n=='search_places' and p.get('app_search_area')]
+                        if previous and circle['radiusMeters']>min(previous):
+                            hint='У пользователя строгий пеший предел. Не расширяй начальную область; проверь других кандидатов в ней. Если подходящего маршрута нет, честно сообщи это, без более дальних рекомендаций.'
+                            raise ValueError('explicit strict proximity')
                     known=[p for turn,_ in self.turns for _,payload in tool_evidence(turn) for p in locations(payload)]
                     if self.last_place_turn:
                         known.extend(p for _,payload in tool_evidence(self.last_place_turn[0]) for p in locations(payload))

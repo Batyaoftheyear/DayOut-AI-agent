@@ -201,3 +201,15 @@ def test_resolver_without_coordinates_gives_actionable_recovery_instead_of_repea
     errors=[p for p in payloads if p.get('error')]
     assert len(errors)==1 and 'БЕЗ locationBias' in errors[0]['error']
     assert a.session.call_tool.await_count==3
+
+
+def test_strict_expansion_is_not_sent_to_maps_and_honest_refusal_is_allowed():
+    snapshot=empty_context()
+    snapshot['proximity']['strict']=True
+    a=agent([search(),search(1200),walking({'placeId':'near'}),call(CONTEXT_TOOL_NAME,snapshot),
+        search(3000),answer('В пределах 15 минут подходящих мест не найдено. Маршрут 20 минут не подходит [S2] [S3].')],
+        [place('anchor',ANCHOR),place('near',NEAR),route(1200)])
+    reply=asyncio.run(a.ask('Только до 15 минут пешком.'))
+    sent=[c.args[0] for c in a.session.call_tool.await_args_list]
+    assert sent==['search_places','search_places','compute_routes']
+    assert 'не подходит' in reply.text and '20' in reply.text
