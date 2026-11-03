@@ -38,11 +38,11 @@ def main():
         result=run_action(config,memory,gate,'ask',query.format(visit_date=str(args.visit_date)))
         tools=[e.removeprefix('MCP → ') for e in result.events if e.startswith('MCP → ')]
         observed=result.reply.observations if result.reply else result.observations
-        plan=memory.last_plan or {}
+        context=memory.context
         report['turns'].append({'index':index,'completed':bool(result.reply),'seconds':round(time.monotonic()-start,3),
             'tools':tools,'failure_category':failure_category(result.error),
-            'tool_outcomes':observed.get('tool_outcomes',[]),'budget':copy.deepcopy(plan.get('budget')),
-            'task':plan.get('task'),'city':plan.get('city'),'area':plan.get('area'),'activity':plan.get('activity')})
+            'tool_outcomes':observed.get('tool_outcomes',[]),'budget':copy.deepcopy(context.get('budget')),
+            'task':observed.get('task'),'city':context.get('city'),'area':context.get('area'),'activity':context.get('activity')})
         records.append({'query':query.format(visit_date=str(args.visit_date)),'answer':result.reply.text if result.reply else None,
                         'messages':result.evidence_messages,'outcomes':observed.get('tool_outcomes',[])})
         report['agent_usage']=dict(memory.usage_totals)

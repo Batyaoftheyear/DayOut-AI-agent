@@ -1,0 +1,11 @@
+{
+  "scope": "standalone_presentation",
+  "checks": {
+    "ten_slides": true,
+    "tool_tabs": true,
+    "navigation": true,
+    "mobile_no_horizontal_overflow": true,
+    "pdf_ten_pages": true
+  },
+  "external_api_requests": 0
+}

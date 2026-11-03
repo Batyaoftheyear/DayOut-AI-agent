@@ -1,0 +1,14 @@
+{
+  "scope": "runtime_release_provenance",
+  "tag": "eval-r18-2026-11-03",
+  "commit": "b02ebb640268aad56a18d33a83ca7af389fc7021",
+  "measured_local_fingerprint": "2de92275a1c51ae0418df52470fafbebbf6d3fa1bab833589f25d1fec4fc51df",
+  "git_blob_fingerprint": "b55cadb5809ce99fce32e3562ecd5cf29f436482a9b4b0b6b3ca10d0ed685d02",
+  "python_code_identical_after_lineending_normalization": true,
+  "dependency_versions_identical": true,
+  "byte_differences": [
+    "agent.py",
+    "requirements.txt"
+  ],
+  "difference_reason": "Only CRLF/LF; normalized Python code and dependency versions are identical."
+}

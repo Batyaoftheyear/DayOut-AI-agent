@@ -1,0 +1,911 @@
+{
+  "metadata": {
+    "started_at": "2026-11-03T14:00:52+03:00",
+    "target": "local_web_adapter",
+    "provider": "yandex",
+    "model": "aliceai-llm-flash/latest",
+    "variant": "r15-conversation-loop",
+    "split": "all",
+    "max_live_turns": 11,
+    "review_method": "llm_assisted_same_model",
+    "prices_rub_per_1k": [
+      0.1,
+      0.2
+    ],
+    "max_estimated_rub": null,
+    "cost_is_estimate_not_invoice": true,
+    "python": "3.14.4",
+    "code_sha256": "0dce102cafc72a6a5a3b5fb528e00039ea3607cd5e3d284b4cb216437c5274fd",
+    "dataset_sha256": "5d4bc7ca57246d6d579e99d0dfc9e888fbec75a515d3ac2d69c4d2905e118fed",
+    "dataset_file": "conversation_cases.json",
+    "visit_date": "2026-11-04",
+    "interval_seconds": 5,
+    "raw_content_saved": false
+  },
+  "results": [
+    {
+      "execution_status": "completed",
+      "stop_reason": null,
+      "auto_checks": {
+        "any_required_tool_called": true,
+        "context_fields_present": false,
+        "all_turns_completed": true,
+        "required_tools_called": true,
+        "forbidden_tools_absent": true,
+        "last_turn_tools_called": true,
+        "last_turn_forbidden_tools_absent": true,
+        "required_tools_succeeded": true,
+        "required_text_present": true,
+        "forbidden_text_absent": true,
+        "required_last_text_present": true,
+        "forbidden_last_text_absent": true,
+        "last_source_count_matches": true,
+        "no_invalid_tool_arguments": true,
+        "weather_parameters_match": true,
+        "dialogue_constraints_match": true
+      },
+      "turns": [
+        {
+          "completed": true,
+          "seconds": 28.061,
+          "tools": [
+            "resolve_names",
+            "search_places"
+          ],
+          "usage": {
+            "requests": 4,
+            "prompt_tokens": 12409,
+            "completion_tokens": 245,
+            "missing_usage": 0
+          },
+          "source_link_count": 3,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "resolve_names",
+              "status": "success"
+            },
+            {
+              "tool": "search_places",
+              "status": "success"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": false,
+          "context": {
+            "city": "",
+            "area": "",
+            "activity": "",
+            "preferences": [],
+            "budget": {
+              "action": "keep",
+              "amount": null,
+              "currency": "unknown",
+              "people": null,
+              "scope": "unknown"
+            },
+            "proximity": {
+              "minutes": 15,
+              "strict": false
+            }
+          }
+        }
+      ],
+      "manual_scores": {
+        "relevance": "pass",
+        "constraints": "pass",
+        "grounding": "pass",
+        "honesty": "pass",
+        "tool_choice": "pass",
+        "clarification": "pass"
+      },
+      "model_review": {
+        "status": "completed",
+        "scores": {
+          "relevance": "pass",
+          "constraints": "pass",
+          "grounding": "pass",
+          "honesty": "pass",
+          "tool_choice": "pass",
+          "clarification": "pass"
+        },
+        "codes": [
+          "none"
+        ],
+        "usage": {
+          "requests": 1,
+          "prompt_tokens": 2580,
+          "completion_tokens": 53,
+          "missing_usage": 0
+        },
+        "seconds": 4.413
+      },
+      "case_id": "A01",
+      "mode": "live",
+      "repeat": 1,
+      "elapsed_seconds": 32.477
+    },
+    {
+      "execution_status": "completed",
+      "stop_reason": null,
+      "auto_checks": {
+        "any_required_tool_called": true,
+        "context_fields_present": false,
+        "all_turns_completed": true,
+        "required_tools_called": true,
+        "forbidden_tools_absent": true,
+        "last_turn_tools_called": true,
+        "last_turn_forbidden_tools_absent": true,
+        "required_tools_succeeded": true,
+        "required_text_present": true,
+        "forbidden_text_absent": true,
+        "required_last_text_present": true,
+        "forbidden_last_text_absent": true,
+        "last_source_count_matches": true,
+        "no_invalid_tool_arguments": true,
+        "weather_parameters_match": true,
+        "dialogue_constraints_match": true
+      },
+      "turns": [
+        {
+          "completed": true,
+          "seconds": 5.299,
+          "tools": [],
+          "usage": {
+            "requests": 1,
+            "prompt_tokens": 2840,
+            "completion_tokens": 12,
+            "missing_usage": 0
+          },
+          "source_link_count": 0,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [],
+          "task": "chat",
+          "weather_requests": [],
+          "budget_requested": false,
+          "context": {
+            "city": "",
+            "area": "",
+            "activity": "",
+            "preferences": [],
+            "budget": {
+              "action": "keep",
+              "amount": null,
+              "currency": "unknown",
+              "people": null,
+              "scope": "unknown"
+            },
+            "proximity": {
+              "minutes": 15,
+              "strict": false
+            }
+          }
+        },
+        {
+          "completed": true,
+          "seconds": 10.379,
+          "tools": [
+            "search_places"
+          ],
+          "usage": {
+            "requests": 2,
+            "prompt_tokens": 6024,
+            "completion_tokens": 96,
+            "missing_usage": 0
+          },
+          "source_link_count": 1,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": false,
+          "context": {
+            "city": "",
+            "area": "",
+            "activity": "",
+            "preferences": [],
+            "budget": {
+              "action": "keep",
+              "amount": null,
+              "currency": "unknown",
+              "people": null,
+              "scope": "unknown"
+            },
+            "proximity": {
+              "minutes": 15,
+              "strict": false
+            }
+          }
+        }
+      ],
+      "manual_scores": {
+        "relevance": "pass",
+        "constraints": "fail",
+        "grounding": "fail",
+        "honesty": "pass",
+        "tool_choice": "pass",
+        "dialogue": "pass",
+        "clarification": "pass"
+      },
+      "model_review": {
+        "status": "completed",
+        "scores": {
+          "relevance": "pass",
+          "constraints": "fail",
+          "grounding": "fail",
+          "honesty": "pass",
+          "tool_choice": "pass",
+          "dialogue": "pass",
+          "clarification": "pass"
+        },
+        "codes": [
+          "missing_price_caveat",
+          "wrong_route"
+        ],
+        "usage": {
+          "requests": 1,
+          "prompt_tokens": 1376,
+          "completion_tokens": 71,
+          "missing_usage": 0
+        },
+        "seconds": 6.732
+      },
+      "case_id": "A02",
+      "mode": "live",
+      "repeat": 1,
+      "elapsed_seconds": 27.996
+    },
+    {
+      "execution_status": "completed",
+      "stop_reason": null,
+      "auto_checks": {
+        "any_required_tool_called": true,
+        "context_fields_present": true,
+        "all_turns_completed": true,
+        "required_tools_called": true,
+        "forbidden_tools_absent": true,
+        "last_turn_tools_called": true,
+        "last_turn_forbidden_tools_absent": true,
+        "required_tools_succeeded": true,
+        "required_text_present": true,
+        "forbidden_text_absent": true,
+        "required_last_text_present": true,
+        "forbidden_last_text_absent": true,
+        "last_source_count_matches": true,
+        "no_invalid_tool_arguments": false,
+        "weather_parameters_match": true,
+        "dialogue_constraints_match": true
+      },
+      "turns": [
+        {
+          "completed": true,
+          "seconds": 47.107,
+          "tools": [
+            "resolve_names",
+            "search_places"
+          ],
+          "usage": {
+            "requests": 10,
+            "prompt_tokens": 32899,
+            "completion_tokens": 575,
+            "missing_usage": 0
+          },
+          "source_link_count": 1,
+          "failure_category": "tool_arguments",
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "resolve_names",
+              "status": "success"
+            },
+            {
+              "tool": "search_places",
+              "status": "empty"
+            },
+            {
+              "tool": "search_places",
+              "status": "invalid_arguments"
+            },
+            {
+              "tool": "search_places",
+              "status": "invalid_arguments"
+            },
+            {
+              "tool": "search_places",
+              "status": "invalid_arguments"
+            },
+            {
+              "tool": "search_places",
+              "status": "invalid_arguments"
+            },
+            {
+              "tool": "search_places",
+              "status": "invalid_arguments"
+            },
+            {
+              "tool": "search_places",
+              "status": "invalid_arguments"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": false,
+          "context": {
+            "city": "",
+            "area": "",
+            "activity": "",
+            "preferences": [],
+            "budget": {
+              "action": "keep",
+              "amount": null,
+              "currency": "unknown",
+              "people": null,
+              "scope": "unknown"
+            },
+            "proximity": {
+              "minutes": 15,
+              "strict": false
+            }
+          }
+        }
+      ],
+      "manual_scores": {
+        "relevance": "pass",
+        "constraints": "pass",
+        "grounding": "fail",
+        "honesty": "pass",
+        "tool_choice": "fail",
+        "clarification": "pass"
+      },
+      "model_review": {
+        "status": "completed",
+        "scores": {
+          "relevance": "pass",
+          "constraints": "pass",
+          "grounding": "fail",
+          "honesty": "pass",
+          "tool_choice": "fail",
+          "clarification": "pass"
+        },
+        "codes": [
+          "missing_tool",
+          "missing_tool"
+        ],
+        "usage": {
+          "requests": 1,
+          "prompt_tokens": 2469,
+          "completion_tokens": 60,
+          "missing_usage": 0
+        },
+        "seconds": 3.098
+      },
+      "case_id": "A03",
+      "mode": "live",
+      "repeat": 1,
+      "elapsed_seconds": 50.208
+    },
+    {
+      "execution_status": "completed",
+      "stop_reason": null,
+      "auto_checks": {
+        "any_required_tool_called": true,
+        "context_fields_present": true,
+        "all_turns_completed": true,
+        "required_tools_called": true,
+        "forbidden_tools_absent": true,
+        "last_turn_tools_called": true,
+        "last_turn_forbidden_tools_absent": true,
+        "required_tools_succeeded": true,
+        "required_text_present": true,
+        "forbidden_text_absent": true,
+        "required_last_text_present": true,
+        "forbidden_last_text_absent": true,
+        "last_source_count_matches": true,
+        "no_invalid_tool_arguments": true,
+        "weather_parameters_match": true,
+        "dialogue_constraints_match": false
+      },
+      "turns": [
+        {
+          "completed": true,
+          "seconds": 10.902,
+          "tools": [
+            "search_places"
+          ],
+          "usage": {
+            "requests": 2,
+            "prompt_tokens": 6004,
+            "completion_tokens": 91,
+            "missing_usage": 0
+          },
+          "source_link_count": 1,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": false,
+          "context": {
+            "city": "",
+            "area": "",
+            "activity": "",
+            "preferences": [],
+            "budget": {
+              "action": "keep",
+              "amount": null,
+              "currency": "unknown",
+              "people": null,
+              "scope": "unknown"
+            },
+            "proximity": {
+              "minutes": 15,
+              "strict": false
+            }
+          }
+        },
+        {
+          "completed": true,
+          "seconds": 17.597,
+          "tools": [
+            "search_places"
+          ],
+          "usage": {
+            "requests": 2,
+            "prompt_tokens": 6507,
+            "completion_tokens": 74,
+            "missing_usage": 0
+          },
+          "source_link_count": 0,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "empty"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": false,
+          "context": {
+            "city": "",
+            "area": "",
+            "activity": "",
+            "preferences": [],
+            "budget": {
+              "action": "keep",
+              "amount": null,
+              "currency": "unknown",
+              "people": null,
+              "scope": "unknown"
+            },
+            "proximity": {
+              "minutes": 15,
+              "strict": false
+            }
+          }
+        },
+        {
+          "completed": true,
+          "seconds": 4.438,
+          "tools": [],
+          "usage": {
+            "requests": 1,
+            "prompt_tokens": 3019,
+            "completion_tokens": 34,
+            "missing_usage": 0
+          },
+          "source_link_count": 0,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [],
+          "task": "chat",
+          "weather_requests": [],
+          "budget_requested": false,
+          "context": {
+            "city": "",
+            "area": "",
+            "activity": "",
+            "preferences": [],
+            "budget": {
+              "action": "keep",
+              "amount": null,
+              "currency": "unknown",
+              "people": null,
+              "scope": "unknown"
+            },
+            "proximity": {
+              "minutes": 15,
+              "strict": false
+            }
+          }
+        }
+      ],
+      "manual_scores": {
+        "relevance": "pass",
+        "constraints": "pass",
+        "grounding": "fail",
+        "honesty": "pass",
+        "tool_choice": "pass",
+        "dialogue": "pass"
+      },
+      "model_review": {
+        "status": "completed",
+        "scores": {
+          "relevance": "pass",
+          "constraints": "pass",
+          "grounding": "fail",
+          "honesty": "pass",
+          "tool_choice": "pass",
+          "dialogue": "pass"
+        },
+        "codes": [
+          "missing_price_caveat"
+        ],
+        "usage": {
+          "requests": 1,
+          "prompt_tokens": 1696,
+          "completion_tokens": 59,
+          "missing_usage": 0
+        },
+        "seconds": 5.337
+      },
+      "case_id": "A04",
+      "mode": "live",
+      "repeat": 1,
+      "elapsed_seconds": 50.175
+    },
+    {
+      "execution_status": "completed",
+      "stop_reason": null,
+      "auto_checks": {
+        "any_required_tool_called": true,
+        "context_fields_present": true,
+        "all_turns_completed": true,
+        "required_tools_called": true,
+        "forbidden_tools_absent": true,
+        "last_turn_tools_called": true,
+        "last_turn_forbidden_tools_absent": true,
+        "required_tools_succeeded": true,
+        "required_text_present": true,
+        "forbidden_text_absent": true,
+        "required_last_text_present": true,
+        "forbidden_last_text_absent": true,
+        "last_source_count_matches": true,
+        "no_invalid_tool_arguments": true,
+        "weather_parameters_match": true,
+        "dialogue_constraints_match": true
+      },
+      "turns": [
+        {
+          "completed": true,
+          "seconds": 10.748,
+          "tools": [
+            "lookup_weather"
+          ],
+          "usage": {
+            "requests": 2,
+            "prompt_tokens": 6194,
+            "completion_tokens": 121,
+            "missing_usage": 0
+          },
+          "source_link_count": 1,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "lookup_weather",
+              "status": "success"
+            }
+          ],
+          "task": "weather",
+          "weather_requests": [
+            {
+              "date": {
+                "day": 4,
+                "month": 11,
+                "year": 2026
+              },
+              "hour": null
+            }
+          ],
+          "budget_requested": false,
+          "context": {
+            "city": "",
+            "area": "",
+            "activity": "",
+            "preferences": [],
+            "budget": {
+              "action": "keep",
+              "amount": null,
+              "currency": "unknown",
+              "people": null,
+              "scope": "unknown"
+            },
+            "proximity": {
+              "minutes": 15,
+              "strict": false
+            }
+          }
+        },
+        {
+          "completed": true,
+          "seconds": 13.006,
+          "tools": [
+            "resolve_names",
+            "compute_routes"
+          ],
+          "usage": {
+            "requests": 3,
+            "prompt_tokens": 10889,
+            "completion_tokens": 128,
+            "missing_usage": 0
+          },
+          "source_link_count": 1,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "resolve_names",
+              "status": "success"
+            },
+            {
+              "tool": "compute_routes",
+              "status": "success"
+            }
+          ],
+          "task": "route",
+          "weather_requests": [],
+          "budget_requested": false,
+          "context": {
+            "city": "",
+            "area": "",
+            "activity": "",
+            "preferences": [],
+            "budget": {
+              "action": "keep",
+              "amount": null,
+              "currency": "unknown",
+              "people": null,
+              "scope": "unknown"
+            },
+            "proximity": {
+              "minutes": 15,
+              "strict": false
+            }
+          }
+        }
+      ],
+      "manual_scores": {
+        "relevance": "pass",
+        "constraints": "pass",
+        "grounding": "pass",
+        "honesty": "pass",
+        "tool_choice": "pass"
+      },
+      "model_review": {
+        "status": "completed",
+        "scores": {
+          "relevance": "pass",
+          "constraints": "pass",
+          "grounding": "pass",
+          "honesty": "pass",
+          "tool_choice": "pass"
+        },
+        "codes": [
+          "none"
+        ],
+        "usage": {
+          "requests": 1,
+          "prompt_tokens": 2541,
+          "completion_tokens": 46,
+          "missing_usage": 0
+        },
+        "seconds": 3.06
+      },
+      "case_id": "A05",
+      "mode": "live",
+      "repeat": 1,
+      "elapsed_seconds": 31.817
+    },
+    {
+      "execution_status": "completed",
+      "stop_reason": null,
+      "auto_checks": {
+        "any_required_tool_called": true,
+        "context_fields_present": true,
+        "all_turns_completed": true,
+        "required_tools_called": true,
+        "forbidden_tools_absent": true,
+        "last_turn_tools_called": true,
+        "last_turn_forbidden_tools_absent": true,
+        "required_tools_succeeded": true,
+        "required_text_present": true,
+        "forbidden_text_absent": true,
+        "required_last_text_present": true,
+        "forbidden_last_text_absent": true,
+        "last_source_count_matches": true,
+        "no_invalid_tool_arguments": true,
+        "weather_parameters_match": true,
+        "dialogue_constraints_match": true
+      },
+      "turns": [
+        {
+          "completed": true,
+          "seconds": 8.466,
+          "tools": [
+            "resolve_names"
+          ],
+          "usage": {
+            "requests": 2,
+            "prompt_tokens": 5759,
+            "completion_tokens": 59,
+            "missing_usage": 0
+          },
+          "source_link_count": 1,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "resolve_names",
+              "status": "success"
+            }
+          ],
+          "task": "resolve_names",
+          "weather_requests": [],
+          "budget_requested": false,
+          "context": {
+            "city": "",
+            "area": "",
+            "activity": "",
+            "preferences": [],
+            "budget": {
+              "action": "keep",
+              "amount": null,
+              "currency": "unknown",
+              "people": null,
+              "scope": "unknown"
+            },
+            "proximity": {
+              "minutes": 15,
+              "strict": false
+            }
+          }
+        },
+        {
+          "completed": true,
+          "seconds": 7.175,
+          "tools": [
+            "resolve_maps_urls"
+          ],
+          "usage": {
+            "requests": 2,
+            "prompt_tokens": 5981,
+            "completion_tokens": 57,
+            "missing_usage": 0
+          },
+          "source_link_count": 0,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "resolve_maps_urls",
+              "status": "success"
+            }
+          ],
+          "task": "resolve_maps_urls",
+          "weather_requests": [],
+          "budget_requested": false,
+          "context": {
+            "city": "",
+            "area": "",
+            "activity": "",
+            "preferences": [],
+            "budget": {
+              "action": "keep",
+              "amount": null,
+              "currency": "unknown",
+              "people": null,
+              "scope": "unknown"
+            },
+            "proximity": {
+              "minutes": 15,
+              "strict": false
+            }
+          }
+        }
+      ],
+      "manual_scores": {
+        "relevance": "pass",
+        "grounding": "pass",
+        "honesty": "pass",
+        "tool_choice": "pass",
+        "dialogue": "pass"
+      },
+      "model_review": {
+        "status": "completed",
+        "scores": {
+          "relevance": "pass",
+          "grounding": "pass",
+          "honesty": "pass",
+          "tool_choice": "pass",
+          "dialogue": "pass"
+        },
+        "codes": [
+          "none"
+        ],
+        "usage": {
+          "requests": 1,
+          "prompt_tokens": 1228,
+          "completion_tokens": 47,
+          "missing_usage": 0
+        },
+        "seconds": 3.444
+      },
+      "case_id": "A06",
+      "mode": "live",
+      "repeat": 1,
+      "elapsed_seconds": 26.024
+    }
+  ],
+  "summary": {
+    "live_attempts": 6,
+    "live_completed": 6,
+    "live_infrastructure_failures": 0,
+    "live_stopped": 0,
+    "live_quality_evaluable": 6,
+    "live_quality_pass": 2,
+    "live_quality_fail": 4,
+    "live_quality_pending": 0,
+    "live_quality_pass_rate": 0.3333333333333333,
+    "live_end_to_end_pass_rate": 0.3333333333333333,
+    "usage": {
+      "requests": 31,
+      "prompt_tokens": 98525,
+      "completion_tokens": 1492,
+      "missing_usage": 0
+    },
+    "review_usage": {
+      "requests": 6,
+      "prompt_tokens": 11890,
+      "completion_tokens": 336,
+      "missing_usage": 0
+    },
+    "total_usage": {
+      "requests": 37,
+      "prompt_tokens": 110415,
+      "completion_tokens": 1828,
+      "missing_usage": 0
+    },
+    "estimated_rub": 11.4071,
+    "live_median_seconds": 25.9075,
+    "live_p95_seconds": 47.107,
+    "turn_attempts": 11,
+    "turn_completed": 11,
+    "turn_median_seconds": 10.748,
+    "turn_p95_seconds": 47.107,
+    "tool_calls": {
+      "compute_routes": 1,
+      "lookup_weather": 1,
+      "resolve_maps_urls": 1,
+      "resolve_names": 4,
+      "search_places": 5
+    },
+    "simulated_attempts": 0,
+    "simulated_pass": 0
+  }
+}

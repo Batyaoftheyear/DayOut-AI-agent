@@ -1,0 +1,127 @@
+{
+  "metadata": {
+    "scope": "diagnostic_repeat",
+    "code_sha256": "a031ad07d56f3f2859cc8fd51c07bb18fb5be338504910339132b015f79c799f"
+  },
+  "results": [
+    {
+      "execution_status": "completed",
+      "stop_reason": null,
+      "auto_checks": {
+        "any_required_tool_called": true,
+        "context_fields_present": true,
+        "all_turns_completed": true,
+        "required_tools_called": true,
+        "forbidden_tools_absent": true,
+        "last_turn_tools_called": true,
+        "last_turn_forbidden_tools_absent": true,
+        "required_tools_succeeded": true,
+        "required_text_present": true,
+        "forbidden_text_absent": true,
+        "required_last_text_present": true,
+        "forbidden_last_text_absent": true,
+        "last_source_count_matches": true,
+        "no_invalid_tool_arguments": false,
+        "weather_parameters_match": true,
+        "dialogue_constraints_match": true
+      },
+      "turns": [
+        {
+          "completed": true,
+          "seconds": 58.068,
+          "tools": [
+            "resolve_names",
+            "search_places",
+            "search_places",
+            "search_places"
+          ],
+          "usage": {
+            "requests": 7,
+            "prompt_tokens": 26022,
+            "completion_tokens": 623,
+            "missing_usage": 0
+          },
+          "source_link_count": 3,
+          "failure_category": "tool_arguments",
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "resolve_names",
+              "status": "success"
+            },
+            {
+              "tool": "search_places",
+              "status": "invalid_arguments"
+            },
+            {
+              "tool": "search_places",
+              "status": "invalid_arguments"
+            },
+            {
+              "tool": "search_places",
+              "status": "success"
+            },
+            {
+              "tool": "search_places",
+              "status": "success"
+            },
+            {
+              "tool": "search_places",
+              "status": "success"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": false,
+          "context_updates": 1,
+          "context": {
+            "city": "Osaka",
+            "area": "",
+            "activity": "",
+            "preferences": [],
+            "budget": {
+              "action": "keep",
+              "amount": null,
+              "currency": "unknown",
+              "people": null,
+              "scope": "unknown"
+            },
+            "proximity": {
+              "minutes": 15,
+              "strict": false
+            }
+          }
+        }
+      ],
+      "manual_scores": {
+        "relevance": "pass",
+        "constraints": "pass",
+        "grounding": "pass",
+        "honesty": "pass",
+        "tool_choice": "fail",
+        "clarification": "pass"
+      },
+      "model_review": {
+        "status": "completed",
+        "scores": {
+          "relevance": "pass",
+          "constraints": "pass",
+          "grounding": "pass",
+          "honesty": "pass",
+          "tool_choice": "fail",
+          "clarification": "pass"
+        },
+        "codes": [
+          "incomplete_answer"
+        ],
+        "usage": {
+          "requests": 1,
+          "prompt_tokens": 5222,
+          "completion_tokens": 57,
+          "missing_usage": 0
+        },
+        "seconds": 5.671
+      }
+    }
+  ]
+}
