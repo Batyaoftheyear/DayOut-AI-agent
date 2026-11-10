@@ -26,9 +26,8 @@ def install_network(monkeypatch, fail_once=False, quota_once=False):
             return httpx.Response(200, json={"data": [{"id": REVIEWED_MODEL}]})
         body = json.loads(request.content)
         requests.append(body)
-        if body.get('response_format',{}).get('json_schema',{}).get('name')=='dayout_response_review':
-            message={'role':'assistant','content':json.dumps(empty_context()|{
-                'response_check':{'action':'answer','missing':[],'next_step':'','recommended_sources':[]}},ensure_ascii=False)}
+        if body.get('response_format',{}).get('json_schema',{}).get('name')=='dayout_context':
+            message={'role':'assistant','content':json.dumps(empty_context(),ensure_ascii=False)}
         elif body["messages"][0]["content"].startswith("Разбери текущую просьбу"):
             message = {"role": "assistant", "content": json.dumps({
                 "task": "search", "city": "Москва", "area": "", "activity": "кафе", "purpose": "встреча",
@@ -241,7 +240,7 @@ def test_yandex_web_round_trip_uses_same_agent_and_isolates_groq_quota(monkeypat
     assert all(body["model"] == config.model and "max_tokens" in body
                and "reasoning_effort" not in body for body in requests)
     assert all({t['function']['name'] for t in body['tools']}=={'search_places'} for body in requests if body.get('tools'))
-    assert requests[-1]['response_format']['json_schema']['name']=='dayout_response_review' and 'tools' not in requests[-1]
+    assert requests[-1]['response_format']['json_schema']['name']=='dayout_context' and 'tools' not in requests[-1]
 
 
 @pytest.mark.parametrize("model", [GPT_OSS_MODEL, REVIEWED_MODEL, "unsupported-model"])

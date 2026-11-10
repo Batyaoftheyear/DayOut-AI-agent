@@ -46,7 +46,7 @@ def load_cases(path=CASE_PATH):
 
 def fingerprint():
     digest = hashlib.sha256()
-    for name in ("app.py", "agent.py", "conversation_context.py", "response_review.py", "literal_constraints.py", "web_backend.py", "dayout.py", "mcp_check.py", "groq_check.py",
+    for name in ("app.py", "agent.py", "conversation_context.py", "literal_constraints.py", "web_backend.py", "dayout.py", "mcp_check.py", "groq_check.py",
                  "provider_config.py", "yandex_client.py", "geo.py", "eval_runner.py", "eval/reviewer.py", "eval/simulated.py", "requirements.txt"):
         digest.update(name.encode())
         digest.update((ROOT / name).read_bytes())
@@ -170,7 +170,7 @@ def run_live(case, config, gate, visit_date, interval, pace, inspect=False, limi
                       "weather_requests": observed.get("weather_requests", []),
                       "budget_requested": observed.get("budget_requested"),
                       "context_updates": observed.get('context_updates',0),
-                      "semantic_review_unresolved": observed.get('semantic_review_unresolved',False),
+                      "context_sync_failed": observed.get('context_sync_failed',False),
                       "context": copy.deepcopy(memory.context) if result.reply else None})
         if limits:
             limits["turns"] += 1

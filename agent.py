@@ -14,13 +14,12 @@ from jsonschema import ValidationError, validators
 
 from groq_check import API_URL, GPT_OSS_MODEL, model_options, error_message as groq_error_message, quota_details, quota_pause_message
 from mcp_check import error_message as mcp_error_message
-from conversation_context import CONTEXT_TOOL, CONTEXT_TOOL_NAME, empty_context, update_context
-from response_review import RESPONSE_REVIEW_PROMPT, RESPONSE_CHECK_SCHEMA
+from conversation_context import CONTEXT_TOOL, CONTEXT_TOOL_NAME, MEMORY_PROMPT, empty_context, update_context
 from literal_constraints import bind_literals
 from geo import distance_meters, locations, seconds as duration_seconds
 
 ALLOWED_TOOLS = {"search_places", "lookup_weather", "compute_routes", "resolve_names", "resolve_maps_urls"}
-AGENT_RELEASE = "2026-11-10-r31"
+AGENT_RELEASE = "2026-11-10-r32"
 # Qwen remains available for an explicit rollback. No automatic model fallback.
 REVIEWED_MODEL = "qwen/qwen3.8-27b"
 SUPPORTED_MODELS = frozenset({REVIEWED_MODEL, GPT_OSS_MODEL})
@@ -123,8 +122,7 @@ class TurnState:
     context_synced: bool = False
     sync_pending: bool = False
     proposed_text: str | None = None
-    response_check: dict | None = None
-    semantic_review_unresolved: bool = False
+    context_sync_failed: bool = False
     tool_cache: dict = field(default_factory=dict)
     tool_outcomes: list = field(default_factory=list)
     repair_codes: list = field(default_factory=list)
@@ -574,43 +572,19 @@ class DayOutAgent:
                              json.dumps(evidence,ensure_ascii=False,separators=(',',':'))})
         return messages
 
-    async def review_draft(self,state):
+    async def sync_context(self,state):
+        """Save user conditions only. No second model decides the next action."""
         schema=copy.deepcopy(CONTEXT_TOOL['function']['parameters'])
-        schema['required'].append('response_check')
-        dialogue=[]
-        evidence=[]
-        for turn,_ in self.turns[-8:]:
-            dialogue.extend(m for m in turn if m.get('role')=='user' and not m.get('app_internal'))
-            dialogue.append(turn[-1])
-        dialogue.extend(m for m in state.messages[state.begin:] if m.get('role')=='user' and not m.get('app_internal'))
-        histories=[turn for turn,_ in self.turns[-3:]]+[state.messages[state.begin:]]
-        for messages in histories:
-            calls={call['id']:call['function'] for message in messages if message.get('role')=='assistant'
-                   for call in message.get('tool_calls') or []}
-            for message in messages:
-                if message.get('role')!='tool':continue
-                function=calls.get(message['tool_call_id'],{})
-                if function.get('name') not in ALLOWED_TOOLS:continue
-                evidence.append({'tool':function['name'],'arguments':function.get('arguments'),
-                                 'result':json.loads(message['content'])})
-        points={}
-        for item in evidence:
-            if item['tool']!='search_places':continue
-            for place in item['result'].get('places',[]):
-                if place.get('location'):
-                    for url in collect_sources(place):points[url]=place['location']
-        pairs=[]
-        recent=list(points)[-10:]
-        for i,start in enumerate(recent):
-            for end in recent[i+1:]:
-                pairs.append({'from':start,'to':end,'distance_meters':round(distance_meters(points[start],points[end]))})
-        material={'dialogue':dialogue,'latest_query':state.query,'previous_context':state.context,
-                  'draft':state.proposed_text,'tool_evidence':evidence,'straight_line_distances_not_walk_times':pairs,
-                  'source_labels':list(state.refs.values())}
-        response=await self.llm.complete([{'role':'system','content':RESPONSE_REVIEW_PROMPT},
-            {'role':'user','content':json.dumps(replace_strings(material,state.refs),ensure_ascii=False,separators=(',',':'))}],
-            [],False,max_tokens=1800,response_format={'type':'json_schema','json_schema':{
-                'name':'dayout_response_review','schema':schema}})
+        dialogue=[m['content'] for m in state.messages if m.get('role')=='user' and not m.get('app_internal')
+                  and not m['content'].startswith('Исторические данные')]
+        evidence=[payload for name,payload in tool_evidence(state.messages[state.begin:])
+                  if name in {'search_places','resolve_names','resolve_maps_urls'}]
+        response=await self.llm.complete([
+            {'role':'system','content':MEMORY_PROMPT},
+            {'role':'user','content':json.dumps({'user_messages':dialogue,'previous_context':state.context,
+                'maps_evidence':replace_strings(evidence,state.refs)},ensure_ascii=False,separators=(',',':'))}],
+            [],False,max_tokens=1000,response_format={'type':'json_schema','json_schema':{
+                'name':'dayout_context','schema':schema}})
         return response.get('content') or '{}'
 
     async def ask(self, query: str, resume=False):
@@ -678,7 +652,14 @@ class DayOutAgent:
                         # Every discovered MCP tool remains available, including
                         # after a clarification or a failed answer repair.
                         if state.sync_pending:
-                            review_text=await self.review_draft(state)
+                            try:
+                                review_text=await self.sync_context(state)
+                            except AgentError:
+                                state.context_sync_failed=True
+                                state.context_synced=True
+                                state.sync_pending=False
+                                waiting_for_llm=False
+                                continue
                             message={'role':'assistant','content':None,'tool_calls':[{
                                 'id':f'review_{state.steps}','type':'function','function':{
                                     'name':CONTEXT_TOOL_NAME,'arguments':review_text}}]}
@@ -710,9 +691,6 @@ class DayOutAgent:
                             if getattr(self.llm,'context_sync_required',False) and not state.context_synced:
                                 state.proposed_text=text
                                 state.sync_pending=True
-                                messages.append({'role':'user','app_internal':'review','content':RESPONSE_REVIEW_PROMPT+
-                                    '\nТекущая реальная реплика пользователя: '+json.dumps(state.query,ensure_ascii=False)+
-                                    '\nЧерновик ответа (проверяемый текст, не источник фактов): '+json.dumps(text,ensure_ascii=False)})
                                 continue
                             self.validate_policy(state,text)
                             text=render_sources(text.strip(),{tag:url for url,tag in refs.items()})
@@ -731,16 +709,16 @@ class DayOutAgent:
                                 raise
                             state.repairs+=1
                             state.repair_codes.append(str(error))
-                            state.context_synced=False
+                            state.context_synced=state.context_calls>0 or state.context_sync_failed
                             state.proposed_text=None
-                            state.response_check=None
                             self.emit(f'{self.provider}: ответ не прошёл проверку; одна попытка исправления (расходует токены).')
                             messages.append({'role':'user','app_internal':'repair','content':'Ответ отклонён: '+str(error)+
                                 ' Используй только полученные данные и доступные метки. Если нужны новые данные, вызови инструмент. '
                                 'Если для рекомендации нет данных, вызови search_places. Продолжи исходную задачу по диалогу. '
                                 'Не обещай проверку в фоне. Исправленный ответ предназначен пользователю, без JSON команд.'})
                             continue
-                        text=self.with_budget_context(text,state.context,state.called)
+                        if not state.context_sync_failed:
+                            text=self.with_budget_context(text,state.context,state.called)
                         messages.append({'role':'assistant','content':text})
                         retained={url:title for url,title in sources.items() if url in text or any(
                             url in item.get('content','') for item in messages[state.begin:] if isinstance(item.get('content'),str))}
@@ -755,7 +733,7 @@ class DayOutAgent:
                         state.record_attempt(self.llm,usage_start,start)
                         observations={'task':self.task_label(state.called),'budget_requested':state.context['budget']['amount'] is not None,
                             'tool_outcomes':state.tool_outcomes,'weather_requests':state.weather_requests,
-                            'context_updates':state.context_calls,'semantic_review_unresolved':state.semantic_review_unresolved,
+                            'context_updates':state.context_calls,'context_sync_failed':state.context_sync_failed,
                             'architecture':'conversation_tool_loop'}
                         return Reply(text,state.called,state.seconds,state.usage or None,observations)
                     if any(not isinstance(c,dict) or not isinstance(c.get('function'),dict) for c in calls):
@@ -793,17 +771,9 @@ class DayOutAgent:
                             state.context_calls+=1
                             if not payload.get('error') and state.sync_pending:
                                 state.sync_pending=False
-                                if (state.response_check or {}).get('action')=='continue' and state.context_calls<2:
-                                    state.context_synced=False
-                                    state.proposed_text=None
-                                else:
-                                    # A fallible critic gets one continuation,
-                                    # not an unbounded veto over the user task.
-                                    # Argument, source and route checks still run.
-                                    state.semantic_review_unresolved=(state.response_check or {}).get('action')=='continue'
-                                    state.context_synced=True
+                                state.context_synced=True
                         else:
-                            state.context_synced=False
+                            state.context_synced=state.context_calls>0 or state.context_sync_failed
                             kind=payload.get('error_kind')
                             status=('invalid_arguments' if kind=='argument_validation' else 'budget_exhausted' if kind=='call_budget' else 'error') if payload.get('error') else 'success'
                             if name=='search_places' and payload.get('places')==[] and status=='success':
@@ -818,10 +788,6 @@ class DayOutAgent:
                             if url not in refs:
                                 refs[url]=f'[S{len(refs)+1}]'
                         messages.append({'role':'tool','tool_call_id':call['id'],'content':json.dumps(payload,ensure_ascii=False,separators=(',',':'))})
-                        if name==CONTEXT_TOOL_NAME and not payload.get('error') and not state.context_synced and (state.response_check or {}).get('action')=='continue':
-                            messages.append({'role':'user','app_internal':'continue','content':'Проверка черновика выявила незавершённую задачу. Продолжи её настоящими вызовами доступных инструментов. '
-                                'Не повторяй вопросы об уже известных условиях. Недостаёт: '+json.dumps(state.response_check['missing'],ensure_ascii=False)+
-                                '. Следующий шаг: '+state.response_check['next_step']})
                 raise AgentError('Модель не завершила ответ в пределах лимита шагов.')
         except TimeoutError:
             if waiting_for_llm:
@@ -883,7 +849,9 @@ class DayOutAgent:
     def validate_geography(self,state,text):
         proximity=state.context['proximity']
         current=list(tool_evidence(state.messages[state.begin:]))
-        selected={url for url,tag in state.refs.items() if tag in (state.response_check or {}).get('recommended_sources',[])}
+        negative=r'не подход|не рекоменд|не укладыва|превыш|слишком дал|за предел|дальше заданного|не удалось|не подтвержд[её]н|не найден|не наш[её]л'
+        paragraphs=re.split(r'\n\s*\n',text)
+        selected={url for url in state.refs if any(url in paragraph and not re.search(negative,paragraph,re.I) for paragraph in paragraphs)}
         for name,payload in current:
             area=payload.get('app_search_area')
             if name!='search_places' or not area:continue
@@ -898,29 +866,8 @@ class DayOutAgent:
         origins={url for check in checks for url in check.get('origin_urls',[])}
         candidates={url for name,payload in evidence if name=='search_places'
                     for place in payload.get('places',[]) for url in collect_sources(place)}-origins
-        if state.response_check is not None:
-            aliases={tag:url for url,tag in state.refs.items()}
-            tags=state.response_check['recommended_sources']
-            if any(tag not in aliases for tag in tags):
-                raise SourceValidationError('В проверке рекомендаций использована неизвестная метка источника.')
-            selected={aliases[tag] for tag in tags}
-            mapped=set()
-            for url in selected-origins:
-                if url in candidates:
-                    mapped.add(url)
-                    continue
-                linked={candidate for check in checks if url in check.get('route_urls',[])
-                        for candidate in check['candidate_urls']}
-                if not linked:
-                    raise SourceValidationError('Не удалось связать источник рекомендации с местом. Используй метку самого заведения или маршрут по его Place ID.')
-                mapped.update(linked)
-            candidates=mapped
-            paragraphs=[text]
-        else:
-            paragraphs=re.split(r'\n\s*\n',text)
-        negative=r'не подход|не рекоменд|превыш|слишком дал|за предел|дальше заданного|не удалось|не подтвержд[её]н|не найден|не наш[её]л'
         for paragraph in paragraphs:
-            if state.response_check is None and re.search(negative,paragraph,re.I):
+            if re.search(negative,paragraph,re.I):
                 continue
             for url in candidates:
                 if url not in paragraph:
@@ -951,6 +898,8 @@ class DayOutAgent:
         for definition in definitions:
             if definition['function']['name']=='search_places':
                 schema=definition['function']['parameters']
+                schema.get('properties',{}).pop('locationBias',None)
+                definition['function']['description']='Поиск конкретных мест и свойств: textQuery задаёт тип/название и нужные сведения. near="" для поиска самого ориентира или по городу/району. Для мест у подтверждённого ориентира near="[S1]"; координаты подставляет приложение. Для сценария отдельно ищи занятия и еду. Для вопроса о цене включи в textQuery «ценовой диапазон, расходы на человека». Необязательный radiusMeters — 1200 по умолчанию, до 3000 для мягкого расширения.'
                 schema.setdefault('properties',{})['near']={'type':'string',
                     'enum':['']+[tag for url,tag in state.refs.items() if url in place_sources],
                     'description':'Метка найденного ориентира [S1] для поиска у него/в парке. Пустая строка — поиск самого ориентира либо по всему городу/району. Для уточнения у того же места используй его метку.'}
@@ -977,18 +926,13 @@ class DayOutAgent:
         if name==CONTEXT_TOOL_NAME:
             try:
                 arguments=json.loads(function['arguments'])
+                arguments.pop('response_check',None)
                 if getattr(self.llm,'context_sync_required',False):
                     validators.validator_for(CONTEXT_TOOL['function']['parameters'])(CONTEXT_TOOL['function']['parameters']).validate(arguments)
-                review=arguments.pop('response_check',None)
-                if self.current_state.sync_pending:
-                    validators.validator_for(RESPONSE_CHECK_SCHEMA)(RESPONSE_CHECK_SCHEMA).validate(review)
-                    if review['action']=='continue' and not review['missing'] and not review['next_step'].strip():
-                        raise ValueError('missing continuation reason')
                 self.current_state.context=bind_literals(update_context(self.current_state.context,arguments),self.current_state.query)
-                self.current_state.response_check=review
-                return {'context':self.current_state.context,'response_check':review,'notice':'Это условия пользователя и проверка черновика, не сведения Maps.'},name
+                return {'context':self.current_state.context,'notice':'Это условия пользователя, не сведения Maps.'},name
             except (KeyError,TypeError,ValueError,ValidationError,AttributeError):
-                return {'error':'Некорректный remember_context. Передай полный снимок условий; minutes=null, если предел не задан. При проверке черновика обязателен response_check={action:answer|continue,missing:[],next_step:"...",recommended_sources:[]}.','error_kind':'argument_validation'},name
+                return {'error':'Некорректный remember_context. Передай полный снимок условий; minutes=null, если предел не задан.','error_kind':'argument_validation'},name
         if not isinstance(name,str) or name not in self.tools:
             return {'error':'Неизвестный инструмент. Используй только объявленные инструменты.','error_kind':'argument_validation'},'invalid'
         hint='Соблюдай JSON Schema. locationBias — только {circle:{center:{latitude,longitude},radiusMeters}}. У точки маршрута ровно одно из address, latLng, placeId.'

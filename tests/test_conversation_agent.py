@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock
 import pytest
 from mcp.types import CallToolResult, Tool
 
-from agent import ALLOWED_TOOLS, AnswerValidationError, DayOutAgent
+from agent import ALLOWED_TOOLS, AgentError, AnswerValidationError, DayOutAgent
 from conversation_context import CONTEXT_TOOL_NAME, empty_context, update_context
 from dayout import safe_error
 
@@ -55,7 +55,7 @@ def agent(responses,results):
     async def complete(*args,**kwargs):
         message=next(values)
         if isinstance(message,BaseException):raise message
-        if (kwargs.get('response_format') or {}).get('json_schema',{}).get('name')=='dayout_response_review':
+        if (kwargs.get('response_format') or {}).get('json_schema',{}).get('name')=='dayout_context':
             calls=message.get('tool_calls') or []
             if calls and calls[0]['function']['name']==CONTEXT_TOOL_NAME:
                 return answer(calls[0]['function']['arguments'])
@@ -195,7 +195,7 @@ def test_context_is_synchronized_after_search_and_cannot_route_or_block_it():
     assert a.llm.complete.await_count==3 and NEAR in reply.text
     assert '3000' in reply.text and a.context['city']=='Osaka' and a.context['budget']['people']==2
     assert 'tool_choice' not in a.llm.complete.await_args_list[0].kwargs
-    assert a.llm.complete.await_args_list[-1].kwargs['response_format']['json_schema']['name']=='dayout_response_review'
+    assert a.llm.complete.await_args_list[-1].kwargs['response_format']['json_schema']['name']=='dayout_context'
 
 
 def test_early_optional_memory_does_not_skip_final_snapshot():
@@ -209,7 +209,7 @@ def test_early_optional_memory_does_not_skip_final_snapshot():
     reply=asyncio.run(a.ask('Только до 15 минут пешком, больший путь не подходит. Пока не ищи.'))
     assert not reply.tools and a.context['proximity']['strict']
     assert a.llm.complete.await_count==3
-    assert a.llm.complete.await_args_list[-1].kwargs['response_format']['json_schema']['name']=='dayout_response_review'
+    assert a.llm.complete.await_args_list[-1].kwargs['response_format']['json_schema']['name']=='dayout_context'
 
 
 def test_resolver_without_coordinates_gives_actionable_recovery_instead_of_repeating_circle():
@@ -236,24 +236,6 @@ def test_strict_expansion_is_not_sent_to_maps_and_honest_refusal_is_allowed():
     assert 'не подходит' in reply.text and '20' in reply.text
 
 
-def test_unfinished_itinerary_is_reviewed_against_the_actual_draft_and_resumes_tools():
-    snapshot=empty_context();snapshot.update(city='Москва',area='ВДНХ',preferences=['азиатская кухня'])
-    draft='Погуляйте и посетите павильоны. Какую кухню предпочитаете?'
-    a=agent([answer(draft),call(CONTEXT_TOOL_NAME,reviewed(snapshot,'continue',
-        ['Нет конкретных павильонов и ресторанов'],'Найди конкретные павильоны и азиатский ресторан на ВДНХ.')),
-        call('search_places',{'textQuery':'павильоны ВДНХ Москва'}),
-        call('search_places',{'textQuery':'азиатский ресторан ВДНХ Москва'}),
-        answer('Павильон «Синтетический космос» [S1], затем ресторан «Синтетическая Азия» [S2].'),
-        call(CONTEXT_TOOL_NAME,reviewed(snapshot))],[place('pavilion',ANCHOR),place('asian',NEAR)])
-    a.llm.context_sync_required=True
-    reply=asyncio.run(a.ask('Сценарий вечера на ВДНХ: конкретные павильоны и ресторан, азиатская кухня.'))
-    checkpoint=a.llm.complete.await_args_list[1].args[0][-1]['content']
-    assert json.loads(checkpoint)['draft']==draft and a.session.call_tool.await_count==2
-    assert ANCHOR in reply.text and NEAR in reply.text and '?' not in reply.text
-    assert a.context['preferences']==['азиатская кухня']
-    assert all(not message.get('app_internal') for request in a.llm.complete.await_args_list for message in request.args[0])
-    assert all({d['function']['name'] for d in c.args[1]}==ALLOWED_TOOLS
-               for c in a.llm.complete.await_args_list if c.args[1])
 
 
 def test_specific_price_question_resumes_search_and_does_not_append_unknown_price_template():
@@ -262,8 +244,6 @@ def test_specific_price_question_resumes_search_and_does_not_append_unknown_pric
     priced['budget'].update(action='set',amount=5000,currency='RUB',scope='total',people=2)
     price=place('lounge',NEAR,'Диапазон расходов 3000–8000 рублей на человека.')
     a=agent([search(),answer('Лаундж [S1].'),call(CONTEXT_TOOL_NAME,reviewed(before)),
-        answer('Стоимость неизвестна.'),call(CONTEXT_TOOL_NAME,reviewed(priced,'continue',
-            ['Цена не проверена целевым запросом'],'Проверь расходы на человека у найденного лаунджа.')),
         call('search_places',{'textQuery':'Лаундж Люблино Москва ценовой диапазон на человека'}),
         answer('Диапазон 3000–8000 рублей на человека [S1]. Для двоих ориентир 6000–16000 рублей; бюджет 5000 ниже него.'),
         call(CONTEXT_TOOL_NAME,reviewed(priced))],[place('lounge',NEAR),price])
@@ -310,14 +290,14 @@ def test_last_place_evidence_survives_an_intermediate_weather_turn():
     assert 'fixture_weather' in history and 'Synthetic place' in history and NEAR in history
 
 
-def test_repaired_answer_gets_a_fresh_memory_and_completion_check():
-    first=empty_context();final=empty_context();final['city']='Москва'
+def test_source_repair_reuses_saved_conditions_without_an_extra_memory_call():
+    first=empty_context();first['city']='Москва'
     a=agent([search(),answer('Найден кандидат.'),call(CONTEXT_TOOL_NAME,reviewed(first)),
-        answer('Кандидат [S1].'),call(CONTEXT_TOOL_NAME,reviewed(final))],[place('near',NEAR)])
+        answer('Кандидат [S1].')],[place('near',NEAR)])
     a.llm.context_sync_required=True
     reply=asyncio.run(a.ask('Найди место в Москве.'))
     assert NEAR in reply.text and a.context['city']=='Москва'
-    assert a.llm.complete.await_count==5
+    assert a.llm.complete.await_count==4
 
 
 def test_unspecified_walking_time_is_not_saved_as_a_user_constraint():
@@ -338,7 +318,7 @@ def test_reviewed_strict_recommendations_use_route_facts_and_allow_declined_ment
     a.llm.context_sync_required=True
     reply=asyncio.run(a.ask('Кафе, не больше 10 минут пешком от метро.'))
     assert 'не укладывается' in reply.text and a.session.call_tool.await_count==3
-    repair_request=a.llm.complete.await_args_list[-2].args[0]
+    repair_request=a.llm.complete.await_args_list[-1].args[0]
     assert 'within_limit' in repair_request[1]['content'] and 'false' in repair_request[1]['content']
 
 
@@ -435,29 +415,8 @@ def test_strict_limit_checks_other_returned_candidates_without_more_model_steps(
     assert FAR in reply.text and '8 минут' in reply.text
 
 
-def test_fallible_completion_critic_cannot_force_endless_unrequested_checks():
-    snapshot=empty_context()
-    a=agent([answer('Кандидат [S1].'),call(CONTEXT_TOOL_NAME,reviewed(snapshot,'continue',
-        ['Нужны дополнительные сведения'],'Проверь описание.')),
-        search(),answer('Проверенный кандидат [S1].'),call(CONTEXT_TOOL_NAME,reviewed(snapshot,'continue',
-        ['Хотелось бы ещё сведений'],'Ищи ещё.'))],[place('near',NEAR)])
-    a.llm.context_sync_required=True
-    reply=asyncio.run(a.ask('Предложи место для прогулки.'))
-    assert 'Проверенный кандидат' in reply.text and a.session.call_tool.await_count==1
-    assert reply.observations['semantic_review_unresolved'] is True
 
 
-def test_synthetic_memory_checks_are_not_advertised_or_replayed_to_the_actor():
-    snapshot=empty_context()
-    a=agent([answer('Условия понял.'),call(CONTEXT_TOOL_NAME,reviewed(snapshot,'continue',
-        ['Нужен поиск'],'Найди место.')),search(),answer('Место [S1].'),
-        call(CONTEXT_TOOL_NAME,reviewed(snapshot))],[place('near',NEAR)])
-    a.llm.context_sync_required=True
-    asyncio.run(a.ask('Найди место.'))
-    for request in a.llm.complete.await_args_list:
-        if not request.args[1]:continue
-        assert not any(call['function']['name']==CONTEXT_TOOL_NAME
-                       for message in request.args[0] for call in message.get('tool_calls') or [])
 
 
 def test_returned_route_ids_constrain_the_next_model_request_and_duplicates_are_reused():
@@ -480,3 +439,12 @@ def test_near_reference_is_converted_to_grounded_coordinates_before_mcp():
     args=a.session.call_tool.await_args.kwargs['arguments']
     assert args['locationBias']=={'circle':{'center':POINT,'radiusMeters':1200}}
     assert 'near' not in args and 'radiusMeters' not in args
+
+
+def test_memory_service_failure_does_not_discard_a_valid_answer_or_append_stale_budget():
+    a=agent([search(),answer('Место [S1].'),AgentError('Synthetic memory failure')],[place('near',NEAR)])
+    a.context['budget'].update(amount=3000,currency='RUB',scope='total')
+    a.llm.context_sync_required=True
+    reply=asyncio.run(a.ask('Теперь бюджет 5000 рублей.'))
+    assert NEAR in reply.text and '3000' not in reply.text
+    assert reply.observations['context_sync_failed'] is True

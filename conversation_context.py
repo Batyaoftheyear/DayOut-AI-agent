@@ -7,9 +7,16 @@ import copy
 import math
 
 from jsonschema import validate
-from response_review import RESPONSE_CHECK_SCHEMA
 
 CONTEXT_TOOL_NAME='remember_context'
+MEMORY_PROMPT='''Сохрани условия пользователя в JSON по схеме. Это память, не план и не оценка ответа.
+Читай реальные user_messages. Последние изменения заменяют старые. Не добавляй пожелания из описаний мест или от себя.
+preferences — свободный список актуальных пожеланий. Не превращай вид кухни в тематику развлечений.
+city и area — область текущей задачи; однозначно определённый через Maps город можно сохранить. При неизвестности пустая строка.
+Новая самостоятельная задача не наследует пеший предел от прежнего метро. Если пользователь не задавал время, proximity={minutes:null,strict:false}.
+«Не больше N минут пешком» сохраняется как N и strict=true. Служебные 15 минут не являются пользовательским условием.
+budget: сохрани сумму, валюту, единицу и людей; изменения заменяют старые, clear отменяет сумму, но сохраняет людей.
+Запросы только запомнить условия тоже обновляют память. Никаких инструментов, советов, требований к ответу или новых действий.'''
 CONTEXT_SCHEMA={
     'type':'object','additionalProperties':False,
     'properties':{
@@ -40,8 +47,6 @@ CONTEXT_TOOL={'type':'function','function':{'name':CONTEXT_TOOL_NAME,
 CONTEXT_TOOL['function']['parameters']=copy.deepcopy(CONTEXT_SCHEMA)
 CONTEXT_TOOL['function']['parameters']['required']=list(CONTEXT_SCHEMA['properties'])
 CONTEXT_TOOL['function']['parameters']['properties']['budget']['required']=list(CONTEXT_SCHEMA['properties']['budget']['properties'])
-CONTEXT_TOOL['function']['parameters']['properties']['response_check']=RESPONSE_CHECK_SCHEMA
-CONTEXT_TOOL['function']['description']+=' При проверке готового черновика заполни response_check: answer или continue с недостающими данными и следующим действием.'
 
 
 def empty_context():
