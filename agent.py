@@ -20,7 +20,7 @@ from literal_constraints import bind_literals
 from geo import distance_meters, locations, seconds as duration_seconds
 
 ALLOWED_TOOLS = {"search_places", "lookup_weather", "compute_routes", "resolve_names", "resolve_maps_urls"}
-AGENT_RELEASE = "2026-11-10-r27"
+AGENT_RELEASE = "2026-11-10-r28"
 # Qwen remains available for an explicit rollback. No automatic model fallback.
 REVIEWED_MODEL = "qwen/qwen3.8-27b"
 SUPPORTED_MODELS = frozenset({REVIEWED_MODEL, GPT_OSS_MODEL})
@@ -630,8 +630,7 @@ class DayOutAgent:
                 pairs.append({'from':start,'to':end,'distance_meters':round(distance_meters(points[start],points[end]))})
         material={'dialogue':dialogue,'latest_query':state.query,'previous_context':state.context,
                   'draft':state.proposed_text,'tool_evidence':evidence,'straight_line_distances_not_walk_times':pairs,
-                  'source_labels':list(state.refs.values()),
-                  'feedback':[m['content'] for m in state.messages if m.get('app_internal') in {'repair','continue'}][-2:]}
+                  'source_labels':list(state.refs.values())}
         response=await self.llm.complete([{'role':'system','content':RESPONSE_REVIEW_PROMPT},
             {'role':'user','content':json.dumps(replace_strings(material,state.refs),ensure_ascii=False,separators=(',',':'))}],
             [],False,max_tokens=1800,response_format={'type':'json_schema','json_schema':{

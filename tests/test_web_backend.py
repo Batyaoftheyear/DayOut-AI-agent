@@ -240,7 +240,7 @@ def test_yandex_web_round_trip_uses_same_agent_and_isolates_groq_quota(monkeypat
     assert len(requests) == 3 and len(searches) == 1
     assert all(body["model"] == config.model and "max_tokens" in body
                and "reasoning_effort" not in body for body in requests)
-    assert all({t['function']['name'] for t in body['tools']}=={'search_places','remember_context'} for body in requests if body.get('tools'))
+    assert all({t['function']['name'] for t in body['tools']}=={'search_places'} for body in requests if body.get('tools'))
     assert requests[-1]['response_format']['json_schema']['name']=='dayout_response_review' and 'tools' not in requests[-1]
 
 

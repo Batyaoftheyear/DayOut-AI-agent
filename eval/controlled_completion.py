@@ -27,7 +27,16 @@ async def run(output):
          ['Найди конкретные павильоны и рестораны на ВДНХ, азиатская кухня.'],
          {'summary':'Общая выдача; конкретные павильоны и рестораны ещё не проверены.'})
     ]
+    cases.extend([
+        ('ordinary_itinerary_ready','Сделай сценарий вечера с девушкой в синтетическом парке. Чем заняться и где поесть?',
+         'Осмотрите синтетический музей [S1], затем поужинайте в синтетическом кафе [S2]: в описании отмечена уютная атмосфера. Время перехода не проверено.',[],
+         {'summary':'Синтетический музей [0] и синтетическое кафе [1] находятся в синтетическом парке. В кафе уютная атмосфера. Цены и часы не запрашивались.'}),
+        ('price_answer_ready','Бюджет 5000 рублей на двоих. Проверь цены выбранного синтетического лаунджа.',
+         'Диапазон расходов 3000–8000 рублей на человека [S1]. Для двоих нижняя граница — 6000 рублей, больше общего бюджета 5000 рублей. Это диапазон, а не гарантированный итог заказа.',[],
+         {'summary':'Синтетический лаундж [0]: диапазон расходов 3000–8000 рублей на человека.'})
+    ])
     report={'metadata':{'scope':'real_llm_fictional_completion_review','code_sha256':fingerprint(),
+        'model':config.model.replace('gpt://'+config.folder_id+'/',''),
         'fixture_sha256':hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
         'started_at':datetime.now(MOSCOW_TZ).isoformat(),'external_maps_requests':0,'raw_maps_content_saved':False},'results':[]}
     async with httpx.AsyncClient(headers=config.headers,timeout=60) as client:
@@ -45,14 +54,16 @@ async def run(output):
             a=DayOutAgent(None,llm,{})
             result=json.loads(await a.review_draft(state))
             review=result['response_check']
+            print('Synthetic review: '+json.dumps(review,ensure_ascii=True),flush=True)
+            expected='answer' if ident.endswith('_ready') else 'continue'
             row={'case':ident,'action':review['action'],'missing_count':len(review['missing']),
-                 'continues_incomplete_draft':review['action']=='continue' and bool(review['missing'])}
+                 'expected_action':expected,'passed':review['action']==expected and (not review['missing'] if expected=='answer' else bool(review['missing']))}
             report['results'].append(row)
             report['usage']=dict(llm.usage_totals)
             output.parent.mkdir(parents=True,exist_ok=True)
             output.write_text(json.dumps(report,indent=2)+'\n',encoding='utf-8')
             print(json.dumps(row),flush=True)
-    return 0 if all(r['continues_incomplete_draft'] for r in report['results']) else 1
+    return 0 if all(r['passed'] for r in report['results']) else 1
 
 
 def main():
