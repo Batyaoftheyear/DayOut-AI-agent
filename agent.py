@@ -20,7 +20,7 @@ from literal_constraints import bind_literals
 from geo import distance_meters, locations, seconds as duration_seconds
 
 ALLOWED_TOOLS = {"search_places", "lookup_weather", "compute_routes", "resolve_names", "resolve_maps_urls"}
-AGENT_RELEASE = "2026-11-10-r25"
+AGENT_RELEASE = "2026-11-10-r26"
 # Qwen remains available for an explicit rollback. No automatic model fallback.
 REVIEWED_MODEL = "qwen/qwen3.8-27b"
 SUPPORTED_MODELS = frozenset({REVIEWED_MODEL, GPT_OSS_MODEL})
@@ -434,7 +434,7 @@ class GroqClient:
             response = await self.client.get(f"{self.api_url}/models")
             response.raise_for_status()
             data = response.json()
-            if self.model not in {item["id"] for item in data["data"]}:
+            if not self.model_available({item["id"] for item in data["data"]}):
                 raise AgentError(f"Модель отсутствует в списке {self.provider}. Проверьте настройку модели.")
         except (httpx.HTTPError, KeyError, ValueError, TypeError) as error:
             raise self.convert_error(error) from None
@@ -445,6 +445,9 @@ class GroqClient:
             ], [], allow_tools=False, max_tokens=64)
         except QuotaPauseError as error:
             raise QuotaPauseError(str(error).replace("/retry", "/check")) from None
+
+    def model_available(self, model_ids):
+        return self.model in model_ids
 
     def check_quota_pause(self):
         delay = self.blocked_until - monotonic()

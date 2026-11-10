@@ -45,6 +45,12 @@ class YandexClient(GroqClient):
     def request_options(self):
         return {"temperature": 0.2}
 
+    def model_available(self, model_ids):
+        # Generation accepts the base URI; the registry advertises /latest.
+        # Do not equate dated versions or different folders/models.
+        canonical = self.model.removesuffix('/latest')
+        return any(item.removesuffix('/latest') == canonical for item in model_ids)
+
     def update_limits(self, headers):
         # Groq's token-window headers and 8000-TPM assumptions do not apply here.
         # Actual HTTP 429/Retry-After is still handled by the shared protocol.
