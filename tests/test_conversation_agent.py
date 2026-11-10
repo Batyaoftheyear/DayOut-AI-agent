@@ -445,3 +445,28 @@ def test_fallible_completion_critic_cannot_force_endless_unrequested_checks():
     reply=asyncio.run(a.ask('Предложи место для прогулки.'))
     assert 'Проверенный кандидат' in reply.text and a.session.call_tool.await_count==1
     assert reply.observations['semantic_review_unresolved'] is True
+
+
+def test_synthetic_memory_checks_are_not_advertised_or_replayed_to_the_actor():
+    snapshot=empty_context()
+    a=agent([answer('Условия понял.'),call(CONTEXT_TOOL_NAME,reviewed(snapshot,'continue',
+        ['Нужен поиск'],'Найди место.')),search(),answer('Место [S1].'),
+        call(CONTEXT_TOOL_NAME,reviewed(snapshot))],[place('near',NEAR)])
+    a.llm.context_sync_required=True
+    asyncio.run(a.ask('Найди место.'))
+    for request in a.llm.complete.await_args_list:
+        if not request.args[1]:continue
+        assert not any(call['function']['name']==CONTEXT_TOOL_NAME
+                       for message in request.args[0] for call in message.get('tool_calls') or [])
+
+
+def test_returned_route_ids_constrain_the_next_model_request_and_duplicates_are_reused():
+    a=agent([search(),walking({'placeId':'near'}),walking({'placeId':'near'}),
+        answer('Кафе [S1], 8 минут пешком [S2].'),
+        call(CONTEXT_TOOL_NAME,reviewed(empty_context()))],[place('near',NEAR),route(480)])
+    a.llm.context_sync_required=True
+    reply=asyncio.run(a.ask('Проверь путь до кафе.'))
+    definitions=a.llm.complete.await_args_list[1].args[1]
+    schema=next(d['function']['parameters'] for d in definitions if d['function']['name']=='compute_routes')
+    assert schema['properties']['destination']['properties']['placeId']['enum']==['near']
+    assert a.session.call_tool.await_count==2 and reply.tools==['search_places','compute_routes']

@@ -148,7 +148,8 @@ async def _perform(config, memory, gate, action, query, emit):
                 memory.paused = False
             else:
                 event("Подключаю поиск мест…")
-                async with httpx.AsyncClient(headers={"X-Goog-Api-Key": config.maps_key}, timeout=45) as maps:
+                async with httpx.AsyncClient(headers={"X-Goog-Api-Key": config.maps_key}, timeout=45,
+                                             transport=httpx.AsyncHTTPTransport(retries=1)) as maps:
                     async with streamable_http_client(MCP_URL, http_client=maps) as (read, write, _):
                         async with ClientSession(read, write, read_timeout_seconds=timedelta(seconds=45)) as session:
                             async with asyncio.timeout(60):
