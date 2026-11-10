@@ -7,7 +7,7 @@ RESPONSE_CHECK_SCHEMA={
         'action':{'enum':['answer','continue']},
         'missing':{'type':'array','maxItems':8,'items':{'type':'string','maxLength':300}},
         'next_step':{'type':'string','maxLength':800},
-        'recommended_sources':{'type':'array','maxItems':10,'uniqueItems':True,
+        'recommended_sources':{'type':'array','maxItems':10,
             'items':{'type':'string','pattern':r'^\[S\d+\]$'}}
     }
 }
