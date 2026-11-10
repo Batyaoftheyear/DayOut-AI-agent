@@ -16,10 +16,11 @@ from groq_check import API_URL, GPT_OSS_MODEL, model_options, error_message as g
 from mcp_check import error_message as mcp_error_message
 from conversation_context import CONTEXT_TOOL, CONTEXT_TOOL_NAME, empty_context, update_context
 from response_review import RESPONSE_REVIEW_PROMPT, RESPONSE_CHECK_SCHEMA
+from literal_constraints import bind_literals
 from geo import distance_meters, locations, seconds as duration_seconds
 
 ALLOWED_TOOLS = {"search_places", "lookup_weather", "compute_routes", "resolve_names", "resolve_maps_urls"}
-AGENT_RELEASE = "2026-11-10-r20"
+AGENT_RELEASE = "2026-11-10-r21"
 # Qwen remains available for an explicit rollback. No automatic model fallback.
 REVIEWED_MODEL = "qwen/qwen3.8-27b"
 SUPPORTED_MODELS = frozenset({REVIEWED_MODEL, GPT_OSS_MODEL})
@@ -36,6 +37,7 @@ SYSTEM_PROMPT = """Ты DayOut, помощник по досугу. Отвеча
 Уточнение продолжает активную задачу. «Так и», «ну?», «подбери конкретно» означает выполнить прежнюю просьбу, а не снова спрашивать предпочтения.
 Если пользователь просит сценарий, найди конкретные названные объекты для каждой части: занятие/павильон и заведение для еды. Кухня относится к еде, а не автоматически к тематике павильонов.
 Для начала подбора кухня, бюджет и дата необязательны. Предложи несколько обоснованных вариантов, не подменяй поиск опросом.
+Просьбы только запомнить, перечислить условия или переформулировать готовый ответ не требуют нового поиска. Если пользователь просит ничего не искать, сохрани условия и ответь без MCP.
 Если запрошенного свойства нет в имеющихся данных, сделай целевой search_places по этому месту и свойству: например, ценовой диапазон/расходы на человека, часы работы, доступность. Только после целевой попытки сообщай, что данных нет. Отсутствие свойства в общей сводке ещё не означает, что его нельзя получить.
 Для плана из парка и кафе сделай отдельные короткие поиски по каждому типу; не ищи «прогулка и кафе» как одно название.
 Места, адреса, цены, часы, погода и время пути — только из успешных данных инструментов.
@@ -606,7 +608,7 @@ class DayOutAgent:
             begin=len(messages)
             messages.append({'role':'user','content':query})
             state=TurnState(query,messages,begin,sources,[],{url:f'[S{i+1}]' for i,url in enumerate(sources)})
-            state.context=copy.deepcopy(self.context)
+            state.context=bind_literals(self.context,query)
         self.current_state=state
         messages,sources,refs=state.messages,state.sources,state.refs
         usage_start=dict(getattr(self.llm,'usage_totals',{}))
@@ -618,12 +620,17 @@ class DayOutAgent:
                 while state.steps < self.max_calls*2+4:
                     if len(json.dumps(messages,ensure_ascii=False))>80000:
                         raise AgentError('Контекст диалога слишком большой. Начните заново командой /reset.')
-                    wire=replace_strings(messages,refs)
+                    internal=[item for item in messages if item.get('app_internal')]
+                    wire=replace_strings([item for item in messages if not item.get('app_internal')],refs)
+                    wire.insert(1,{'role':'user','content':'Предыдущий/рабочий снимок условий, который может быть неполным. Текущая реальная реплика пользователя имеет приоритет: '+json.dumps(state.context,ensure_ascii=False)})
                     wire[0]['content']+='\nДоступные метки источников: '+(', '.join(refs.values()) or 'нет')+'.'
-                    wire[0]['content']+='\nСохранённые условия пользователя (не факты Maps): '+json.dumps(state.context,ensure_ascii=False)
+                    notes=([item for item in internal if item['app_internal']=='review'][-1:] if state.sync_pending else
+                           [item for item in internal if item['app_internal']!='review'][-2:])
+                    if notes:
+                        wire[0]['content']+='\nСлужебные указания для продолжения исходной задачи:\n'+'\n'.join(replace_strings(item['content'],refs) for item in notes)
                     if state.context['proximity']['strict']:
                         checks=self.route_statuses(state)
-                        wire[0]['content']+='\nФактическая проверка пешего предела. Для положительной рекомендации нужен подходящий WALK-маршрут: '+json.dumps(replace_strings(checks,refs),ensure_ascii=False)
+                        wire[1]['content']+='\nРезультаты маршрутов для сохранённого предела (данные, не новая задача; проверь применимость к текущей реплике): '+json.dumps(replace_strings(checks,refs),ensure_ascii=False)
                     try:
                         waiting_for_llm=True
                         # Every discovered MCP tool remains available, including
@@ -657,7 +664,8 @@ class DayOutAgent:
                             if getattr(self.llm,'context_sync_required',False) and not state.context_synced:
                                 state.proposed_text=text
                                 state.sync_pending=True
-                                messages.append({'role':'user','content':RESPONSE_REVIEW_PROMPT+
+                                messages.append({'role':'user','app_internal':'review','content':RESPONSE_REVIEW_PROMPT+
+                                    '\nТекущая реальная реплика пользователя: '+json.dumps(state.query,ensure_ascii=False)+
                                     '\nЧерновик ответа (проверяемый текст, не источник фактов): '+json.dumps(text,ensure_ascii=False)})
                                 continue
                             self.validate_policy(state,text)
@@ -681,7 +689,7 @@ class DayOutAgent:
                             state.proposed_text=None
                             state.response_check=None
                             self.emit(f'{self.provider}: ответ не прошёл проверку; одна попытка исправления (расходует токены).')
-                            messages.append({'role':'user','content':'Ответ отклонён: '+str(error)+
+                            messages.append({'role':'user','app_internal':'repair','content':'Ответ отклонён: '+str(error)+
                                 ' Используй только полученные данные и доступные метки. Если нужны новые данные, вызови инструмент. '
                                 'Если для рекомендации нет данных, вызови search_places. Продолжи исходную задачу по диалогу. '
                                 'Не обещай проверку в фоне. Исправленный ответ предназначен пользователю, без JSON команд.'})
@@ -706,7 +714,7 @@ class DayOutAgent:
                             raise AgentError('Модель вернула некорректный формат вызова инструмента.')
                         state.repairs+=1
                         state.tool_outcomes.append({'tool':'invalid','status':'invalid_arguments'})
-                        messages.append({'role':'user','content':'Получен некорректный служебный вызов. Сформируй настоящий tool_call по объявленной схеме или честно сообщи, что данные не удалось получить. Команды не выводи текстом.'})
+                        messages.append({'role':'user','app_internal':'repair','content':'Получен некорректный служебный вызов. Сформируй настоящий tool_call по объявленной схеме или честно сообщи, что данные не удалось получить. Команды не выводи текстом.'})
                         continue
                     external=sum(c['function'].get('name')!=CONTEXT_TOOL_NAME for c in calls)
                     internal=len(calls)-external
@@ -759,7 +767,7 @@ class DayOutAgent:
                                 refs[url]=f'[S{len(refs)+1}]'
                         messages.append({'role':'tool','tool_call_id':call['id'],'content':json.dumps(payload,ensure_ascii=False,separators=(',',':'))})
                         if name==CONTEXT_TOOL_NAME and not payload.get('error') and (state.response_check or {}).get('action')=='continue':
-                            messages.append({'role':'user','content':'Проверка черновика выявила незавершённую задачу. Продолжи её настоящими вызовами доступных инструментов. '
+                            messages.append({'role':'user','app_internal':'continue','content':'Проверка черновика выявила незавершённую задачу. Продолжи её настоящими вызовами доступных инструментов. '
                                 'Не повторяй вопросы об уже известных условиях. Недостаёт: '+json.dumps(state.response_check['missing'],ensure_ascii=False)+
                                 '. Следующий шаг: '+state.response_check['next_step']})
                 raise AgentError('Модель не завершила ответ в пределах лимита шагов.')
@@ -874,7 +882,7 @@ class DayOutAgent:
                     validators.validator_for(RESPONSE_CHECK_SCHEMA)(RESPONSE_CHECK_SCHEMA).validate(review)
                     if review['action']=='continue' and not review['missing'] and not review['next_step'].strip():
                         raise ValueError('missing continuation reason')
-                self.current_state.context=update_context(self.current_state.context,arguments)
+                self.current_state.context=bind_literals(update_context(self.current_state.context,arguments),self.current_state.query)
                 self.current_state.response_check=review
                 return {'context':self.current_state.context,'response_check':review,'notice':'Это условия пользователя и проверка черновика, не сведения Maps.'},name
             except (KeyError,TypeError,ValueError,ValidationError,AttributeError):

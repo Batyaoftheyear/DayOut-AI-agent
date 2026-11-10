@@ -235,10 +235,11 @@ def test_unfinished_itinerary_is_reviewed_against_the_actual_draft_and_resumes_t
         call(CONTEXT_TOOL_NAME,reviewed(snapshot))],[place('pavilion',ANCHOR),place('asian',NEAR)])
     a.llm.context_sync_required=True
     reply=asyncio.run(a.ask('Сценарий вечера на ВДНХ: конкретные павильоны и ресторан, азиатская кухня.'))
-    checkpoint=a.llm.complete.await_args_list[1].args[0][-1]['content']
+    checkpoint=a.llm.complete.await_args_list[1].args[0][0]['content']
     assert draft in checkpoint and a.session.call_tool.await_count==2
     assert ANCHOR in reply.text and NEAR in reply.text and '?' not in reply.text
     assert a.context['preferences']==['азиатская кухня']
+    assert all(not message.get('app_internal') for request in a.llm.complete.await_args_list for message in request.args[0])
     assert all({d['function']['name'] for d in c.args[1]}==ALLOWED_TOOLS|{CONTEXT_TOOL_NAME}
                for c in a.llm.complete.await_args_list)
 
@@ -326,7 +327,7 @@ def test_reviewed_strict_recommendations_use_route_facts_and_allow_declined_ment
     reply=asyncio.run(a.ask('Кафе, не больше 10 минут пешком от метро.'))
     assert 'не укладывается' in reply.text and a.session.call_tool.await_count==3
     repair_request=a.llm.complete.await_args_list[-2].args[0]
-    assert 'within_limit' in repair_request[0]['content'] and 'false' in repair_request[0]['content']
+    assert 'within_limit' in repair_request[1]['content'] and 'false' in repair_request[1]['content']
 
 
 def test_new_independent_place_task_can_clear_an_old_anchor_bound_limit():
@@ -343,3 +344,20 @@ def test_new_independent_place_task_can_clear_an_old_anchor_bound_limit():
     reply=asyncio.run(run())
     assert NEAR in reply.text and a.context['proximity']['minutes'] is None
     assert a.context['preferences']==['азиатская кухня'] and a.session.call_tool.await_count==1
+
+
+def test_explicit_currency_and_walking_bound_survive_a_wrong_model_snapshot():
+    wrong=empty_context();wrong['budget'].update(amount=5000,people=2,scope='total')
+    a=agent([search(),walking({'placeId':'near'}),answer('Кафе [S1], 8 минут пешком [S2]. Цены неизвестны.'),
+        call(CONTEXT_TOOL_NAME,reviewed(wrong,recommended_sources=['[S1]']))],[place('near',NEAR),route(480)])
+    a.llm.context_sync_required=True
+    reply=asyncio.run(a.ask('Найди кафе, бюджет 5000 рублей на двоих, не больше 10 минут пешком от метро.'))
+    assert a.context['budget']['currency']=='RUB' and a.context['proximity']=={'minutes':10,'strict':True}
+    assert '5000 ₽' in reply.text and 'валюта не уточнена' not in reply.text
+
+
+def test_literal_binding_is_conservative_for_ambiguous_currency_and_other_durations():
+    from literal_constraints import bind_literals
+    context=empty_context();context['budget']['amount']=5000
+    actual=bind_literals(context,'Бюджет указан в RUB или USD? После прогулки пешком нужен фильм не больше 120 минут.')
+    assert actual['budget']['currency']=='unknown' and actual['proximity']['minutes'] is None

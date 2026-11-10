@@ -388,7 +388,8 @@ def test_fabricated_source_before_search_gets_one_repair_and_real_evidence():
     agent.session.call_tool.assert_awaited_once()
     first, repaired = agent.llm.complete.await_args_list[:2]
     assert "Доступные метки источников: нет." in first.args[0][0]["content"]
-    assert "вызови search_places" in repaired.args[0][-1]["content"]
+    assert "вызови search_places" in repaired.args[0][0]["content"]
+    assert repaired.args[0][-1] == first.args[0][-1]
     assert "UNTRUSTED-FABRICATION" not in json.dumps(repaired.args[0])
     assert "UNTRUSTED-FABRICATION" not in json.dumps(agent.turns)
     assert len([text for text in output if "одна попытка" in text]) == 1
