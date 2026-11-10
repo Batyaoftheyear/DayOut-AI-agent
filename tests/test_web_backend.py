@@ -28,7 +28,8 @@ def install_network(monkeypatch, fail_once=False, quota_once=False):
         requests.append(body)
         if isinstance(body.get('tool_choice'),dict) and body['tool_choice'].get('function',{}).get('name')=='remember_context':
             message={'role':'assistant','content':None,'tool_calls':[{'id':'sync','type':'function','function':{
-                'name':'remember_context','arguments':json.dumps(empty_context(),ensure_ascii=False)}}]}
+                'name':'remember_context','arguments':json.dumps(empty_context()|{
+                    'response_check':{'action':'answer','missing':[],'next_step':''}},ensure_ascii=False)}}]}
         elif body["messages"][0]["content"].startswith("Разбери текущую просьбу"):
             message = {"role": "assistant", "content": json.dumps({
                 "task": "search", "city": "Москва", "area": "", "activity": "кафе", "purpose": "встреча",

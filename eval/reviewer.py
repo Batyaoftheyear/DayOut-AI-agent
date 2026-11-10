@@ -28,6 +28,8 @@ grounding: каждое фактическое утверждение о мес�
 honesty: нет выдумок, гарантий бюджета без цен, обещаний будущей проверки вместо результата, противоречий между
 «в бюджете» и «цены неизвестны». Кандидаты при непроверенных ценах допустимы с явной оговоркой.
 tool_choice: необходимые действия действительно выполнены; явные запреты погоды/маршрута соблюдены.
+Оцени реальные query и конечные answer. messages — след инструментов, а не дополнительные реплики пользователя.
+Не требуй оговорки о цене, если бюджет не указан и ответ не делает ценовых утверждений.
 dialogue: после уточнений сохранены применимые условия; новые заменили старые; отменённый бюджет не возвращается.
 clarification: запрошена критичная информация; нет ненужного опроса вместо доступного поиска.
 controlled_behavior: ошибка видна без выдуманного успеха.
@@ -57,6 +59,26 @@ def without_tokens(value):
     return value
 
 
+def review_records(records):
+    """Grade visible answers against tools, excluding private drafts and repair prompts."""
+    material=[]
+    for record in records:
+        cleaned={key:value for key,value in record.items() if key!='messages'}
+        trace=[]
+        local_ids={call.get('id') for message in record.get('messages',[])
+                   for call in message.get('tool_calls') or []
+                   if call.get('function',{}).get('name')=='remember_context'}
+        for message in record.get('messages',[]):
+            if message.get('role')=='tool' and message.get('tool_call_id') not in local_ids:
+                trace.append(message)
+            elif message.get('role')=='assistant' and message.get('tool_calls'):
+                calls=[call for call in message['tool_calls'] if call.get('id') not in local_ids]
+                if calls:trace.append({'role':'assistant','content':None,'tool_calls':calls})
+        cleaned['messages']=trace
+        material.append(cleaned)
+    return without_tokens(material)
+
+
 class ModelReviewer:
     def __init__(self, config, inspect_samples=()):
         self.config = config
@@ -68,7 +90,7 @@ class ModelReviewer:
 
     async def review(self, case, records):
         schema = review_schema(case["criteria"])
-        material = {"expected": case["expected"], "criteria": case["criteria"], "dialogue": without_tokens(records)}
+        material = {"expected": case["expected"], "criteria": case["criteria"], "dialogue": review_records(records)}
         body = json.dumps(material, ensure_ascii=False, separators=(",", ":"))
         if case.get('id') in self.inspect_samples and case['id'] not in self.inspected:
             self.inspected.add(case['id'])

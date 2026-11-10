@@ -26,6 +26,10 @@ def answer(text):
     return {'role':'assistant','content':text}
 
 
+def reviewed(snapshot,action='answer',missing=(),next_step=''):
+    return snapshot|{'response_check':{'action':action,'missing':list(missing),'next_step':next_step}}
+
+
 def place(ident,url,title='Synthetic place'):
     return CallToolResult(content=[],structuredContent={'summary':title,'places':[
         {'id':ident,'place':'places/'+ident,'location':POINT,
@@ -73,6 +77,8 @@ def test_named_landmark_can_be_searched_without_a_city_or_preliminary_plan():
     '```json\n{"tool_calls":[{"name":"search_places"}]}\n```',
     '{"tool_name":"search_places","parameters":{"type":"park"}}',
     '[search_places: park Osaka]',
+    '`search_places({"textQuery":"ресторан азиатской кухни ВДНХ"})`',
+    'После получения данных подскажу места.\n```python\nsearch_places({"textQuery":"кафе"})\n```',
 ])
 def test_city_reply_resumes_actual_dialogue_and_protocol_text_is_repaired(fake):
     a=agent([answer('В каком городе искать места?'),answer(fake),
@@ -169,7 +175,7 @@ def test_context_is_synchronized_after_search_and_cannot_route_or_block_it():
     snapshot=empty_context()
     snapshot.update(city='Osaka',preferences=['можно с собакой'])
     snapshot['budget'].update(action='set',amount=3000,currency='RUB',scope='total',people=2)
-    a=agent([search(),answer('Кандидат [S1].'),call(CONTEXT_TOOL_NAME,snapshot)],[place('near',NEAR)])
+    a=agent([search(),answer('Кандидат [S1].'),call(CONTEXT_TOOL_NAME,reviewed(snapshot))],[place('near',NEAR)])
     a.llm.context_sync_required=True
     reply=asyncio.run(a.ask('Найди кафе в Осаке на двоих до 3000 рублей, можно с собакой.'))
     assert a.session.call_tool.await_count==1 and reply.tools==['search_places']
@@ -184,7 +190,7 @@ def test_early_optional_memory_does_not_skip_final_snapshot():
     final=empty_context()
     final['proximity']['strict']=True
     a=agent([call(CONTEXT_TOOL_NAME,first),answer('Условия сохранены.'),
-        call(CONTEXT_TOOL_NAME,final)],[])
+        call(CONTEXT_TOOL_NAME,reviewed(final))],[])
     a.llm.context_sync_required=True
     reply=asyncio.run(a.ask('Только до 15 минут пешком, больший путь не подходит. Пока не ищи.'))
     assert not reply.tools and a.context['proximity']['strict']
@@ -213,3 +219,86 @@ def test_strict_expansion_is_not_sent_to_maps_and_honest_refusal_is_allowed():
     sent=[c.args[0] for c in a.session.call_tool.await_args_list]
     assert sent==['search_places','search_places','compute_routes']
     assert 'не подходит' in reply.text and '20' in reply.text
+
+
+def test_unfinished_itinerary_is_reviewed_against_the_actual_draft_and_resumes_tools():
+    snapshot=empty_context();snapshot.update(city='Москва',area='ВДНХ',preferences=['азиатская кухня'])
+    draft='Погуляйте и посетите павильоны. Какую кухню предпочитаете?'
+    a=agent([answer(draft),call(CONTEXT_TOOL_NAME,reviewed(snapshot,'continue',
+        ['Нет конкретных павильонов и ресторанов'],'Найди конкретные павильоны и азиатский ресторан на ВДНХ.')),
+        call('search_places',{'textQuery':'павильоны ВДНХ Москва'}),
+        call('search_places',{'textQuery':'азиатский ресторан ВДНХ Москва'}),
+        answer('Павильон «Синтетический космос» [S1], затем ресторан «Синтетическая Азия» [S2].'),
+        call(CONTEXT_TOOL_NAME,reviewed(snapshot))],[place('pavilion',ANCHOR),place('asian',NEAR)])
+    a.llm.context_sync_required=True
+    reply=asyncio.run(a.ask('Сценарий вечера на ВДНХ: конкретные павильоны и ресторан, азиатская кухня.'))
+    checkpoint=a.llm.complete.await_args_list[1].args[0][-1]['content']
+    assert draft in checkpoint and a.session.call_tool.await_count==2
+    assert ANCHOR in reply.text and NEAR in reply.text and '?' not in reply.text
+    assert a.context['preferences']==['азиатская кухня']
+    assert all({d['function']['name'] for d in c.args[1]}==ALLOWED_TOOLS|{CONTEXT_TOOL_NAME}
+               for c in a.llm.complete.await_args_list)
+
+
+def test_specific_price_question_resumes_search_and_does_not_append_unknown_price_template():
+    before=empty_context();before.update(city='Москва',area='Люблино')
+    priced=empty_context();priced.update(city='Москва',area='Люблино')
+    priced['budget'].update(action='set',amount=5000,currency='RUB',scope='total',people=2)
+    price=place('lounge',NEAR,'Диапазон расходов 3000–8000 рублей на человека.')
+    a=agent([search(),answer('Лаундж [S1].'),call(CONTEXT_TOOL_NAME,reviewed(before)),
+        answer('Стоимость неизвестна.'),call(CONTEXT_TOOL_NAME,reviewed(priced,'continue',
+            ['Цена не проверена целевым запросом'],'Проверь расходы на человека у найденного лаунджа.')),
+        call('search_places',{'textQuery':'Лаундж Люблино Москва ценовой диапазон на человека'}),
+        answer('Диапазон 3000–8000 рублей на человека [S1]. Для двоих ориентир 6000–16000 рублей; бюджет 5000 ниже него.'),
+        call(CONTEXT_TOOL_NAME,reviewed(priced))],[place('lounge',NEAR),price])
+    a.llm.context_sync_required=True
+    async def run():
+        await a.ask('Найди лаундж в Люблино.')
+        return await a.ask('Бюджет 5000 рублей на двоих, укладываемся ли?')
+    reply=asyncio.run(run())
+    assert a.session.call_tool.await_count==2 and 'ценовой' in a.session.call_tool.await_args.kwargs['arguments']['textQuery']
+    assert '6000' in reply.text and '5000' in reply.text and 'Стоимость неизвестна' not in reply.text
+    assert 'Полная стоимость посещения не подтверждена' not in reply.text
+    assert a.context['budget']['people']==2
+
+
+def test_strict_ten_minutes_rejects_632_seconds_and_reports_ceil_minutes():
+    a=agent([call(CONTEXT_TOOL_NAME,{'proximity':{'minutes':10,'strict':True}}),
+        search(),search(1200),walking({'placeId':'near'}),answer('Подойдёт кафе [S2], до 10 минут пешком [S3].'),
+        answer('Подходящий вариант не подтверждён. Этот кандидат не подходит: 10 минут 32 секунды [S2] [S3].')],
+        [place('anchor',ANCHOR),place('near',NEAR),route(632)])
+    reply=asyncio.run(a.ask('Не больше 10 минут от метро.'))
+    checks=[p['app_route_check'][0] for _,p in __import__('agent').tool_evidence(a.turns[-1][0]) if p.get('app_route_check')]
+    assert checks[0]['duration_minutes_ceil']==11 and checks[0]['origin_urls']==[ANCHOR]
+    assert 'не подходит' in reply.text
+
+
+def test_unverified_candidate_under_strict_limit_requires_a_route_instead_of_a_caveat():
+    a=agent([call(CONTEXT_TOOL_NAME,{'proximity':{'minutes':10,'strict':True}}),search(),
+        answer('Вариант кафе [S1]. Время до метро неизвестно, уточните, важно ли это.'),
+        walking({'placeId':'near'}),answer('Кафе [S1], 8 минут пешком [S2].')],
+        [place('near',NEAR),route(480)])
+    reply=asyncio.run(a.ask('Кафе, строго не больше 10 минут от метро.'))
+    assert reply.tools==['search_places','compute_routes'] and '8 минут' in reply.text
+
+
+def test_last_place_evidence_survives_an_intermediate_weather_turn():
+    weather=CallToolResult(content=[],structuredContent={'summary':'Облачно','fixture_weather':True})
+    a=agent([search(),answer('Место [S1].'),call('lookup_weather',{'location':{'address':'Москва'}}),
+        answer('Облачно.')],[place('near',NEAR),weather])
+    async def run():
+        await a.ask('Найди кафе в Москве.')
+        await a.ask('Какая погода?')
+    asyncio.run(run())
+    history=json.dumps(a.build_history(),ensure_ascii=False)
+    assert 'fixture_weather' in history and 'Synthetic place' in history and NEAR in history
+
+
+def test_repaired_answer_gets_a_fresh_memory_and_completion_check():
+    first=empty_context();final=empty_context();final['city']='Москва'
+    a=agent([search(),answer('Найден кандидат.'),call(CONTEXT_TOOL_NAME,reviewed(first)),
+        answer('Кандидат [S1].'),call(CONTEXT_TOOL_NAME,reviewed(final))],[place('near',NEAR)])
+    a.llm.context_sync_required=True
+    reply=asyncio.run(a.ask('Найди место в Москве.'))
+    assert NEAR in reply.text and a.context['city']=='Москва'
+    assert a.llm.complete.await_count==5

@@ -7,6 +7,7 @@ import copy
 import math
 
 from jsonschema import validate
+from response_review import RESPONSE_CHECK_SCHEMA
 
 CONTEXT_TOOL_NAME='remember_context'
 CONTEXT_SCHEMA={
@@ -39,6 +40,8 @@ CONTEXT_TOOL={'type':'function','function':{'name':CONTEXT_TOOL_NAME,
 CONTEXT_TOOL['function']['parameters']=copy.deepcopy(CONTEXT_SCHEMA)
 CONTEXT_TOOL['function']['parameters']['required']=list(CONTEXT_SCHEMA['properties'])
 CONTEXT_TOOL['function']['parameters']['properties']['budget']['required']=list(CONTEXT_SCHEMA['properties']['budget']['properties'])
+CONTEXT_TOOL['function']['parameters']['properties']['response_check']=RESPONSE_CHECK_SCHEMA
+CONTEXT_TOOL['function']['description']+=' При проверке готового черновика заполни response_check: answer или continue с недостающими данными и следующим действием.'
 
 
 def empty_context():
