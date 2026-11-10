@@ -87,12 +87,14 @@ def test_failed_turn_is_rolled_back():
     asyncio.run(run())
 
 
-def test_call_limit_rejects_whole_batch_before_execution():
-    agent = fixture_agent([calling(tool_call(call_id="a"), tool_call(call_id="b"))], max_calls=1)
-    with pytest.raises(AgentError, match="лимит"):
-        asyncio.run(agent.ask("Тест"))
-    agent.session.call_tool.assert_not_awaited()
-    assert not agent.turns
+def test_call_limit_executes_only_allowed_requests_and_returns_feedback():
+    agent = fixture_agent([calling(tool_call(call_id="a"), tool_call(call_id="b")),
+                           answer("Подтверждённая фикстура [S1]")], max_calls=1)
+    reply=asyncio.run(agent.ask("Тест"))
+    agent.session.call_tool.assert_awaited_once()
+    assert reply.tools==['search_places'] and SOURCE in reply.text
+    assert [item['status'] for item in reply.observations['tool_outcomes']]==['success','budget_exhausted']
+    assert agent.llm.complete.await_args.args[2] is False
 
 
 def test_total_timeout_rolls_back():

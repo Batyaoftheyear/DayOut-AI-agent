@@ -20,7 +20,7 @@ from literal_constraints import bind_literals
 from geo import distance_meters, locations, seconds as duration_seconds
 
 ALLOWED_TOOLS = {"search_places", "lookup_weather", "compute_routes", "resolve_names", "resolve_maps_urls"}
-AGENT_RELEASE = "2026-11-10-r22"
+AGENT_RELEASE = "2026-11-10-r23"
 # Qwen remains available for an explicit rollback. No automatic model fallback.
 REVIEWED_MODEL = "qwen/qwen3.8-27b"
 SUPPORTED_MODELS = frozenset({REVIEWED_MODEL, GPT_OSS_MODEL})
@@ -87,7 +87,7 @@ TOOL_DESCRIPTIONS = {
         "сутки — date {year,month,day}; час — date+hour. Местное время. Горизонт 10 дней/120 часов. "
         "Для текущей интеграции не задавай languageCode: локализацию ответа сделает ассистент."
     ),
-    "compute_routes": "Маршрут: origin и destination (address/latLng/placeId), travelMode WALK или DRIVE.",
+    "compute_routes": "Маршрут: origin и destination (ровно одно address/latLng/placeId), travelMode WALK или DRIVE. Place ID копируй из id/place результата Maps. Ссылка Maps или название не являются Place ID; для названия используй address с городом. Начало — заданная конкретная точка, не центр района.",
     "resolve_names": "Получить Place ID по названиям/адресам в queries.",
     "resolve_maps_urls": "Получить Place ID по ссылкам Google Maps в urls.",
 }
@@ -254,6 +254,13 @@ def extract_payload(result, name: str):
         payload = {"places": []}
     if not payload:
         return {"error": "Инструмент вернул пустой ответ. Данные не подтверждены."}
+    def context_fields(value):
+        if isinstance(value,dict):
+            return {key:context_fields(item) for key,item in value.items()
+                    if key not in {'contentToken','content_token','retrievalToken','retrieval_token'}}
+        if isinstance(value,list):return [context_fields(item) for item in value]
+        return value
+    payload=context_fields(payload)
     original_places = payload.get("places") if isinstance(payload, dict) else None
     if name == "search_places" and isinstance(payload, dict) and isinstance(payload.get("places"), list):
         payload = dict(payload)
@@ -587,6 +594,46 @@ class DayOutAgent:
                              json.dumps(evidence,ensure_ascii=False,separators=(',',':'))})
         return messages
 
+    async def review_draft(self,state):
+        schema=copy.deepcopy(CONTEXT_TOOL['function']['parameters'])
+        schema['required'].append('response_check')
+        dialogue=[]
+        evidence=[]
+        for turn,_ in self.turns[-8:]:
+            dialogue.extend(m for m in turn if m.get('role')=='user' and not m.get('app_internal'))
+            dialogue.append(turn[-1])
+        dialogue.extend(m for m in state.messages[state.begin:] if m.get('role')=='user' and not m.get('app_internal'))
+        histories=[turn for turn,_ in self.turns[-3:]]+[state.messages[state.begin:]]
+        for messages in histories:
+            calls={call['id']:call['function'] for message in messages if message.get('role')=='assistant'
+                   for call in message.get('tool_calls') or []}
+            for message in messages:
+                if message.get('role')!='tool':continue
+                function=calls.get(message['tool_call_id'],{})
+                if function.get('name') not in ALLOWED_TOOLS:continue
+                evidence.append({'tool':function['name'],'arguments':function.get('arguments'),
+                                 'result':json.loads(message['content'])})
+        points={}
+        for item in evidence:
+            if item['tool']!='search_places':continue
+            for place in item['result'].get('places',[]):
+                if place.get('location'):
+                    for url in collect_sources(place):points[url]=place['location']
+        pairs=[]
+        recent=list(points)[-10:]
+        for i,start in enumerate(recent):
+            for end in recent[i+1:]:
+                pairs.append({'from':start,'to':end,'distance_meters':round(distance_meters(points[start],points[end]))})
+        material={'dialogue':dialogue,'latest_query':state.query,'previous_context':state.context,
+                  'draft':state.proposed_text,'tool_evidence':evidence,'straight_line_distances_not_walk_times':pairs,
+                  'source_labels':list(state.refs.values()),
+                  'feedback':[m['content'] for m in state.messages if m.get('app_internal') in {'repair','continue'}][-2:]}
+        response=await self.llm.complete([{'role':'system','content':RESPONSE_REVIEW_PROMPT},
+            {'role':'user','content':json.dumps(replace_strings(material,state.refs),ensure_ascii=False,separators=(',',':'))}],
+            [],False,max_tokens=1800,response_format={'type':'json_schema','json_schema':{
+                'name':'dayout_response_review','schema':schema}})
+        return response.get('content') or '{}'
+
     async def ask(self, query: str, resume=False):
         if not query.strip() or len(query)>4000:
             raise AgentError('Введите запрос от 1 до 4000 символов.')
@@ -641,18 +688,16 @@ class DayOutAgent:
                         waiting_for_llm=True
                         # Every discovered MCP tool remains available, including
                         # after a clarification or a failed answer repair.
-                        if state.proposed_text is not None and state.context_synced and not state.sync_pending:
+                        if state.sync_pending:
+                            review_text=await self.review_draft(state)
+                            message={'role':'assistant','content':None,'tool_calls':[{
+                                'id':f'review_{state.steps}','type':'function','function':{
+                                    'name':CONTEXT_TOOL_NAME,'arguments':review_text}}]}
+                        elif state.proposed_text is not None and state.context_synced:
                             message={'role':'assistant','content':state.proposed_text}
                             state.proposed_text=None
                         else:
-                            options={'tool_choice':{'type':'function','function':{'name':CONTEXT_TOOL_NAME}}} if state.sync_pending else {}
-                            definitions=self.tool_definitions
-                            if state.sync_pending:
-                                definitions=copy.deepcopy(definitions)
-                                memory=next(item['function']['parameters'] for item in definitions if item['function']['name']==CONTEXT_TOOL_NAME)
-                                memory['required'].append('response_check')
-                            message=await self.llm.complete(wire,definitions,
-                                state.sync_pending or len(state.called)<self.max_calls,**options)
+                            message=await self.llm.complete(wire,self.tool_definitions,len(state.called)<self.max_calls)
                         waiting_for_llm=False
                     except (GroqConnectionError,QuotaPauseError):
                         self.save_pending(state,usage_start,start)
@@ -726,8 +771,6 @@ class DayOutAgent:
                         continue
                     external=sum(c['function'].get('name')!=CONTEXT_TOOL_NAME for c in calls)
                     internal=len(calls)-external
-                    if len(state.called)+external>self.max_calls:
-                        raise AgentError('Превышен лимит MCP-вызовов за один запрос.')
                     if state.context_calls+internal>6:
                         raise AgentError('Модель слишком часто обновляет условия вместо ответа.')
                     calls=copy.deepcopy(calls)
@@ -761,8 +804,10 @@ class DayOutAgent:
                                     state.context_synced=True
                         else:
                             state.context_synced=False
-                            state.called.append(name)
-                            status=('invalid_arguments' if payload.get('error_kind')=='argument_validation' else 'error') if payload.get('error') else 'success'
+                            kind=payload.get('error_kind')
+                            if kind not in {'argument_validation','call_budget'}:
+                                state.called.append(name)
+                            status=('invalid_arguments' if kind=='argument_validation' else 'budget_exhausted' if kind=='call_budget' else 'error') if payload.get('error') else 'success'
                             if name=='search_places' and payload.get('places')==[] and status=='success':
                                 status='empty'
                             state.tool_outcomes.append({'tool':name,'status':status})
@@ -946,11 +991,38 @@ class DayOutAgent:
             if not isinstance(arguments,dict):
                 raise ValueError('arguments must be an object')
             validate_tool_semantics(name,arguments)
+            if name=='compute_routes':
+                evidence=[item for turn,_ in self.turns for item in tool_evidence(turn)]
+                if self.current_state:evidence.extend(tool_evidence(self.current_state.messages[self.current_state.begin:]))
+                places=[p for n,data in evidence if n=='search_places' for p in data.get('places',[])]
+                ids=set()
+                def returned_ids(value):
+                    if isinstance(value,dict):
+                        for k,v in value.items():
+                            if k in {'id','place','placeId','place_id'} and isinstance(v,str):ids.add(v.removeprefix('places/'))
+                            returned_ids(v)
+                    elif isinstance(value,list):
+                        for v in value:returned_ids(v)
+                for n,data in evidence:
+                    if n in {'search_places','resolve_names','resolve_maps_urls'}:returned_ids(data)
+                for field in ('origin','destination'):
+                    endpoint=arguments[field]
+                    ident=endpoint.get('placeId')
+                    if not ident or ident in ids:continue
+                    match=next((p for p in places if ident in collect_sources(p) or ident.casefold() in {
+                        title.removesuffix(' - Google Maps').casefold() for title in collect_sources(p).values()}),None)
+                    if match:
+                        endpoint['placeId']=match.get('id') or str(match['place']).removeprefix('places/')
+                    elif not self.current_state or ident not in self.current_state.query:
+                        hint=f'Поле {field}.placeId не подтверждено Maps. Копируй id/place из search_places/resolve_names. Если известны только название и город, используй {field}={{address:"точное название, город"}}, а не выдуманный Place ID.'
+                        raise ValueError('ungrounded route place id')
         except (KeyError,TypeError,ValueError,ValidationError,AttributeError) as error:
             location='.'.join(map(str,error.absolute_path)) if isinstance(error,ValidationError) else ''
             return {'error':f'Некорректные аргументы {name}'+(f' в поле {location}' if location else '')+
                 '. '+hint,
                 'error_kind':'argument_validation'},name
+        if self.current_state and len(self.current_state.called)>=self.max_calls:
+            return {'error':'Лимит реальных MCP-вызовов исчерпан. Заверши ответ по полученным данным; не обещай новые проверки.','error_kind':'call_budget'},name
         self.emit(f'MCP → {name}')
         function['arguments']=json.dumps(arguments,ensure_ascii=False,separators=(',',':'))
         try:

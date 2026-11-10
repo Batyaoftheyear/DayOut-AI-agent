@@ -31,7 +31,8 @@ def reviewed(snapshot,action='answer',missing=(),next_step='',recommended_source
                                      'recommended_sources':list(recommended_sources)}}
 
 
-def place(ident,url,title='Synthetic place'):
+def place(ident,url,title=None):
+    title=title or ('Synthetic anchor' if ident=='anchor' else 'Synthetic place')
     return CallToolResult(content=[],structuredContent={'summary':title,'places':[
         {'id':ident,'place':'places/'+ident,'location':POINT,
          'attribution':{'title':title+' - Google Maps','url':url}}]})
@@ -50,7 +51,16 @@ def agent(responses,results):
             'travelMode':{'enum':['WALK','DRIVE']}},'required':['origin','destination','travelMode']},
         'lookup_weather':{'type':'object'},'resolve_names':{'type':'object'},'resolve_maps_urls':{'type':'object'}}
     tools={name:Tool(name=name,inputSchema=schema) for name,schema in schemas.items()}
-    llm=SimpleNamespace(planning_enabled=True,complete=AsyncMock(side_effect=responses))
+    values=iter(responses)
+    async def complete(*args,**kwargs):
+        message=next(values)
+        if isinstance(message,BaseException):raise message
+        if (kwargs.get('response_format') or {}).get('json_schema',{}).get('name')=='dayout_response_review':
+            calls=message.get('tool_calls') or []
+            if calls and calls[0]['function']['name']==CONTEXT_TOOL_NAME:
+                return answer(calls[0]['function']['arguments'])
+        return message
+    llm=SimpleNamespace(complete=AsyncMock(side_effect=complete))
     return DayOutAgent(SimpleNamespace(call_tool=AsyncMock(side_effect=results)),llm,tools)
 
 
@@ -62,7 +72,7 @@ def search(radius=None):
 
 
 def walking(destination):
-    return call('compute_routes',{'origin':{'placeId':'anchor'},'destination':destination,'travelMode':'WALK'})
+    return call('compute_routes',{'origin':{'address':'Synthetic anchor'},'destination':destination,'travelMode':'WALK'})
 
 
 def test_named_landmark_can_be_searched_without_a_city_or_preliminary_plan():
@@ -183,7 +193,7 @@ def test_context_is_synchronized_after_search_and_cannot_route_or_block_it():
     assert a.llm.complete.await_count==3 and NEAR in reply.text
     assert '3000' in reply.text and a.context['city']=='Osaka' and a.context['budget']['people']==2
     assert 'tool_choice' not in a.llm.complete.await_args_list[0].kwargs
-    assert a.llm.complete.await_args_list[-1].kwargs['tool_choice']['function']['name']==CONTEXT_TOOL_NAME
+    assert a.llm.complete.await_args_list[-1].kwargs['response_format']['json_schema']['name']=='dayout_response_review'
 
 
 def test_early_optional_memory_does_not_skip_final_snapshot():
@@ -197,7 +207,7 @@ def test_early_optional_memory_does_not_skip_final_snapshot():
     reply=asyncio.run(a.ask('Только до 15 минут пешком, больший путь не подходит. Пока не ищи.'))
     assert not reply.tools and a.context['proximity']['strict']
     assert a.llm.complete.await_count==3
-    assert a.llm.complete.await_args_list[-1].kwargs['tool_choice']['function']['name']==CONTEXT_TOOL_NAME
+    assert a.llm.complete.await_args_list[-1].kwargs['response_format']['json_schema']['name']=='dayout_response_review'
 
 
 def test_resolver_without_coordinates_gives_actionable_recovery_instead_of_repeating_circle():
@@ -235,13 +245,13 @@ def test_unfinished_itinerary_is_reviewed_against_the_actual_draft_and_resumes_t
         call(CONTEXT_TOOL_NAME,reviewed(snapshot))],[place('pavilion',ANCHOR),place('asian',NEAR)])
     a.llm.context_sync_required=True
     reply=asyncio.run(a.ask('Сценарий вечера на ВДНХ: конкретные павильоны и ресторан, азиатская кухня.'))
-    checkpoint=a.llm.complete.await_args_list[1].args[0][0]['content']
-    assert draft in checkpoint and a.session.call_tool.await_count==2
+    checkpoint=a.llm.complete.await_args_list[1].args[0][-1]['content']
+    assert json.loads(checkpoint)['draft']==draft and a.session.call_tool.await_count==2
     assert ANCHOR in reply.text and NEAR in reply.text and '?' not in reply.text
     assert a.context['preferences']==['азиатская кухня']
     assert all(not message.get('app_internal') for request in a.llm.complete.await_args_list for message in request.args[0])
     assert all({d['function']['name'] for d in c.args[1]}==ALLOWED_TOOLS|{CONTEXT_TOOL_NAME}
-               for c in a.llm.complete.await_args_list)
+               for c in a.llm.complete.await_args_list if c.args[1])
 
 
 def test_specific_price_question_resumes_search_and_does_not_append_unknown_price_template():
@@ -388,3 +398,23 @@ def test_route_citation_in_review_is_mapped_to_its_confirmed_candidate():
     a.llm.context_sync_required=True
     reply=asyncio.run(a.ask('Кафе, не больше 10 минут пешком.'))
     assert NEAR in reply.text and ROUTE in reply.text and a.session.call_tool.await_count==2
+
+
+def test_invalid_route_id_does_not_consume_call_budget_and_returned_url_is_resolved():
+    a=agent([search(),walking({'placeId':'invented-id'}),walking({'placeId':NEAR}),
+        answer('Кафе [S1], 8 минут пешком [S2].')],[place('near',NEAR),route(480)])
+    a.max_calls=2
+    reply=asyncio.run(a.ask('Кафе, не больше 10 минут пешком.'))
+    assert a.session.call_tool.await_count==2 and reply.tools==['search_places','compute_routes']
+    assert a.session.call_tool.await_args.kwargs['arguments']['destination']=={'placeId':'near'}
+    assert any(outcome['status']=='invalid_arguments' for outcome in reply.observations['tool_outcomes'])
+
+
+def test_context_discards_large_visualization_tokens_without_losing_price_evidence():
+    from agent import extract_payload
+    result=CallToolResult(content=[],structuredContent={'contentToken':'opaque'*6000,
+        'summary':'Диапазон расходов 3000–8000 рублей на человека.',
+        'places':[{'id':'near','location':POINT,'attribution':{'title':'Synthetic place','url':NEAR}}]})
+    payload=extract_payload(result,'search_places')
+    assert 'contentToken' not in payload and '3000–8000' in payload['summary']
+    assert payload['places'][0]['id']=='near' and 'error' not in payload
