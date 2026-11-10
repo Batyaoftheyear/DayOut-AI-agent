@@ -193,7 +193,7 @@ def test_context_is_synchronized_after_search_and_cannot_route_or_block_it():
     reply=asyncio.run(a.ask('Найди кафе в Осаке на двоих до 3000 рублей, можно с собакой.'))
     assert a.session.call_tool.await_count==1 and reply.tools==['search_places']
     assert a.llm.complete.await_count==3 and NEAR in reply.text
-    assert '3000' in reply.text and a.context['city']=='Osaka' and a.context['budget']['people']==2
+    assert a.context['budget']['amount']==3000 and a.context['city']=='Osaka' and a.context['budget']['people']==2
     assert 'tool_choice' not in a.llm.complete.await_args_list[0].kwargs
     assert a.llm.complete.await_args_list[-1].kwargs['response_format']['json_schema']['name']=='dayout_context'
 
@@ -345,7 +345,7 @@ def test_explicit_currency_and_walking_bound_survive_a_wrong_model_snapshot():
     a.llm.context_sync_required=True
     reply=asyncio.run(a.ask('Найди кафе, бюджет 5000 рублей на двоих, не больше 10 минут пешком от метро.'))
     assert a.context['budget']['currency']=='RUB' and a.context['proximity']=={'minutes':10,'strict':True}
-    assert '5000 ₽' in reply.text and 'валюта не уточнена' not in reply.text
+    assert a.context['budget']['amount']==5000 and 'Бюджет запроса:' not in reply.text
 
 
 def test_literal_binding_is_conservative_for_ambiguous_currency_and_other_durations():

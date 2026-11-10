@@ -5,7 +5,7 @@ from pathlib import Path
 import streamlit as st
 from streamlit.errors import StreamlitSecretNotFoundError
 
-from agent import AgentError
+from agent import AgentError, clean_response
 from web_backend import BusyError, CONFIG_NAMES, RequestGate, WebMemory, load_web_config, progress_label, run_action
 
 st.set_page_config(page_title="DayOut — куда пойдём?", page_icon="🧭", layout="centered")
@@ -66,10 +66,10 @@ def render_message(message):
             st.warning(message["text"])
         elif message.get("kind") == "partial":
             st.info("Подбор ещё не завершён")
-            st.markdown(message["text"])
+            st.markdown(clean_response(message["text"]))
         else:
             # Model text is always Markdown with raw HTML disabled.
-            st.markdown(message["text"])
+            st.markdown(clean_response(message["text"]) if message['role']=='assistant' else message["text"])
         if message.get("reply"):
             render_metrics(message["reply"])
 
