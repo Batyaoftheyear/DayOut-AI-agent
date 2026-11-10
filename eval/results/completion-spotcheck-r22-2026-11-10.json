@@ -1,0 +1,13 @@
+{
+  "scope": "assistant_spot_review",
+  "release": "2026-11-10-r22",
+  "case_id": "B03",
+  "automated_model_review": "pass",
+  "assistant_spot_review": "fail",
+  "codes": [
+    "incomplete_answer"
+  ],
+  "reason": "После явного запроса павильонов они заменены другими видами достопримечательностей.",
+  "independent_human_review": false,
+  "raw_maps_content_saved": false
+}

@@ -1,0 +1,180 @@
+{
+  "metadata": {
+    "started_at": "2026-11-10T15:32:07+03:00",
+    "target": "local_web_adapter",
+    "provider": "yandex",
+    "model": "aliceai-llm",
+    "variant": "candidate",
+    "split": "development",
+    "max_live_turns": 3,
+    "review_method": "llm_assisted_same_model",
+    "prices_rub_per_1k": [
+      0.5,
+      1.2
+    ],
+    "max_estimated_rub": 65.0,
+    "cost_is_estimate_not_invoice": true,
+    "python": "3.14.4",
+    "code_sha256": "818f582e4051218d71e3de614afe5baa8101038148cc7f1bcfbc1d36c4a2ee5c",
+    "dataset_sha256": "5c26545b032e5278515ad5befafa9bec5b6bf985e5f1de5ade626f00aacf6684",
+    "dataset_file": "completion_cases.json",
+    "visit_date": "2026-11-11",
+    "interval_seconds": 1.0,
+    "raw_content_saved": false
+  },
+  "results": [
+    {
+      "execution_status": "failed",
+      "stop_reason": null,
+      "auto_checks": {
+        "any_required_tool_called": true,
+        "context_fields_present": true,
+        "all_turns_completed": false,
+        "required_tools_called": true,
+        "forbidden_tools_absent": true,
+        "last_turn_tools_called": true,
+        "last_turn_forbidden_tools_absent": true,
+        "required_tools_succeeded": true,
+        "required_text_present": true,
+        "forbidden_text_absent": true,
+        "required_last_text_present": true,
+        "forbidden_last_text_absent": true,
+        "last_source_count_matches": true,
+        "no_invalid_tool_arguments": true,
+        "weather_parameters_match": true,
+        "dialogue_constraints_match": false
+      },
+      "turns": [
+        {
+          "completed": false,
+          "seconds": 122.291,
+          "tools": [
+            "search_places",
+            "search_places",
+            "search_places",
+            "search_places",
+            "search_places",
+            "search_places",
+            "search_places",
+            "search_places"
+          ],
+          "usage": {
+            "requests": 12,
+            "prompt_tokens": 55168,
+            "completion_tokens": 2326,
+            "missing_usage": 1
+          },
+          "source_link_count": 0,
+          "failure_category": "timeout",
+          "partial_available": true,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            },
+            {
+              "tool": "search_places",
+              "status": "success"
+            },
+            {
+              "tool": "search_places",
+              "status": "success"
+            },
+            {
+              "tool": "search_places",
+              "status": "success"
+            },
+            {
+              "tool": "search_places",
+              "status": "success"
+            },
+            {
+              "tool": "search_places",
+              "status": "success"
+            },
+            {
+              "tool": "search_places",
+              "status": "success"
+            },
+            {
+              "tool": "search_places",
+              "status": "success"
+            },
+            {
+              "tool": "compute_routes",
+              "status": "budget_exhausted"
+            },
+            {
+              "tool": "compute_routes",
+              "status": "budget_exhausted"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": false,
+          "context_updates": 0,
+          "context": null
+        }
+      ],
+      "manual_scores": {
+        "relevance": "pending",
+        "constraints": "pending",
+        "grounding": "pending",
+        "honesty": "pending",
+        "tool_choice": "pending",
+        "dialogue": "pending",
+        "clarification": "pending"
+      },
+      "case_id": "B03",
+      "mode": "live",
+      "repeat": 1,
+      "elapsed_seconds": 122.291
+    }
+  ],
+  "summary": {
+    "live_attempts": 1,
+    "live_completed": 0,
+    "live_infrastructure_failures": 1,
+    "live_stopped": 0,
+    "live_quality_evaluable": 0,
+    "live_quality_pass": 0,
+    "live_quality_fail": 0,
+    "live_quality_pending": 0,
+    "live_quality_pass_rate": null,
+    "live_end_to_end_pass_rate": 0.0,
+    "usage": {
+      "requests": 12,
+      "prompt_tokens": 55168,
+      "completion_tokens": 2326,
+      "missing_usage": 1
+    },
+    "review_usage": {
+      "requests": 0,
+      "prompt_tokens": 0,
+      "completion_tokens": 0,
+      "missing_usage": 0
+    },
+    "total_usage": {
+      "requests": 12,
+      "prompt_tokens": 55168,
+      "completion_tokens": 2326,
+      "missing_usage": 1
+    },
+    "estimated_rub": null,
+    "live_median_seconds": 122.291,
+    "live_p95_seconds": 122.291,
+    "turn_attempts": 1,
+    "turn_completed": 0,
+    "turn_median_seconds": 122.291,
+    "turn_p95_seconds": 122.291,
+    "tool_calls": {
+      "compute_routes": 0,
+      "lookup_weather": 0,
+      "resolve_maps_urls": 0,
+      "resolve_names": 0,
+      "search_places": 8
+    },
+    "simulated_attempts": 0,
+    "simulated_pass": 0
+  }
+}

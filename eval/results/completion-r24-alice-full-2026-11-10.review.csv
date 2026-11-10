@@ -1,0 +1,12 @@
+﻿case_id,repeat,criterion,verdict,note
+B01,1,relevance,pass,
+B01,1,constraints,pass,
+B01,1,grounding,pass,
+B01,1,honesty,pass,
+B01,1,tool_choice,pass,
+B01,1,dialogue,pass,
+B02,1,relevance,pending,
+B02,1,constraints,pending,
+B02,1,grounding,pending,
+B02,1,honesty,pending,
+B02,1,tool_choice,pending,

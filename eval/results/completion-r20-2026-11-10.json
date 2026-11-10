@@ -1,0 +1,443 @@
+{
+  "metadata": {
+    "started_at": "2026-11-10T14:05:16+03:00",
+    "target": "local_web_adapter",
+    "provider": "yandex",
+    "model": "aliceai-llm-flash/latest",
+    "variant": "r20-completion-review",
+    "split": "all",
+    "max_live_turns": 7,
+    "review_method": "llm_assisted_same_model",
+    "prices_rub_per_1k": [
+      0.1,
+      0.2
+    ],
+    "max_estimated_rub": null,
+    "cost_is_estimate_not_invoice": true,
+    "python": "3.14.4",
+    "code_sha256": "519eacf6f67380d24b9e1b03e14981214c95e9014e70aabede7b06fcf1009d96",
+    "dataset_sha256": "93306851b4b5da241c21e04498baf6f9cee9c9889d5c156ed3f77dceaeb2ea68",
+    "dataset_file": "completion_cases.json",
+    "visit_date": "2026-11-11",
+    "interval_seconds": 5,
+    "raw_content_saved": false
+  },
+  "results": [
+    {
+      "execution_status": "completed",
+      "stop_reason": null,
+      "auto_checks": {
+        "any_required_tool_called": true,
+        "context_fields_present": true,
+        "all_turns_completed": true,
+        "required_tools_called": true,
+        "forbidden_tools_absent": true,
+        "last_turn_tools_called": true,
+        "last_turn_forbidden_tools_absent": true,
+        "required_tools_succeeded": true,
+        "required_text_present": true,
+        "forbidden_text_absent": true,
+        "required_last_text_present": true,
+        "forbidden_last_text_absent": true,
+        "last_source_count_matches": true,
+        "no_invalid_tool_arguments": true,
+        "weather_parameters_match": true,
+        "dialogue_constraints_match": false
+      },
+      "turns": [
+        {
+          "completed": true,
+          "seconds": 27.895,
+          "tools": [
+            "search_places"
+          ],
+          "usage": {
+            "requests": 3,
+            "prompt_tokens": 12787,
+            "completion_tokens": 249,
+            "missing_usage": 0
+          },
+          "source_link_count": 2,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": false,
+          "context_updates": 1,
+          "context": {
+            "city": "",
+            "area": "юго-восток Москвы",
+            "activity": "свидание с лаундж-атмосферой",
+            "preferences": [],
+            "budget": {
+              "action": "keep",
+              "amount": null,
+              "currency": "unknown",
+              "people": null,
+              "scope": "unknown"
+            },
+            "proximity": {
+              "minutes": null,
+              "strict": false
+            }
+          }
+        },
+        {
+          "completed": true,
+          "seconds": 14.354,
+          "tools": [
+            "search_places"
+          ],
+          "usage": {
+            "requests": 3,
+            "prompt_tokens": 14270,
+            "completion_tokens": 186,
+            "missing_usage": 0
+          },
+          "source_link_count": 1,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": true,
+          "context_updates": 1,
+          "context": {
+            "city": "",
+            "area": "юго-восток Москвы",
+            "activity": "свидание с лаундж-атмосферой",
+            "preferences": [],
+            "budget": {
+              "action": "keep",
+              "amount": 5000,
+              "currency": "unknown",
+              "people": 2,
+              "scope": "total"
+            },
+            "proximity": {
+              "minutes": null,
+              "strict": false
+            }
+          }
+        }
+      ],
+      "manual_scores": {
+        "relevance": "pass",
+        "constraints": "pass",
+        "grounding": "pass",
+        "honesty": "pass",
+        "tool_choice": "pass",
+        "dialogue": "pass"
+      },
+      "model_review": {
+        "status": "completed",
+        "scores": {
+          "relevance": "pass",
+          "constraints": "pass",
+          "grounding": "pass",
+          "honesty": "pass",
+          "tool_choice": "pass",
+          "dialogue": "pass"
+        },
+        "codes": [
+          "none"
+        ],
+        "usage": {
+          "requests": 1,
+          "prompt_tokens": 2335,
+          "completion_tokens": 53,
+          "missing_usage": 0
+        },
+        "seconds": 4.201
+      },
+      "case_id": "B01",
+      "mode": "live",
+      "repeat": 1,
+      "elapsed_seconds": 51.452
+    },
+    {
+      "execution_status": "failed",
+      "stop_reason": null,
+      "auto_checks": {
+        "any_required_tool_called": true,
+        "context_fields_present": true,
+        "all_turns_completed": true,
+        "required_tools_called": true,
+        "forbidden_tools_absent": true,
+        "last_turn_tools_called": true,
+        "last_turn_forbidden_tools_absent": true,
+        "required_tools_succeeded": true,
+        "required_text_present": true,
+        "forbidden_text_absent": true,
+        "required_last_text_present": true,
+        "forbidden_last_text_absent": true,
+        "last_source_count_matches": true,
+        "no_invalid_tool_arguments": false,
+        "weather_parameters_match": true,
+        "dialogue_constraints_match": true
+      },
+      "turns": [
+        {
+          "completed": true,
+          "seconds": 50.461,
+          "tools": [
+            "compute_routes",
+            "compute_routes",
+            "search_places",
+            "search_places",
+            "compute_routes",
+            "compute_routes",
+            "compute_routes"
+          ],
+          "usage": {
+            "requests": 8,
+            "prompt_tokens": 44902,
+            "completion_tokens": 1029,
+            "missing_usage": 0
+          },
+          "source_link_count": 3,
+          "failure_category": "tool_error",
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "invalid_arguments"
+            },
+            {
+              "tool": "compute_routes",
+              "status": "error"
+            },
+            {
+              "tool": "compute_routes",
+              "status": "error"
+            },
+            {
+              "tool": "search_places",
+              "status": "success"
+            },
+            {
+              "tool": "search_places",
+              "status": "success"
+            },
+            {
+              "tool": "compute_routes",
+              "status": "success"
+            },
+            {
+              "tool": "compute_routes",
+              "status": "success"
+            },
+            {
+              "tool": "compute_routes",
+              "status": "success"
+            }
+          ],
+          "task": "route",
+          "weather_requests": [],
+          "budget_requested": false,
+          "context_updates": 2,
+          "context": {
+            "city": "Москва",
+            "area": "район метро Коломенская",
+            "activity": "поесть с приятной атмосферой",
+            "preferences": [],
+            "budget": {
+              "action": "keep",
+              "amount": null,
+              "currency": "unknown",
+              "people": null,
+              "scope": "unknown"
+            },
+            "proximity": {
+              "minutes": null,
+              "strict": false
+            }
+          }
+        }
+      ],
+      "manual_scores": {
+        "relevance": "pass",
+        "constraints": "fail",
+        "grounding": "pass",
+        "honesty": "pass",
+        "tool_choice": "fail"
+      },
+      "model_review": {
+        "status": "completed",
+        "scores": {
+          "relevance": "pass",
+          "constraints": "fail",
+          "grounding": "pass",
+          "honesty": "pass",
+          "tool_choice": "fail"
+        },
+        "codes": [
+          "excessive_clarification",
+          "excessive_clarification"
+        ],
+        "usage": {
+          "requests": 1,
+          "prompt_tokens": 5418,
+          "completion_tokens": 59,
+          "missing_usage": 0
+        },
+        "seconds": 2.403
+      },
+      "case_id": "B02",
+      "mode": "live",
+      "repeat": 1,
+      "elapsed_seconds": 53.661
+    },
+    {
+      "execution_status": "failed",
+      "stop_reason": null,
+      "auto_checks": {
+        "any_required_tool_called": true,
+        "context_fields_present": true,
+        "all_turns_completed": false,
+        "required_tools_called": true,
+        "forbidden_tools_absent": true,
+        "last_turn_tools_called": true,
+        "last_turn_forbidden_tools_absent": true,
+        "required_tools_succeeded": true,
+        "required_text_present": true,
+        "forbidden_text_absent": true,
+        "required_last_text_present": true,
+        "forbidden_last_text_absent": true,
+        "last_source_count_matches": true,
+        "no_invalid_tool_arguments": true,
+        "weather_parameters_match": true,
+        "dialogue_constraints_match": false
+      },
+      "turns": [
+        {
+          "completed": false,
+          "seconds": 68.747,
+          "tools": [
+            "resolve_names",
+            "search_places",
+            "search_places",
+            "search_places",
+            "compute_routes",
+            "compute_routes",
+            "compute_routes"
+          ],
+          "usage": {
+            "requests": 12,
+            "prompt_tokens": 84321,
+            "completion_tokens": 1190,
+            "missing_usage": 0
+          },
+          "source_link_count": 0,
+          "failure_category": "other",
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "resolve_names",
+              "status": "success"
+            },
+            {
+              "tool": "search_places",
+              "status": "success"
+            },
+            {
+              "tool": "search_places",
+              "status": "success"
+            },
+            {
+              "tool": "search_places",
+              "status": "success"
+            },
+            {
+              "tool": "compute_routes",
+              "status": "success"
+            },
+            {
+              "tool": "compute_routes",
+              "status": "success"
+            },
+            {
+              "tool": "compute_routes",
+              "status": "success"
+            }
+          ],
+          "task": "route",
+          "weather_requests": [],
+          "budget_requested": false,
+          "context_updates": 0,
+          "context": null
+        }
+      ],
+      "manual_scores": {
+        "relevance": "pending",
+        "constraints": "pending",
+        "grounding": "pending",
+        "honesty": "pending",
+        "tool_choice": "pending",
+        "dialogue": "pending",
+        "clarification": "pending"
+      },
+      "case_id": "B03",
+      "mode": "live",
+      "repeat": 1,
+      "elapsed_seconds": 71.339
+    }
+  ],
+  "summary": {
+    "live_attempts": 3,
+    "live_completed": 1,
+    "live_infrastructure_failures": 1,
+    "live_stopped": 0,
+    "live_quality_evaluable": 2,
+    "live_quality_pass": 0,
+    "live_quality_fail": 2,
+    "live_quality_pending": 0,
+    "live_quality_pass_rate": 0.0,
+    "live_end_to_end_pass_rate": 0.0,
+    "usage": {
+      "requests": 26,
+      "prompt_tokens": 156280,
+      "completion_tokens": 2654,
+      "missing_usage": 0
+    },
+    "review_usage": {
+      "requests": 2,
+      "prompt_tokens": 7753,
+      "completion_tokens": 112,
+      "missing_usage": 0
+    },
+    "total_usage": {
+      "requests": 28,
+      "prompt_tokens": 164033,
+      "completion_tokens": 2766,
+      "missing_usage": 0
+    },
+    "estimated_rub": 16.9565,
+    "live_median_seconds": 50.461,
+    "live_p95_seconds": 68.747,
+    "turn_attempts": 4,
+    "turn_completed": 3,
+    "turn_median_seconds": 39.178,
+    "turn_p95_seconds": 68.747,
+    "tool_calls": {
+      "compute_routes": 8,
+      "lookup_weather": 0,
+      "resolve_maps_urls": 0,
+      "resolve_names": 1,
+      "search_places": 7
+    },
+    "simulated_attempts": 0,
+    "simulated_pass": 0
+  }
+}

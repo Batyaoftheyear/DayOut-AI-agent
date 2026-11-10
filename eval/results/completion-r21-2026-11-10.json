@@ -1,0 +1,357 @@
+{
+  "metadata": {
+    "started_at": "2026-11-10T14:17:20+03:00",
+    "target": "local_web_adapter",
+    "provider": "yandex",
+    "model": "aliceai-llm-flash/latest",
+    "variant": "r21-completion-review",
+    "split": "all",
+    "max_live_turns": 7,
+    "review_method": "llm_assisted_same_model",
+    "prices_rub_per_1k": [
+      0.1,
+      0.2
+    ],
+    "max_estimated_rub": null,
+    "cost_is_estimate_not_invoice": true,
+    "python": "3.14.4",
+    "code_sha256": "18a039ab53f1c9134e1a48cfc9d6d370d6f808763e14a93bc04cdd65400ef5c2",
+    "dataset_sha256": "6312cc5895e4234ee8e7f0159ce1c9c2290446837baae4c0f60dc2e6426605b9",
+    "dataset_file": "completion_cases.json",
+    "visit_date": "2026-11-11",
+    "interval_seconds": 5,
+    "raw_content_saved": false
+  },
+  "results": [
+    {
+      "execution_status": "completed",
+      "stop_reason": null,
+      "auto_checks": {
+        "any_required_tool_called": true,
+        "context_fields_present": true,
+        "all_turns_completed": true,
+        "required_tools_called": true,
+        "forbidden_tools_absent": true,
+        "last_turn_tools_called": true,
+        "last_turn_forbidden_tools_absent": true,
+        "required_tools_succeeded": true,
+        "required_text_present": true,
+        "forbidden_text_absent": true,
+        "required_last_text_present": true,
+        "forbidden_last_text_absent": true,
+        "last_source_count_matches": true,
+        "no_invalid_tool_arguments": true,
+        "weather_parameters_match": true,
+        "dialogue_constraints_match": true
+      },
+      "turns": [
+        {
+          "completed": true,
+          "seconds": 15.571,
+          "tools": [
+            "search_places",
+            "search_places"
+          ],
+          "usage": {
+            "requests": 4,
+            "prompt_tokens": 16477,
+            "completion_tokens": 296,
+            "missing_usage": 0
+          },
+          "source_link_count": 1,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "empty"
+            },
+            {
+              "tool": "search_places",
+              "status": "success"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": false,
+          "context_updates": 1,
+          "context": {
+            "city": "Москва",
+            "area": "юго-восток",
+            "activity": "свидание с лаундж-атмосферой",
+            "preferences": [],
+            "budget": {
+              "action": "keep",
+              "amount": null,
+              "currency": "unknown",
+              "people": null,
+              "scope": "unknown"
+            },
+            "proximity": {
+              "minutes": null,
+              "strict": false
+            }
+          }
+        },
+        {
+          "completed": true,
+          "seconds": 19.005,
+          "tools": [
+            "search_places"
+          ],
+          "usage": {
+            "requests": 5,
+            "prompt_tokens": 23927,
+            "completion_tokens": 434,
+            "missing_usage": 0
+          },
+          "source_link_count": 1,
+          "failure_category": null,
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": true,
+          "context_updates": 2,
+          "context": {
+            "city": "Москва",
+            "area": "юго-восток",
+            "activity": "свидание с лаундж-атмосферой",
+            "preferences": [],
+            "budget": {
+              "action": "keep",
+              "amount": 5000,
+              "currency": "RUB",
+              "people": 2,
+              "scope": "total"
+            },
+            "proximity": {
+              "minutes": null,
+              "strict": false
+            }
+          }
+        }
+      ],
+      "manual_scores": {
+        "relevance": "pass",
+        "constraints": "pass",
+        "grounding": "pass",
+        "honesty": "fail",
+        "tool_choice": "pass",
+        "dialogue": "pass"
+      },
+      "model_review": {
+        "status": "completed",
+        "scores": {
+          "relevance": "pass",
+          "constraints": "pass",
+          "grounding": "pass",
+          "honesty": "fail",
+          "tool_choice": "pass",
+          "dialogue": "pass"
+        },
+        "codes": [
+          "unsupported_claim"
+        ],
+        "usage": {
+          "requests": 1,
+          "prompt_tokens": 2023,
+          "completion_tokens": 56,
+          "missing_usage": 0
+        },
+        "seconds": 2.556
+      },
+      "case_id": "B01",
+      "mode": "live",
+      "repeat": 1,
+      "elapsed_seconds": 42.135
+    },
+    {
+      "execution_status": "failed",
+      "stop_reason": null,
+      "auto_checks": {
+        "any_required_tool_called": true,
+        "context_fields_present": true,
+        "all_turns_completed": false,
+        "required_tools_called": true,
+        "forbidden_tools_absent": true,
+        "last_turn_tools_called": true,
+        "last_turn_forbidden_tools_absent": true,
+        "required_tools_succeeded": true,
+        "required_text_present": true,
+        "forbidden_text_absent": true,
+        "required_last_text_present": true,
+        "forbidden_last_text_absent": true,
+        "last_source_count_matches": true,
+        "no_invalid_tool_arguments": true,
+        "weather_parameters_match": true,
+        "dialogue_constraints_match": true
+      },
+      "turns": [
+        {
+          "completed": false,
+          "seconds": 27.703,
+          "tools": [
+            "search_places",
+            "compute_routes",
+            "compute_routes"
+          ],
+          "usage": {
+            "requests": 6,
+            "prompt_tokens": 31742,
+            "completion_tokens": 634,
+            "missing_usage": 0
+          },
+          "source_link_count": 0,
+          "failure_category": "answer_validation",
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            },
+            {
+              "tool": "compute_routes",
+              "status": "success"
+            },
+            {
+              "tool": "compute_routes",
+              "status": "success"
+            }
+          ],
+          "task": "route",
+          "weather_requests": [],
+          "budget_requested": false,
+          "context_updates": 0,
+          "context": null
+        }
+      ],
+      "manual_scores": {
+        "relevance": "pending",
+        "constraints": "pending",
+        "grounding": "pending",
+        "honesty": "pending",
+        "tool_choice": "pending"
+      },
+      "case_id": "B02",
+      "mode": "live",
+      "repeat": 1,
+      "elapsed_seconds": 30.143
+    },
+    {
+      "execution_status": "failed",
+      "stop_reason": null,
+      "auto_checks": {
+        "any_required_tool_called": true,
+        "context_fields_present": true,
+        "all_turns_completed": false,
+        "required_tools_called": true,
+        "forbidden_tools_absent": true,
+        "last_turn_tools_called": true,
+        "last_turn_forbidden_tools_absent": true,
+        "required_tools_succeeded": true,
+        "required_text_present": true,
+        "forbidden_text_absent": true,
+        "required_last_text_present": true,
+        "forbidden_last_text_absent": true,
+        "last_source_count_matches": true,
+        "no_invalid_tool_arguments": true,
+        "weather_parameters_match": true,
+        "dialogue_constraints_match": false
+      },
+      "turns": [
+        {
+          "completed": false,
+          "seconds": 46.294,
+          "tools": [
+            "search_places"
+          ],
+          "usage": {
+            "requests": 2,
+            "prompt_tokens": 8285,
+            "completion_tokens": 1630,
+            "missing_usage": 0
+          },
+          "source_link_count": 0,
+          "failure_category": "other",
+          "partial_available": false,
+          "tool_outcomes": [
+            {
+              "tool": "search_places",
+              "status": "success"
+            }
+          ],
+          "task": "search",
+          "weather_requests": [],
+          "budget_requested": false,
+          "context_updates": 0,
+          "context": null
+        }
+      ],
+      "manual_scores": {
+        "relevance": "pending",
+        "constraints": "pending",
+        "grounding": "pending",
+        "honesty": "pending",
+        "tool_choice": "pending",
+        "dialogue": "pending",
+        "clarification": "pending"
+      },
+      "case_id": "B03",
+      "mode": "live",
+      "repeat": 1,
+      "elapsed_seconds": 51.292
+    }
+  ],
+  "summary": {
+    "live_attempts": 3,
+    "live_completed": 1,
+    "live_infrastructure_failures": 0,
+    "live_stopped": 0,
+    "live_quality_evaluable": 3,
+    "live_quality_pass": 0,
+    "live_quality_fail": 3,
+    "live_quality_pending": 0,
+    "live_quality_pass_rate": 0.0,
+    "live_end_to_end_pass_rate": 0.0,
+    "usage": {
+      "requests": 17,
+      "prompt_tokens": 80431,
+      "completion_tokens": 2994,
+      "missing_usage": 0
+    },
+    "review_usage": {
+      "requests": 1,
+      "prompt_tokens": 2023,
+      "completion_tokens": 56,
+      "missing_usage": 0
+    },
+    "total_usage": {
+      "requests": 18,
+      "prompt_tokens": 82454,
+      "completion_tokens": 3050,
+      "missing_usage": 0
+    },
+    "estimated_rub": 8.8554,
+    "live_median_seconds": 34.576,
+    "live_p95_seconds": 46.294,
+    "turn_attempts": 4,
+    "turn_completed": 2,
+    "turn_median_seconds": 23.354,
+    "turn_p95_seconds": 46.294,
+    "tool_calls": {
+      "compute_routes": 2,
+      "lookup_weather": 0,
+      "resolve_maps_urls": 0,
+      "resolve_names": 0,
+      "search_places": 5
+    },
+    "simulated_attempts": 0,
+    "simulated_pass": 0
+  }
+}
