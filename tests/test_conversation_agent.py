@@ -252,7 +252,7 @@ def test_unfinished_itinerary_is_reviewed_against_the_actual_draft_and_resumes_t
     assert ANCHOR in reply.text and NEAR in reply.text and '?' not in reply.text
     assert a.context['preferences']==['азиатская кухня']
     assert all(not message.get('app_internal') for request in a.llm.complete.await_args_list for message in request.args[0])
-    assert all({d['function']['name'] for d in c.args[1]}==ALLOWED_TOOLS|{CONTEXT_TOOL_NAME}
+    assert all({d['function']['name'] for d in c.args[1]}==ALLOWED_TOOLS
                for c in a.llm.complete.await_args_list if c.args[1])
 
 
