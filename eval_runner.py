@@ -170,6 +170,7 @@ def run_live(case, config, gate, visit_date, interval, pace, inspect=False, limi
                       "weather_requests": observed.get("weather_requests", []),
                       "budget_requested": observed.get("budget_requested"),
                       "context_updates": observed.get('context_updates',0),
+                      "semantic_review_unresolved": observed.get('semantic_review_unresolved',False),
                       "context": copy.deepcopy(memory.context) if result.reply else None})
         if limits:
             limits["turns"] += 1

@@ -461,12 +461,22 @@ def test_synthetic_memory_checks_are_not_advertised_or_replayed_to_the_actor():
 
 
 def test_returned_route_ids_constrain_the_next_model_request_and_duplicates_are_reused():
-    a=agent([search(),walking({'placeId':'near'}),walking({'placeId':'near'}),
+    a=agent([search(),walking({'address':'[S1]'}),walking({'address':'[S1]'}),
         answer('Кафе [S1], 8 минут пешком [S2].'),
         call(CONTEXT_TOOL_NAME,reviewed(empty_context()))],[place('near',NEAR),route(480)])
     a.llm.context_sync_required=True
     reply=asyncio.run(a.ask('Проверь путь до кафе.'))
     definitions=a.llm.complete.await_args_list[1].args[1]
     schema=next(d['function']['parameters'] for d in definitions if d['function']['name']=='compute_routes')
-    assert schema['properties']['destination']['properties']['placeId']['enum']==['near']
+    assert set(schema['properties']['destination']['properties'])=={'address'}
+    assert a.session.call_tool.await_args.kwargs['arguments']['destination']=={'placeId':'near'}
     assert a.session.call_tool.await_count==2 and reply.tools==['search_places','compute_routes']
+
+
+def test_near_reference_is_converted_to_grounded_coordinates_before_mcp():
+    a=agent([search(),call('search_places',{'textQuery':'synthetic cafes','near':'[S1]','radiusMeters':1200}),
+             answer('Кафе [S2].')],[place('anchor',ANCHOR),place('near',NEAR)])
+    asyncio.run(a.ask('Найди кафе у ориентира.'))
+    args=a.session.call_tool.await_args.kwargs['arguments']
+    assert args['locationBias']=={'circle':{'center':POINT,'radiusMeters':1200}}
+    assert 'near' not in args and 'radiusMeters' not in args

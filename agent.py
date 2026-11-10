@@ -20,7 +20,7 @@ from literal_constraints import bind_literals
 from geo import distance_meters, locations, seconds as duration_seconds
 
 ALLOWED_TOOLS = {"search_places", "lookup_weather", "compute_routes", "resolve_names", "resolve_maps_urls"}
-AGENT_RELEASE = "2026-11-10-r30"
+AGENT_RELEASE = "2026-11-10-r31"
 # Qwen remains available for an explicit rollback. No automatic model fallback.
 REVIEWED_MODEL = "qwen/qwen3.8-27b"
 SUPPORTED_MODELS = frozenset({REVIEWED_MODEL, GPT_OSS_MODEL})
@@ -35,10 +35,10 @@ SYSTEM_PROMPT = """Ты DayOut, помощник по выбору досуга.
 - Ищи конкретные места и свойства через search_places. Запросы короткие: тип/название, область, город, нужное свойство. Для сценария отдельно ищи занятия и еду. Кухня относится к ресторану, не к тематике павильонов. Если попросили павильоны, нужны названия павильонов; фонтан или арка их не заменяют.
 - Необязательные бюджет, дата и кухня не мешают начать подбор. Для обычного поиска в городе/районе не нужен маршрут от центра района.
 - Ориентир можно найти без названного города. Определи его через Maps; при нескольких правдоподобных совпадениях уточни. Не спрашивай город, уже указанный в запросе или однозначно определённый Maps.
-- Для поиска у метро, в парке, на территории комплекса сначала найди сам ориентир через search_places, без locationBias. Используй полученные координаты в locationBias следующего поиска. Одного слова «ВДНХ» в textQuery недостаточно для подтверждения расположения ресторана. Не называй объект другого района рестораном на территории парка. locationBias задаёт приоритет, а не гарантирует границу; проверь расположение кандидата.
+- Для поиска у метро, в парке, на территории комплекса сначала найди сам ориентир через search_places с near="". Затем в near следующего поиска укажи его метку [S1]; Python подставит координаты в locationBias. Не оставляй near пустым при уточнении поиска возле уже найденного ориентира. Одного названия парка в textQuery недостаточно для подтверждения расположения ресторана. locationBias задаёт приоритет, а не гарантирует границу; учти app_geo_check.
 
 Маршруты:
-- Для заданного пешего предела или утверждения о минутах пути вызови compute_routes от конкретного ориентира до выбранного места. Копируй Place ID из полученных данных либо используй address с полным названием и городом. Не выдумывай ID. Python может дополнительно проверить другие места из той же выдачи; учти все app_route_check, не повторяй эти вызовы.
+- Для заданного пешего предела или утверждения о минутах пути вызови compute_routes от конкретного ориентира до выбранного места. В address найденной точки передай метку [S1]; для новой точки полное название и город. Python подставит Place ID из источника. Он может дополнительно проверить другие места из той же выдачи; учти все app_route_check, не повторяй эти вызовы.
 - «Не больше N минут пешком» — строгий предел N*60 секунд. 632 секунды больше 10 минут. Отвергни слишком дальний вариант. После проверки нескольких кандидатов допустимо честно сообщить, что подходящие среди них не подтвердились.
 - Если пользователь сказал только «рядом» с конкретным ориентиром, 15 минут — мягкий старт, не пожелание пользователя. Можно один раз расширить поиск до 2500–3000 метров и явно назвать более долгий проверенный путь. Не добавляй пеший предел поиску по району.
 
@@ -667,6 +667,9 @@ class DayOutAgent:
                            [item for item in internal if item['app_internal']!='review'][-2:])
                     if notes:
                         wire[0]['content']+='\nСлужебные указания для продолжения исходной задачи:\n'+'\n'.join(replace_strings(item['content'],refs) for item in notes)
+                    goals=[item['content'] for item in messages if item.get('role')=='user' and not item.get('app_internal')
+                           and not item['content'].startswith(('Исторические данные','Ранее пользователь указал'))][-6:]
+                    wire[0]['content']+='\nРеальные пользовательские реплики, которым подчиняется текущее действие: '+json.dumps(goals,ensure_ascii=False)+'. Последняя важнее старых снимков и замечаний проверяющего.'
                     if state.context['proximity']['strict']:
                         checks=self.route_statuses(state)
                         wire[1]['content']+='\nРезультаты маршрутов для сохранённого предела (данные, не новая задача; проверь применимость к текущей реплике): '+json.dumps(replace_strings(checks,refs),ensure_ascii=False)
@@ -849,6 +852,10 @@ class DayOutAgent:
         self.validate_protocol(text)
         evidence=list(tool_evidence(state.messages[state.begin:]))
         searches=[p for n,p in evidence if n=='search_places']
+        if searches:
+            for paragraph in re.split(r'\n\s*\n',text):
+                if re.match(r'\s*\d+[.)]\s',paragraph) and re.search(r'\*\*[^*\n]+\*\*',paragraph) and not re.search(r'\[S\d+\]',paragraph):
+                    raise SourceValidationError('Каждый пронумерованный вариант с названием должен иметь свою метку источника. Найди недостающий объект через search_places либо убери неподтверждённую рекомендацию.')
         circles=[p.get('app_search_area') for p in searches if p.get('app_search_area')]
         routes=[r for _,p in evidence for r in p.get('app_route_check',[])]
         proximity=state.context['proximity']
@@ -875,6 +882,14 @@ class DayOutAgent:
 
     def validate_geography(self,state,text):
         proximity=state.context['proximity']
+        current=list(tool_evidence(state.messages[state.begin:]))
+        selected={url for url,tag in state.refs.items() if tag in (state.response_check or {}).get('recommended_sources',[])}
+        for name,payload in current:
+            area=payload.get('app_search_area')
+            if name!='search_places' or not area:continue
+            for check in payload.get('app_geo_check',[]):
+                if check['url'] in selected and check['url'] in text and check['distance_meters']>area['radius_meters']:
+                    raise AnswerValidationError('Выбранное место находится за пределами проверенной области поиска. Не выдавай его за место у ориентира. Найди кандидата в области или явно отдели более дальний вариант с проверенным маршрутом.')
         if not proximity['strict']:
             return
         evidence=[item for turn,_ in self.turns for item in tool_evidence(turn)]
@@ -927,31 +942,27 @@ class DayOutAgent:
                 for _,payload in evidence for check in payload.get('app_route_check',[])]
 
     def grounded_route_definitions(self,definitions,state):
-        """Expose only returned IDs; an address remains available for new points."""
+        """Use source references instead of copying opaque IDs/coordinates."""
         definitions=copy.deepcopy(definitions)
-        ids=set()
         evidence=[item for turn,_ in self.turns for item in tool_evidence(turn)]
         evidence.extend(tool_evidence(state.messages[state.begin:]))
-        def collect(value):
-            if isinstance(value,dict):
-                for key,item in value.items():
-                    if key in {'id','place','placeId','place_id'} and isinstance(item,str):
-                        ids.add(item.removeprefix('places/'))
-                    collect(item)
-            elif isinstance(value,list):
-                for item in value:collect(item)
-        for name,payload in evidence:
-            if name in {'search_places','resolve_names','resolve_maps_urls'}:collect(payload)
+        place_sources={url for name,payload in evidence if name=='search_places'
+                       for place in payload.get('places',[]) if place.get('location') for url in collect_sources(place)}
         for definition in definitions:
+            if definition['function']['name']=='search_places':
+                schema=definition['function']['parameters']
+                schema.setdefault('properties',{})['near']={'type':'string',
+                    'enum':['']+[tag for url,tag in state.refs.items() if url in place_sources],
+                    'description':'Метка найденного ориентира [S1] для поиска у него/в парке. Пустая строка — поиск самого ориентира либо по всему городу/району. Для уточнения у того же места используй его метку.'}
+                schema['properties']['radiusMeters']={'type':'integer','minimum':100,'maximum':3000,
+                    'description':'Радиус возле near. Начальный 1200 м; при мягком поиске можно расширить до 3000 м.'}
+                schema.setdefault('required',[]).append('near')
+                continue
             if definition['function']['name']!='compute_routes':continue
+            definition['function']['description']='Пеший или автомобильный маршрут. origin/destination: {address:"[S1]"} для найденной точки или {address:"полное название, город"} для новой. Приложение само подставляет подтверждённый Place ID. Учти уже полученные app_route_check.'
             endpoint={'type':'object','additionalProperties':False,
-                'properties':{'address':{'type':'string','description':'Полное название точки и город.'}},
+                'properties':{'address':{'type':'string','description':'Для найденного места только его метка [S1]. Для новой точки полное название/адрес и город. Приложение подставит подтверждённый Place ID.'}},
                 'required':['address']}
-            if ids:
-                endpoint['properties']['placeId']={'type':'string','enum':sorted(ids),
-                    'description':'Идентификатор, уже полученный от Maps.'}
-                endpoint.pop('required')
-                endpoint['oneOf']=[{'required':['address']},{'required':['placeId']}]
             definition['function']['parameters']={'type':'object','additionalProperties':False,
                 'required':['origin','destination','travelMode'],
                 'properties':{'origin':copy.deepcopy(endpoint),'destination':copy.deepcopy(endpoint),
@@ -983,7 +994,28 @@ class DayOutAgent:
         hint='Соблюдай JSON Schema. locationBias — только {circle:{center:{latitude,longitude},radiusMeters}}. У точки маршрута ровно одно из address, latLng, placeId.'
         try:
             arguments=normalize_location_ids(json.loads(function['arguments']))
+            known_places=[place for turn,_ in self.turns for n,data in tool_evidence(turn) if n=='search_places'
+                          for place in data.get('places',[])]
+            if self.current_state:
+                known_places.extend(place for n,data in tool_evidence(self.current_state.messages[self.current_state.begin:])
+                                    if n=='search_places' for place in data.get('places',[]))
+            if name=='compute_routes' and isinstance(arguments,dict):
+                for field in ('origin','destination'):
+                    endpoint=arguments.get(field,{})
+                    reference=endpoint.get('address')
+                    match=next((place for place in known_places if reference in collect_sources(place)),None)
+                    if match:
+                        ident=match.get('id') or str(match.get('place','')).removeprefix('places/')
+                        if ident:arguments[field]={'placeId':ident}
             if name=='search_places' and isinstance(arguments,dict):
+                near=arguments.pop('near','')
+                radius=arguments.pop('radiusMeters',1200)
+                if near:
+                    match=next((place for place in known_places if near in collect_sources(place) and place.get('location')),None)
+                    if not match:
+                        hint='near должен быть меткой найденного места с координатами. Сначала найди сам ориентир: textQuery с его названием и городом, near="".'
+                        raise ValueError('unconfirmed search anchor')
+                    arguments['locationBias']={'circle':{'center':match['location'],'radiusMeters':radius}}
                 properties=self.tools[name].inputSchema.get('properties',{})
                 language=next((k for k in ('languageCode','language_code') if k in properties),None)
                 if language and language not in arguments:
@@ -1070,7 +1102,7 @@ class DayOutAgent:
         if name=='search_places' and not payload.get('error'):
             circle=(arguments.get('locationBias') or {}).get('circle')
             if circle:
-                payload['app_search_area']={'radius_meters':circle['radiusMeters']}
+                payload['app_search_area']={'radius_meters':circle['radiusMeters'],'center':circle['center']}
                 payload['app_geo_check']=[{'url':url,'distance_meters':round(distance_meters(circle['center'],p['location']))}
                     for p in payload.get('places',[]) if p.get('location') for url in collect_sources(p)]
         if name=='compute_routes' and not payload.get('error') and self.current_state:
