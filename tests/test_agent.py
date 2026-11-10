@@ -522,7 +522,8 @@ def test_new_question_discards_pending_state_even_if_text_matches(new_query):
         await agent.ask(new_query)
         assert agent.pending is None
         assert not any(item["role"] == "tool" for item in agent.llm.complete.await_args.args[0])
-        assert agent.user_history == [new_query]
+        assert agent.user_history[-1] == new_query and len(agent.user_history) == 2
+        assert not agent.unanswered_queries
     asyncio.run(run())
 
 

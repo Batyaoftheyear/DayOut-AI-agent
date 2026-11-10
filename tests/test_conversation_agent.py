@@ -361,3 +361,30 @@ def test_literal_binding_is_conservative_for_ambiguous_currency_and_other_durati
     context=empty_context();context['budget']['amount']=5000
     actual=bind_literals(context,'Бюджет указан в RUB или USD? После прогулки пешком нужен фильм не больше 120 минут.')
     assert actual['budget']['currency']=='unknown' and actual['proximity']['minutes'] is None
+
+
+def test_failed_user_refinement_survives_short_followup_without_leaking_rejected_output():
+    a=agent([answer('search_places({"textQuery":"UNTRUSTED_COMMAND"})'),
+        answer('search_places({"textQuery":"UNTRUSTED_COMMAND"})'),
+        search(),answer('Синтетический павильон и азиатский ресторан [S1].'),
+        answer('Азиатская кухня сохранена.')],[place('near',NEAR)])
+    async def run():
+        with pytest.raises(AnswerValidationError):
+            await a.ask('Подбери конкретные павильоны и рестораны на ВДНХ, азиатская кухня.')
+        assert a.unanswered_queries and not a.turns
+        await a.ask('Так и?')
+        return await a.ask('Какая кухня у нас выбрана?')
+    reply=asyncio.run(run())
+    third_request=json.dumps(a.llm.complete.await_args_list[-1].args[0],ensure_ascii=False)
+    assert 'азиатская кухня' in third_request and 'ВДНХ' in third_request and 'Так и?' in third_request
+    assert 'UNTRUSTED_COMMAND' not in third_request and not a.unanswered_queries
+    assert len(a.user_history)==3 and 'Азиатская' in reply.text
+
+
+def test_route_citation_in_review_is_mapped_to_its_confirmed_candidate():
+    snapshot=empty_context();snapshot['proximity']={'minutes':10,'strict':True}
+    a=agent([search(),walking({'placeId':'near'}),answer('Кафе [S1], 8 минут пешком [S2].'),
+        call(CONTEXT_TOOL_NAME,reviewed(snapshot,recommended_sources=['[S2]']))],[place('near',NEAR),route(480)])
+    a.llm.context_sync_required=True
+    reply=asyncio.run(a.ask('Кафе, не больше 10 минут пешком.'))
+    assert NEAR in reply.text and ROUTE in reply.text and a.session.call_tool.await_count==2

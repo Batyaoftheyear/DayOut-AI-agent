@@ -186,7 +186,7 @@ def run_live(case, config, gate, visit_date, interval, pace, inspect=False, limi
                             print(config.redact(json.dumps({"tool_request": call.get("function", {})}, ensure_ascii=False)))
                 for name, payload in tool_evidence(messages):
                     print(config.redact(json.dumps({"tool": name, "evidence": payload}, ensure_ascii=False)))
-        if result.error or (category in INFRASTRUCTURE_FAILURES and not result.reply):
+        if (result.error and not case.get('continue_after_answer_error')) or (category in INFRASTRUCTURE_FAILURES and not result.reply):
             break  # Preserve the failed first attempt; never replace it with a successful retry.
     last_tools = turns[-1]["tools"] if turns else []
     last_text = texts[-1] if texts else ""

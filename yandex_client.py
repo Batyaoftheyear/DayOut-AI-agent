@@ -39,6 +39,9 @@ class YandexClient(GroqClient):
     token_parameter = "max_tokens"
     network_retry_limit = 1
 
+    async def complete(self,messages,tools,allow_tools=True,max_tokens=3200,**kwargs):
+        return await super().complete(messages,tools,allow_tools,max_tokens=max_tokens,**kwargs)
+
     def request_options(self):
         return {"temperature": 0.2}
 

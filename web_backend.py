@@ -34,6 +34,7 @@ class WebMemory:
     # Never put clients, event loops, keys or locks into browser session state.
     turns: list = field(default_factory=list)
     user_history: list = field(default_factory=list)
+    unanswered_queries: list = field(default_factory=list)
     pending: tuple | None = None
     usage_totals: dict = field(default_factory=lambda: {
         "requests": 0, "prompt_tokens": 0, "completion_tokens": 0, "missing_usage": 0,
@@ -47,6 +48,7 @@ class WebMemory:
     def reset(self):
         self.turns.clear()
         self.user_history.clear()
+        self.unanswered_queries.clear()
         self.pending = None
         self.failed_query = None
         self.context = empty_context()
@@ -154,6 +156,7 @@ async def _perform(config, memory, gate, action, query, emit):
                                 tools = await discover_tools(session)
                             agent = DayOutAgent(session, llm, tools, emit=event)
                             agent.turns, agent.user_history, agent.pending = memory.turns, memory.user_history, memory.pending
+                            agent.unanswered_queries=list(getattr(memory,'unanswered_queries',[]))
                             agent.context = copy.deepcopy(getattr(memory,'context',empty_context()))
                             agent.last_place_turn = memory.last_place_turn
                             event("Подбираю варианты…")
@@ -177,6 +180,7 @@ async def _perform(config, memory, gate, action, query, emit):
             gate.blocked_until, gate.quota_kind = llm.blocked_until, llm.quota_kind
         if agent is not None:
             memory.turns, memory.user_history, memory.pending = agent.turns, agent.user_history, agent.pending
+            memory.unanswered_queries=list(agent.unanswered_queries)
             memory.context = copy.deepcopy(agent.context)
             memory.last_place_turn = agent.last_place_turn
             if agent.current_state is not None:

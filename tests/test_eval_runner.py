@@ -48,6 +48,22 @@ def test_simulated_passes_are_not_counted_in_live_quality_percentage():
     assert result["live_quality_pass_rate"] is None
 
 
+def test_dialogue_can_continue_after_answer_error_without_replacing_the_failure(monkeypatch):
+    from agent import Reply
+    from web_backend import WebResult,RequestGate
+    calls=[]
+    def action(config,memory,gate,kind,query):
+        calls.append(query)
+        if len(calls)==1:return WebResult(error='synthetic answer validation failure')
+        return WebResult(reply=Reply('Синтетический ответ',[],.1,observations={}))
+    monkeypatch.setattr(evaluation,'run_action',action)
+    case={'turns':['Исходный запрос','Так и?'],'criteria':['dialogue'],'continue_after_answer_error':True}
+    row=evaluation.run_live(case,None,RequestGate(cooldown=0),'2026-11-11',0,[None])
+    assert len(calls)==2 and len(row['turns'])==2
+    assert not row['turns'][0]['completed'] and row['turns'][1]['completed']
+    assert row['execution_status']=='failed' and not row['auto_checks']['all_turns_completed']
+
+
 @pytest.mark.parametrize("scenario", ["empty_results", "connection_error", "access_denied", "rate_limit"])
 def test_controlled_fault_scenarios_are_offline_and_recover_when_expected(scenario):
     result = run_simulated(scenario)

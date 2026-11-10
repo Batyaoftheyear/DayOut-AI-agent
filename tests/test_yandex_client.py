@@ -45,7 +45,7 @@ def test_yandex_tool_round_trip_uses_expected_headers_fields_and_usage():
         assert request.headers["x-data-logging-enabled"] == "false"
         body = json.loads(request.content)
         sent.append(body)
-        assert body["model"] == MODEL and body["max_tokens"] == 1600
+        assert body["model"] == MODEL and body["max_tokens"] == 3200
         assert not {"max_completion_tokens", "include_reasoning", "reasoning_effort", "store"} & body.keys()
         message = {"role": "assistant", "content": "Синтетический результат", "reasoning": "private-reasoning"}
         if len(sent) == 1:

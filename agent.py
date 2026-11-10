@@ -20,7 +20,7 @@ from literal_constraints import bind_literals
 from geo import distance_meters, locations, seconds as duration_seconds
 
 ALLOWED_TOOLS = {"search_places", "lookup_weather", "compute_routes", "resolve_names", "resolve_maps_urls"}
-AGENT_RELEASE = "2026-11-10-r21"
+AGENT_RELEASE = "2026-11-10-r22"
 # Qwen remains available for an explicit rollback. No automatic model fallback.
 REVIEWED_MODEL = "qwen/qwen3.8-27b"
 SUPPORTED_MODELS = frozenset({REVIEWED_MODEL, GPT_OSS_MODEL})
@@ -534,6 +534,7 @@ class DayOutAgent:
         self.provider = getattr(llm, 'provider', 'Groq')
         self.max_calls, self.timeout = max_calls, timeout
         self.turns, self.user_history = [], []
+        self.unanswered_queries=[]
         self.pending = self.last_place_turn = self.current_state = None
         self.context = empty_context()
         self.tool_definitions = [{'type':'function','function':{
@@ -544,6 +545,7 @@ class DayOutAgent:
     def reset(self):
         self.turns.clear()
         self.user_history.clear()
+        self.unanswered_queries.clear()
         self.pending = self.last_place_turn = self.current_state = None
         self.context = empty_context()
 
@@ -562,13 +564,15 @@ class DayOutAgent:
 
     def build_history(self):
         messages=[]
-        older=self.user_history[:-len(self.turns)] if self.turns else self.user_history
+        real_users=lambda turn:[m for m in turn if m.get('role')=='user' and not m.get('app_internal')]
+        retained=sum(len(real_users(turn)) for turn,_ in self.turns)
+        older=self.user_history[:-retained] if retained else self.user_history
         if older:
             messages.append({'role':'user','content':'Ранее пользователь указал: '+json.dumps(older,ensure_ascii=False)})
         # Preserve the assistant's questions as well as user replies. A short
         # city answer is therefore part of the same actual conversation.
         for turn,_ in self.turns:
-            messages.extend(copy.deepcopy([turn[0],turn[-1]]))
+            messages.extend(copy.deepcopy(real_users(turn)+[turn[-1]]))
         evidence=[]
         evidence_turn=None
         for turn,_ in reversed(self.turns):
@@ -586,7 +590,7 @@ class DayOutAgent:
     async def ask(self, query: str, resume=False):
         if not query.strip() or len(query)>4000:
             raise AgentError('Введите запрос от 1 до 4000 символов.')
-        if sum(map(len,self.user_history))+len(query)>12000:
+        if sum(map(len,self.user_history+self.unanswered_queries))+len(query)>12000:
             raise AgentError('История условий заполнена. Начните новый диалог через /reset; условия не удаляются молча.')
         query=query.strip()
         start=monotonic()
@@ -606,7 +610,9 @@ class DayOutAgent:
                 sources.update(self.last_place_turn[1])
             messages.extend(self.build_history())
             begin=len(messages)
+            messages.extend({'role':'user','content':previous} for previous in self.unanswered_queries)
             messages.append({'role':'user','content':query})
+            self.unanswered_queries.append(query)
             state=TurnState(query,messages,begin,sources,[],{url:f'[S{i+1}]' for i,url in enumerate(sources)})
             state.context=bind_literals(self.context,query)
         self.current_state=state
@@ -702,7 +708,9 @@ class DayOutAgent:
                         if any(n=='search_places' and p.get('places') for n,p in tool_evidence(messages[state.begin:])):
                             self.last_place_turn=self.turns[-1]
                         self.turns=self.turns[-20:]
-                        self.user_history.append(query)
+                        self.user_history.extend(m['content'] for m in messages[state.begin:]
+                                                 if m.get('role')=='user' and not m.get('app_internal'))
+                        self.unanswered_queries.clear()
                         self.context=copy.deepcopy(state.context)
                         state.record_attempt(self.llm,usage_start,start)
                         observations={'task':self.task_label(state.called),'budget_requested':state.context['budget']['amount'] is not None,
@@ -838,9 +846,17 @@ class DayOutAgent:
             if any(tag not in aliases for tag in tags):
                 raise SourceValidationError('В проверке рекомендаций использована неизвестная метка источника.')
             selected={aliases[tag] for tag in tags}
-            if selected-candidates:
-                raise SourceValidationError('Для рекомендованных мест укажи их собственные метки search_places, не метки маршрутов или исходного ориентира.')
-            candidates=selected
+            mapped=set()
+            for url in selected-origins:
+                if url in candidates:
+                    mapped.add(url)
+                    continue
+                linked={candidate for check in checks if url in check.get('route_urls',[])
+                        for candidate in check['candidate_urls']}
+                if not linked:
+                    raise SourceValidationError('Не удалось связать источник рекомендации с местом. Используй метку самого заведения или маршрут по его Place ID.')
+                mapped.update(linked)
+            candidates=mapped
             paragraphs=[text]
         else:
             paragraphs=re.split(r'\n\s*\n',text)
@@ -956,6 +972,7 @@ class DayOutAgent:
             origin_urls=waypoint_sources(arguments.get('origin',{}),places)
             payload['app_route_check']=[{'candidate_urls':list(dict.fromkeys(linked)),'duration_seconds':seconds,
                 'duration_minutes_ceil':math.ceil(seconds/60),'travel_mode':arguments.get('travelMode',''),
+                'route_urls':list(collect_sources(route)),
                 'origin':arguments.get('origin'),'origin_urls':origin_urls,'association_confirmed':bool(linked),'destination':destination}
                 for route in payload.get('routes',[]) if (seconds:=duration_seconds(route.get('duration'))) is not None]
         return payload,name
