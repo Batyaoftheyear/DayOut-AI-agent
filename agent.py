@@ -20,7 +20,7 @@ from literal_constraints import bind_literals
 from geo import distance_meters, locations, seconds as duration_seconds
 
 ALLOWED_TOOLS = {"search_places", "lookup_weather", "compute_routes", "resolve_names", "resolve_maps_urls"}
-AGENT_RELEASE = "2026-11-10-r28"
+AGENT_RELEASE = "2026-11-10-r29"
 # Qwen remains available for an explicit rollback. No automatic model fallback.
 REVIEWED_MODEL = "qwen/qwen3.8-27b"
 SUPPORTED_MODELS = frozenset({REVIEWED_MODEL, GPT_OSS_MODEL})
@@ -150,6 +150,7 @@ class TurnState:
     sync_pending: bool = False
     proposed_text: str | None = None
     response_check: dict | None = None
+    semantic_review_unresolved: bool = False
     tool_outcomes: list = field(default_factory=list)
     repair_codes: list = field(default_factory=list)
     weather_requests: list = field(default_factory=list)
@@ -768,7 +769,8 @@ class DayOutAgent:
                         state.record_attempt(self.llm,usage_start,start)
                         observations={'task':self.task_label(state.called),'budget_requested':state.context['budget']['amount'] is not None,
                             'tool_outcomes':state.tool_outcomes,'weather_requests':state.weather_requests,
-                            'context_updates':state.context_calls,'architecture':'conversation_tool_loop'}
+                            'context_updates':state.context_calls,'semantic_review_unresolved':state.semantic_review_unresolved,
+                            'architecture':'conversation_tool_loop'}
                         return Reply(text,state.called,state.seconds,state.usage or None,observations)
                     if any(not isinstance(c,dict) or not isinstance(c.get('function'),dict) for c in calls):
                         if state.repairs>=2:
@@ -805,10 +807,14 @@ class DayOutAgent:
                             state.context_calls+=1
                             if not payload.get('error') and state.sync_pending:
                                 state.sync_pending=False
-                                if (state.response_check or {}).get('action')=='continue':
+                                if (state.response_check or {}).get('action')=='continue' and state.context_calls<2:
                                     state.context_synced=False
                                     state.proposed_text=None
                                 else:
+                                    # A fallible critic gets one continuation,
+                                    # not an unbounded veto over the user task.
+                                    # Argument, source and route checks still run.
+                                    state.semantic_review_unresolved=(state.response_check or {}).get('action')=='continue'
                                     state.context_synced=True
                         else:
                             state.context_synced=False
@@ -826,7 +832,7 @@ class DayOutAgent:
                             if url not in refs:
                                 refs[url]=f'[S{len(refs)+1}]'
                         messages.append({'role':'tool','tool_call_id':call['id'],'content':json.dumps(payload,ensure_ascii=False,separators=(',',':'))})
-                        if name==CONTEXT_TOOL_NAME and not payload.get('error') and (state.response_check or {}).get('action')=='continue':
+                        if name==CONTEXT_TOOL_NAME and not payload.get('error') and not state.context_synced and (state.response_check or {}).get('action')=='continue':
                             messages.append({'role':'user','app_internal':'continue','content':'Проверка черновика выявила незавершённую задачу. Продолжи её настоящими вызовами доступных инструментов. '
                                 'Не повторяй вопросы об уже известных условиях. Недостаёт: '+json.dumps(state.response_check['missing'],ensure_ascii=False)+
                                 '. Следующий шаг: '+state.response_check['next_step']})

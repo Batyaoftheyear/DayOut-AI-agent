@@ -433,3 +433,15 @@ def test_strict_limit_checks_other_returned_candidates_without_more_model_steps(
     facts=[p for _,p in __import__('agent').tool_evidence(a.turns[-1][0]) if p.get('app_walking_limit')]
     assert facts[0]['app_walking_limit']['passing_candidate_urls']==[FAR]
     assert FAR in reply.text and '8 минут' in reply.text
+
+
+def test_fallible_completion_critic_cannot_force_endless_unrequested_checks():
+    snapshot=empty_context()
+    a=agent([answer('Кандидат [S1].'),call(CONTEXT_TOOL_NAME,reviewed(snapshot,'continue',
+        ['Нужны дополнительные сведения'],'Проверь описание.')),
+        search(),answer('Проверенный кандидат [S1].'),call(CONTEXT_TOOL_NAME,reviewed(snapshot,'continue',
+        ['Хотелось бы ещё сведений'],'Ищи ещё.'))],[place('near',NEAR)])
+    a.llm.context_sync_required=True
+    reply=asyncio.run(a.ask('Предложи место для прогулки.'))
+    assert 'Проверенный кандидат' in reply.text and a.session.call_tool.await_count==1
+    assert reply.observations['semantic_review_unresolved'] is True
