@@ -25,8 +25,8 @@ CONTEXT_SCHEMA={
                 'people':{'type':['integer','null'],'minimum':1,'maximum':100},
                 'scope':{'enum':['total','per_person','per_hour','unknown']}}},
         'proximity':{'type':'object','additionalProperties':False,'required':['minutes','strict'],
-            'properties':{'minutes':{'type':'integer','minimum':1,'maximum':120,
-                'description':'Исходный ориентир или предел пользователя, по умолчанию 15. Не подменяй его временем найденного маршрута.'},'strict':{'type':'boolean'}}}
+            'properties':{'minutes':{'type':['integer','null'],'minimum':1,'maximum':120,
+                'description':'Только явно заданное пользователем время; null, если он его не указывал. Не подменяй его служебным ориентиром или временем найденного маршрута.'},'strict':{'type':'boolean'}}}
     }
 }
 CONTEXT_TOOL={'type':'function','function':{'name':CONTEXT_TOOL_NAME,
@@ -47,7 +47,7 @@ CONTEXT_TOOL['function']['description']+=' При проверке готово�
 def empty_context():
     return {'city':'','area':'','activity':'','preferences':[],
         'budget':{'action':'keep','amount':None,'currency':'unknown','people':None,'scope':'unknown'},
-        'proximity':{'minutes':15,'strict':False}}
+        'proximity':{'minutes':None,'strict':False}}
 
 
 def update_context(current, patch):
@@ -56,6 +56,8 @@ def update_context(current, patch):
     for key in ('city','area','activity','preferences','proximity'):
         if key in patch:
             result[key]=copy.deepcopy(patch[key])
+    if result['proximity']['strict'] and result['proximity']['minutes'] is None:
+        raise ValueError('strict proximity requires explicit minutes')
     if 'budget' in patch:
         change=patch['budget']
         budget=result['budget']

@@ -26,8 +26,9 @@ def answer(text):
     return {'role':'assistant','content':text}
 
 
-def reviewed(snapshot,action='answer',missing=(),next_step=''):
-    return snapshot|{'response_check':{'action':action,'missing':list(missing),'next_step':next_step}}
+def reviewed(snapshot,action='answer',missing=(),next_step='',recommended_sources=()):
+    return snapshot|{'response_check':{'action':action,'missing':list(missing),'next_step':next_step,
+                                     'recommended_sources':list(recommended_sources)}}
 
 
 def place(ident,url,title='Synthetic place'):
@@ -188,6 +189,7 @@ def test_context_is_synchronized_after_search_and_cannot_route_or_block_it():
 def test_early_optional_memory_does_not_skip_final_snapshot():
     first=empty_context()
     final=empty_context()
+    final['proximity']['minutes']=15
     final['proximity']['strict']=True
     a=agent([call(CONTEXT_TOOL_NAME,first),answer('Условия сохранены.'),
         call(CONTEXT_TOOL_NAME,reviewed(final))],[])
@@ -211,6 +213,7 @@ def test_resolver_without_coordinates_gives_actionable_recovery_instead_of_repea
 
 def test_strict_expansion_is_not_sent_to_maps_and_honest_refusal_is_allowed():
     snapshot=empty_context()
+    snapshot['proximity']['minutes']=15
     snapshot['proximity']['strict']=True
     a=agent([search(),search(1200),walking({'placeId':'near'}),call(CONTEXT_TOOL_NAME,snapshot),
         search(3000),answer('В пределах 15 минут подходящих мест не найдено. Маршрут 20 минут не подходит [S2] [S3].')],
@@ -302,3 +305,41 @@ def test_repaired_answer_gets_a_fresh_memory_and_completion_check():
     reply=asyncio.run(a.ask('Найди место в Москве.'))
     assert NEAR in reply.text and a.context['city']=='Москва'
     assert a.llm.complete.await_count==5
+
+
+def test_unspecified_walking_time_is_not_saved_as_a_user_constraint():
+    context=empty_context()
+    assert context['proximity']=={'minutes':None,'strict':False}
+    with pytest.raises(ValueError):
+        update_context(context,{'proximity':{'minutes':None,'strict':True}})
+
+
+def test_reviewed_strict_recommendations_use_route_facts_and_allow_declined_mentions():
+    snapshot=empty_context();snapshot['proximity']={'minutes':10,'strict':True}
+    a=agent([search(),search(1200),walking({'placeId':'near'}),
+        answer('Кафе [S2] укладывается в 10 минут [S3].'),
+        call(CONTEXT_TOOL_NAME,reviewed(snapshot,recommended_sources=['[S2]'])),
+        answer('Кафе [S2] не укладывается в 10 минут: 10 минут 32 секунды [S3].'),
+        call(CONTEXT_TOOL_NAME,reviewed(snapshot))],
+        [place('anchor',ANCHOR),place('near',NEAR),route(632)])
+    a.llm.context_sync_required=True
+    reply=asyncio.run(a.ask('Кафе, не больше 10 минут пешком от метро.'))
+    assert 'не укладывается' in reply.text and a.session.call_tool.await_count==3
+    repair_request=a.llm.complete.await_args_list[-2].args[0]
+    assert 'within_limit' in repair_request[0]['content'] and 'false' in repair_request[0]['content']
+
+
+def test_new_independent_place_task_can_clear_an_old_anchor_bound_limit():
+    old=empty_context();old.update(city='Москва',area='Коломенская')
+    old['proximity']={'minutes':10,'strict':True}
+    new=empty_context();new.update(city='Москва',area='ВДНХ',preferences=['азиатская кухня'])
+    a=agent([answer('Условия сохранены.'),call(CONTEXT_TOOL_NAME,reviewed(old)),
+        search(),answer('Павильон и ресторан [S1].'),call(CONTEXT_TOOL_NAME,reviewed(new,recommended_sources=['[S1]']))],
+        [place('pavilion',NEAR)])
+    a.llm.context_sync_required=True
+    async def run():
+        await a.ask('Запомни Коломенскую и не больше 10 минут от метро, пока не ищи.')
+        return await a.ask('Теперь новая задача: сценарий вечера на ВДНХ, азиатская кухня.')
+    reply=asyncio.run(run())
+    assert NEAR in reply.text and a.context['proximity']['minutes'] is None
+    assert a.context['preferences']==['азиатская кухня'] and a.session.call_tool.await_count==1

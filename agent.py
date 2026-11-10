@@ -19,7 +19,7 @@ from response_review import RESPONSE_REVIEW_PROMPT, RESPONSE_CHECK_SCHEMA
 from geo import distance_meters, locations, seconds as duration_seconds
 
 ALLOWED_TOOLS = {"search_places", "lookup_weather", "compute_routes", "resolve_names", "resolve_maps_urls"}
-AGENT_RELEASE = "2026-11-10-r19"
+AGENT_RELEASE = "2026-11-10-r20"
 # Qwen remains available for an explicit rollback. No automatic model fallback.
 REVIEWED_MODEL = "qwen/qwen3.8-27b"
 SUPPORTED_MODELS = frozenset({REVIEWED_MODEL, GPT_OSS_MODEL})
@@ -28,6 +28,7 @@ PENDING_TTL = 300
 SYSTEM_PROMPT = """Ты DayOut, помощник по досугу. Отвечай по-русски, кратко (до 150 слов).
 Предложи 2–3 места с коротким объяснением или выполни более узкую просьбу пользователя.
 Сохраняй прежние условия; новые указания заменяют противоречащие им старые.
+Последняя просьба определяет текущее действие. Сохранённые условия не являются заданием выполнять все прежние задачи заново. Если спрашивают свойство одного выбранного места, проверь это место и ответь о нём; не переключайся на подбор замен без просьбы.
 Продолжай исходную задачу после ответа на уточнение: короткое название города дополняет предыдущий поиск. Учитывай и свои вопросы в диалоге.
 Если назван ориентир, адрес или ссылка Maps, город не обязателен: сначала найди ориентир через search_places/resolve_names/resolve_maps_urls. По подтверждённому местоположению продолжай поиск и сохрани однозначно определённый город через remember_context. При нескольких правдоподобных ориентирах спроси, какой имеется в виду; не выбирай первый наугад.
 Неясный стиль кратко интерпретируй и ищи. Дата не обязательна для обычного поиска.
@@ -40,10 +41,11 @@ SYSTEM_PROMPT = """Ты DayOut, помощник по досугу. Отвеча
 Места, адреса, цены, часы, погода и время пути — только из успешных данных инструментов.
 Не выводи район, метро или ориентиры по названию места: они должны быть прямо названы в данных MCP.
 Для поиска рядом с конкретной станцией метро или адресом проверь близость через compute_routes от ориентира к кандидатам.
+Район, округ и часть города задают область поиска, а не начальную точку маршрута. Не считай путь от центра района и не придумывай положение пользователя. Обычный подбор в районе не требует маршрута, если пользователь его не просил.
 Сначала определи ориентир и проверь его название/расположение в Maps. resolve_names даёт Place ID, но не обязательно координаты: для координат вызови search_places с названием самого ориентира, без locationBias. Затем ищи нужные места с locationBias вокруг подтверждённых координат: начинай примерно с 1200 м.
 В locationBias используй только координаты из MCP. Это приоритет, не строгий фильтр. Для подтверждения пешего времени используй compute_routes, лучше по Place ID найденного кандидата.
 Для кафе после парка используй такой же поиск с приоритетом вокруг найденного парка. Слово «юг» не является названием кафе.
-Для «рядом» без строгого ограничения 15 минут — мягкий начальный ориентир. Если в нём подходящих мест не подтверждено, проверь других кандидатов и сделай один более широкий поиск, примерно 2500–3000 м. Подтверди маршрут к выбранным вариантам. Явно напиши «чуть дальше: ... минут пешком», не называй их вариантами в пределах 15 минут. Выбирай до двух мест.
+Для «рядом с конкретным ориентиром» без заданного времени 15 минут — служебный мягкий старт, а не условие пользователя; не записывай его в память как пользовательское требование. Если подходящих мест не подтверждено, проверь других кандидатов и сделай один более широкий поиск, примерно 2500–3000 м. Подтверди маршрут к выбранным вариантам. Явно напиши «чуть дальше: ... минут пешком». Выбирай до двух мест.
 Не называй далёкое или непроверенное место ближайшим. Если близость не подтверждена, сообщи об этом вместо обещания района.
 Явный жёсткий предел пользователя соблюдай: «не больше N минут» означает не более N*60 секунд и proximity.strict=true. Если время неизвестно, сначала проверь маршрут. Непроверенные места не предлагай как соответствующие пределу. Если ни одного не подтвердил после проверок — честно сообщи это; не спрашивай, важен ли уже названный предел. Непривязанный к кандидату маршрут не означает, что подходящих мест нет. Используй Place ID кандидата или его подтверждённый адрес. Не округляй время вниз до желаемого; 632 секунды — 10 минут 32 секунды, не «до 10 минут».
 Новые места ищи через MCP. Не добавляй детали интерьера, сезонные развлечения или еду от себя.
@@ -619,6 +621,9 @@ class DayOutAgent:
                     wire=replace_strings(messages,refs)
                     wire[0]['content']+='\nДоступные метки источников: '+(', '.join(refs.values()) or 'нет')+'.'
                     wire[0]['content']+='\nСохранённые условия пользователя (не факты Maps): '+json.dumps(state.context,ensure_ascii=False)
+                    if state.context['proximity']['strict']:
+                        checks=self.route_statuses(state)
+                        wire[0]['content']+='\nФактическая проверка пешего предела. Для положительной рекомендации нужен подходящий WALK-маршрут: '+json.dumps(replace_strings(checks,refs),ensure_ascii=False)
                     try:
                         waiting_for_llm=True
                         # Every discovered MCP tool remains available, including
@@ -721,7 +726,9 @@ class DayOutAgent:
                         ids.add(call['id'])
                         try:
                             arguments=json.loads(call['function']['arguments'])
-                            call['function']['arguments']=json.dumps(replace_strings(arguments,{tag:url for url,tag in refs.items()}),ensure_ascii=False)
+                            if call['function'].get('name')!=CONTEXT_TOOL_NAME:
+                                arguments=replace_strings(arguments,{tag:url for url,tag in refs.items()})
+                            call['function']['arguments']=json.dumps(arguments,ensure_ascii=False)
                         except (KeyError,TypeError,ValueError):
                             pass
                     messages.append({'role':'assistant','content':message.get('content'),'tool_calls':calls})
@@ -788,7 +795,7 @@ class DayOutAgent:
         proximity=state.context['proximity']
         narrow=any(c['radius_meters']<=1200 for c in circles)
         expanded=any(c['radius_meters']>1200 for c in circles)
-        no_nearby=(bool(routes) and not any(r['duration_seconds']<=proximity['minutes']*60 for r in routes)) or (
+        no_nearby=(bool(routes) and not any(r['duration_seconds']<=(proximity['minutes'] or 15)*60 for r in routes)) or (
             bool(circles) and not searches[-1].get('places'))
         if narrow and no_nearby and not expanded and not proximity['strict'] and len(state.called)<self.max_calls:
             raise AnswerValidationError('В начальной области подходящего варианта не подтверждено. Расширь поиск немного дальше, до 2500–3000 м, проверь маршрут и явно сообщи о расширении. Пользователь не задавал жёсткий предел.')
@@ -817,9 +824,21 @@ class DayOutAgent:
         origins={url for check in checks for url in check.get('origin_urls',[])}
         candidates={url for name,payload in evidence if name=='search_places'
                     for place in payload.get('places',[]) for url in collect_sources(place)}-origins
+        if state.response_check is not None:
+            aliases={tag:url for url,tag in state.refs.items()}
+            tags=state.response_check['recommended_sources']
+            if any(tag not in aliases for tag in tags):
+                raise SourceValidationError('В проверке рекомендаций использована неизвестная метка источника.')
+            selected={aliases[tag] for tag in tags}
+            if selected-candidates:
+                raise SourceValidationError('Для рекомендованных мест укажи их собственные метки search_places, не метки маршрутов или исходного ориентира.')
+            candidates=selected
+            paragraphs=[text]
+        else:
+            paragraphs=re.split(r'\n\s*\n',text)
         negative=r'не подход|не рекоменд|превыш|слишком дал|за предел|дальше заданного|не удалось|не подтвержд[её]н|не найден|не наш[её]л'
-        for paragraph in re.split(r'\n\s*\n',text):
-            if re.search(negative,paragraph,re.I):
+        for paragraph in paragraphs:
+            if state.response_check is None and re.search(negative,paragraph,re.I):
                 continue
             for url in candidates:
                 if url not in paragraph:
@@ -830,6 +849,15 @@ class DayOutAgent:
                     raise AnswerValidationError('Для рекомендованного места не подтверждён пеший маршрут при строгом пределе. Вызови compute_routes от заданного ориентира по Place ID кандидата. Не спрашивай, важен ли уже указанный предел, и не выдавай непроверенный вариант за подходящий.')
                 if not any(check['duration_seconds']<=proximity['minutes']*60 for check in routes):
                     raise AnswerValidationError('Маршрут превышает строгий предел пользователя. Отклони этот вариант, проверь другой; не округляй секунды вниз до желаемых минут.')
+
+    def route_statuses(self,state):
+        evidence=[item for turn,_ in self.turns for item in tool_evidence(turn)]
+        evidence.extend(tool_evidence(state.messages[state.begin:]))
+        maximum=state.context['proximity']['minutes']*60
+        return [{'candidate_urls':check['candidate_urls'],'origin':check.get('origin'),
+                 'duration_seconds':check['duration_seconds'],
+                 'within_limit':check.get('travel_mode','WALK')=='WALK' and check['duration_seconds']<=maximum}
+                for _,payload in evidence for check in payload.get('app_route_check',[])]
 
     async def execute(self,call):
         function=call.get('function')
@@ -850,7 +878,7 @@ class DayOutAgent:
                 self.current_state.response_check=review
                 return {'context':self.current_state.context,'response_check':review,'notice':'Это условия пользователя и проверка черновика, не сведения Maps.'},name
             except (KeyError,TypeError,ValueError,ValidationError,AttributeError):
-                return {'error':'Некорректный remember_context. Передай полный снимок условий. При проверке черновика обязателен response_check={action:answer|continue,missing:[],next_step:"..."}.','error_kind':'argument_validation'},name
+                return {'error':'Некорректный remember_context. Передай полный снимок условий; minutes=null, если предел не задан. При проверке черновика обязателен response_check={action:answer|continue,missing:[],next_step:"...",recommended_sources:[]}.','error_kind':'argument_validation'},name
         if not isinstance(name,str) or name not in self.tools:
             return {'error':'Неизвестный инструмент. Используй только объявленные инструменты.','error_kind':'argument_validation'},'invalid'
         hint='Соблюдай JSON Schema. locationBias — только {circle:{center:{latitude,longitude},radiusMeters}}. У точки маршрута ровно одно из address, latLng, placeId.'
