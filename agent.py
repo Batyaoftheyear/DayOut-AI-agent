@@ -20,7 +20,7 @@ from literal_constraints import bind_literals
 from geo import distance_meters, locations, seconds as duration_seconds
 
 ALLOWED_TOOLS = {"search_places", "lookup_weather", "compute_routes", "resolve_names", "resolve_maps_urls"}
-AGENT_RELEASE = "2026-11-10-r24"
+AGENT_RELEASE = "2026-11-10-r25"
 # Qwen remains available for an explicit rollback. No automatic model fallback.
 REVIEWED_MODEL = "qwen/qwen3.8-27b"
 SUPPORTED_MODELS = frozenset({REVIEWED_MODEL, GPT_OSS_MODEL})
@@ -352,7 +352,8 @@ def validate_behavior(text: str, evidence: list):
     # accidentally match a claim. Do not quote rejected prose back to the model.
     plain = re.sub(r"https?://[^\s<>\"]+", "", text).replace("*", "").replace("_", "").lower()
     promise = (r"(?:^|[.!?\n])\s*(?:\d+[.)]\s*)?(?:сейчас\s+)?(?:я\s+)?"
-               r"(?:проверяю|проверю|проверим|ищу|поищу|найду|уточняю|уточню)\b|что я делаю сейчас")
+               r"(?:проверяю|проверю|проверим|ищу|поищу|найду|уточняю|уточню)\b|что я делаю сейчас"
+               r"|после\s+получения\s+данных|воспользуюсь\s+(?:поиском|инструментом)")
     if re.search(promise, plain):
         raise AnswerValidationError("Ответ обещает проверку вместо завершённого результата. Вызови инструмент сейчас или укажи неизвестность.")
     unknown = r"неизвест|не подтверж|не провер|не удалось|не могу подтверд|нет данных|не указан|unknown|not (?:provided|available)"
@@ -805,12 +806,11 @@ class DayOutAgent:
                         else:
                             state.context_synced=False
                             kind=payload.get('error_kind')
-                            if kind not in {'argument_validation','call_budget'}:
-                                state.called.append(name)
                             status=('invalid_arguments' if kind=='argument_validation' else 'budget_exhausted' if kind=='call_budget' else 'error') if payload.get('error') else 'success'
                             if name=='search_places' and payload.get('places')==[] and status=='success':
                                 status='empty'
                             state.tool_outcomes.append({'tool':name,'status':status})
+                            state.tool_outcomes.extend(payload.get('app_additional_calls',[]))
                             if name=='lookup_weather' and status!='invalid_arguments':
                                 args=json.loads(call['function']['arguments'])
                                 state.weather_requests.append({'date':copy.deepcopy(args.get('date')),'hour':args.get('hour')})
@@ -841,6 +841,8 @@ class DayOutAgent:
         tool_names='|'.join(re.escape(name) for name in ALLOWED_TOOLS|{CONTEXT_TOOL_NAME})
         if re.search(r'\b(?:'+tool_names+r')\s*\(',text,re.I):
             raise AnswerValidationError('Вызов функции напечатан текстом. Не показывай пользователю код; выполни настоящий tool_call и верни полученный результат.')
+        if re.search(r'["\']?(?:'+tool_names+r')["\']?\s*:\s*[\[{]|<(?:tool_call|function_call)\b',text,re.I):
+            raise AnswerValidationError('Служебное описание вызова не предназначено пользователю. Выполни настоящий tool_call и дай результат без команд.')
         if re.search(r'(?im)(?:^|\n|\{)\s*["\']?(?:tool_calls|tool_name)["\']?\s*:',text) or re.search(
                 r'\[(?:search_places|lookup_weather|compute_routes|resolve_names|resolve_maps_urls)\s*:',text):
             raise AnswerValidationError('Служебные команды напечатаны текстом. Выполни настоящий tool_call по исходному запросу, а затем дай человеку результат.')
@@ -928,7 +930,7 @@ class DayOutAgent:
                  'within_limit':check.get('travel_mode','WALK')=='WALK' and check['duration_seconds']<=maximum}
                 for _,payload in evidence for check in payload.get('app_route_check',[])]
 
-    async def execute(self,call):
+    async def execute(self,call,verify_candidates=True):
         function=call.get('function')
         if call.get('type')!='function' or not isinstance(function,dict):
             return {'error':'Некорректный формат вызова. Используй объявленный инструмент.','error_kind':'argument_validation'},'invalid'
@@ -1024,6 +1026,7 @@ class DayOutAgent:
         if self.current_state and len(self.current_state.called)>=self.max_calls:
             return {'error':'Лимит реальных MCP-вызовов исчерпан. Заверши ответ по полученным данным; не обещай новые проверки.','error_kind':'call_budget'},name
         self.emit(f'MCP → {name}')
+        if self.current_state:self.current_state.called.append(name)
         function['arguments']=json.dumps(arguments,ensure_ascii=False,separators=(',',':'))
         try:
             result=await self.session.call_tool(name,arguments=arguments)
@@ -1047,6 +1050,34 @@ class DayOutAgent:
                 'route_urls':list(collect_sources(route)),
                 'origin':arguments.get('origin'),'origin_urls':origin_urls,'association_confirmed':bool(linked),'destination':destination}
                 for route in payload.get('routes',[]) if (seconds:=duration_seconds(route.get('duration'))) is not None]
+            state=self.current_state
+            if verify_candidates and state.context['proximity']['strict'] and arguments.get('travelMode')=='WALK':
+                group=next((data.get('places',[]) for n,data in reversed(evidence)
+                            if n=='search_places' and waypoint_sources(destination,data.get('places',[]))),[])
+                checked={url for _,data in evidence for check in data.get('app_route_check',[])
+                         if check.get('origin')==arguments.get('origin') for url in check['candidate_urls']}
+                checked.update(linked)
+                extra=[]
+                for candidate in group[:3]:
+                    urls=set(collect_sources(candidate))
+                    ident=candidate.get('id') or str(candidate.get('place','')).removeprefix('places/')
+                    if not ident or not urls or urls<=checked or len(state.called)>=self.max_calls:continue
+                    request={'id':'verified-alternative','type':'function','function':{'name':'compute_routes',
+                        'arguments':json.dumps({'origin':arguments['origin'],'destination':{'placeId':ident},'travelMode':'WALK'})}}
+                    result,_=await self.execute(request,verify_candidates=False)
+                    kind=result.get('error_kind')
+                    status=('invalid_arguments' if kind=='argument_validation' else 'budget_exhausted' if kind=='call_budget' else 'error') if result.get('error') else 'success'
+                    extra.append({'tool':'compute_routes','status':status})
+                    if not result.get('error'):
+                        payload.setdefault('routes',[]).extend(result.get('routes',[]))
+                        payload['app_route_check'].extend(result.get('app_route_check',[]))
+                    checked.update(urls)
+                payload['app_additional_calls']=extra
+                maximum=state.context['proximity']['minutes']*60
+                payload['app_walking_limit']={'maximum_seconds':maximum,
+                    'passing_candidate_urls':list(dict.fromkeys(url for check in payload['app_route_check']
+                        if check['duration_seconds']<=maximum for url in check['candidate_urls'])),
+                    'note':'Это результаты проверенных кандидатов, не доказательство отсутствия других мест в районе.'}
         return payload,name
 
     @staticmethod

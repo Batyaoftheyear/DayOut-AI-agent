@@ -37,6 +37,14 @@ def test_explicit_yandex_selection_does_not_fall_back_to_groq(monkeypatch, tmp_p
                        "GOOGLE_MAPS_API_KEY": CONFIG.maps_key}, tmp_path / "absent.env")
 
 
+@pytest.mark.parametrize('model',['aliceai-llm',f'gpt://{FOLDER}/aliceai-llm',f'gpt://{FOLDER}/aliceai-llm/latest'])
+def test_full_alice_is_an_explicit_config_choice_without_changing_provider(monkeypatch,tmp_path,model):
+    for name in CONFIG_NAMES:monkeypatch.delenv(name,raising=False)
+    config=load_settings({'LLM_PROVIDER':'yandex','YANDEX_API_KEY':'synthetic-key',
+        'YANDEX_FOLDER_ID':FOLDER,'YANDEX_MODEL':model,'GOOGLE_MAPS_API_KEY':'synthetic-maps'},tmp_path/'absent.env')
+    assert config.model==f'gpt://{FOLDER}/aliceai-llm' and config.provider=='yandex'
+
+
 def test_yandex_tool_round_trip_uses_expected_headers_fields_and_usage():
     sent = []
     def handler(request):

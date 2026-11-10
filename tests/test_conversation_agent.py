@@ -90,6 +90,8 @@ def test_named_landmark_can_be_searched_without_a_city_or_preliminary_plan():
     '[search_places: park Osaka]',
     '`search_places({"textQuery":"ресторан азиатской кухни ВДНХ"})`',
     'После получения данных подскажу места.\n```python\nsearch_places({"textQuery":"кафе"})\n```',
+    'search_places: {"textQuery":"азиатские рестораны ВДНХ"}',
+    'После получения данных подскажу конкретные павильоны.',
 ])
 def test_city_reply_resumes_actual_dialogue_and_protocol_text_is_repaired(fake):
     a=agent([answer('В каком городе искать места?'),answer(fake),
@@ -418,3 +420,16 @@ def test_context_discards_large_visualization_tokens_without_losing_price_eviden
     payload=extract_payload(result,'search_places')
     assert 'contentToken' not in payload and '3000–8000' in payload['summary']
     assert payload['places'][0]['id']=='near' and 'error' not in payload
+
+
+def test_strict_limit_checks_other_returned_candidates_without_more_model_steps():
+    choices=CallToolResult(content=[],structuredContent={'summary':'Two synthetic cafes.',
+        'places':place('near',NEAR).structuredContent['places']+place('far',FAR).structuredContent['places']})
+    a=agent([search(),walking({'placeId':'near'}),answer('Кафе [S2], 8 минут пешком [S4].')],
+        [choices,route(632),route(480,ROUTE+'-second')])
+    reply=asyncio.run(a.ask('Кафе, не больше 10 минут пешком.'))
+    assert a.session.call_tool.await_count==3 and a.llm.complete.await_count==3
+    assert reply.tools==['search_places','compute_routes','compute_routes']
+    facts=[p for _,p in __import__('agent').tool_evidence(a.turns[-1][0]) if p.get('app_walking_limit')]
+    assert facts[0]['app_walking_limit']['passing_candidate_urls']==[FAR]
+    assert FAR in reply.text and '8 минут' in reply.text
