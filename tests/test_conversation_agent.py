@@ -341,3 +341,51 @@ def test_memory_service_failure_does_not_discard_a_valid_answer_or_append_stale_
     reply=asyncio.run(a.ask('Теперь бюджет 5000 рублей.'))
     assert NEAR in reply.text and '3000' not in reply.text
     assert reply.observations['context_sync_failed'] is True
+
+
+def test_landmark_search_does_not_finish_with_generic_advice_about_the_start():
+    a=agent([
+        call('search_places',{'textQuery':'Meiji Jingu Tokyo'}),
+        answer('В окрестностях храма есть живописные аллеи с деревьями. Прогуляйтесь по территории [S1].'),
+        call('search_places',{'textQuery':'Meiji Jingu Gaien Ginkgo Avenue Tokyo'}),
+        answer('Искомое место — **Meiji Jingu Gaien Ginkgo Avenue** [S2]. Это отдельная точка от храма [S1].')
+    ],[place('anchor',ANCHOR,'Meiji Jingu'),place('avenue',NEAR,'Meiji Jingu Gaien Ginkgo Avenue')])
+    reply=asyncio.run(a.ask('Я у храма Мейдзи в Токио, хочу посмотреть аллею гинкго'))
+    assert reply.tools==['search_places','search_places'] and 'Ginkgo Avenue' in reply.text
+    assert 'Прогуляйтесь по территории' not in reply.text
+    assert 'locationBias' not in a.session.call_tool.await_args.kwargs['arguments']
+
+
+def test_nearby_cafe_followup_requires_names_and_preserves_the_selected_place():
+    cafe=place('cafe',FAR,'Test Garden Cafe')
+    cafe.structuredContent['places'][0]['formattedAddress']='Synthetic address, Tokyo'
+    a=agent([
+        search(),answer('Аллея **Test Ginkgo Avenue** [S1].'),
+        call('search_places',{'textQuery':'cafes Tokyo','near':'[S1]'}),
+        answer('В окрестностях есть несколько кафе. Загляните в заведения неподалёку [S2].'),
+        answer('**Test Garden Cafe** — Synthetic address, Tokyo [S2].')
+    ],[place('avenue',NEAR,'Test Ginkgo Avenue'),cafe])
+    async def run():
+        await a.ask('Найди аллею гинкго в Токио.')
+        return await a.ask('Какие рядом есть кафе?')
+    reply=asyncio.run(run())
+    assert reply.tools==['search_places'] and 'Test Garden Cafe' in reply.text
+    assert 'несколько кафе' not in reply.text and 'Synthetic address' in reply.text
+    args=a.session.call_tool.await_args.kwargs['arguments']
+    assert args['locationBias']['circle']['center']==POINT
+
+
+def test_empty_brand_search_is_reformulated_before_refusal_and_exposes_returned_address():
+    store=place('store',NEAR,'Test Brand Harajuku')
+    store.structuredContent['places'][0]['formattedAddress']='Synthetic store address, Tokyo'
+    a=agent([
+        call('search_places',{'textQuery':'магазины Test Brand по пути из парка к Сибуе'}),
+        answer('В данных не нашлось магазинов этого бренда.'),
+        call('search_places',{'textQuery':'Test Brand Tokyo'}),
+        answer('**Test Brand Harajuku** — Synthetic store address, Tokyo [S1].')
+    ],[CallToolResult(content=[],structuredContent={}),store])
+    reply=asyncio.run(a.ask('Найди адреса магазинов Test Brand, мы идём из парка Мейдзи к Сибуе.'))
+    assert reply.tools==['search_places','search_places'] and 'Synthetic store address' in reply.text
+    assert a.session.call_tool.await_args.kwargs['arguments']['textQuery']=='Test Brand Tokyo'
+    payloads=[p for _,p in __import__('agent').tool_evidence(a.turns[-1][0])]
+    assert payloads[-1]['app_place_candidates'][0]['address']=='Synthetic store address, Tokyo'

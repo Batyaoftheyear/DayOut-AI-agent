@@ -5,6 +5,7 @@ import copy
 import json
 import math
 import re
+import unicodedata
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta, timezone
 from time import monotonic
@@ -19,7 +20,7 @@ from literal_constraints import bind_literals
 from geo import distance_meters, locations, seconds as duration_seconds
 
 ALLOWED_TOOLS = {"search_places", "lookup_weather", "compute_routes", "resolve_names", "resolve_maps_urls"}
-AGENT_RELEASE = "2026-11-10-r33"
+AGENT_RELEASE = "2026-11-11-r34"
 # Qwen remains available for an explicit rollback. No automatic model fallback.
 REVIEWED_MODEL = "qwen/qwen3.8-27b"
 SUPPORTED_MODELS = frozenset({REVIEWED_MODEL, GPT_OSS_MODEL})
@@ -32,6 +33,10 @@ SYSTEM_PROMPT = """Ты DayOut, помощник по выбору досуга.
 
 Поиск:
 - Ищи конкретные места и свойства через search_places. Запросы короткие: тип/название, область, город, нужное свойство. Для сценария отдельно ищи занятия и еду. Кухня относится к ресторану, не к тематике павильонов. Если попросили павильоны, нужны названия павильонов; фонтан или арка их не заменяют.
+- Различай исходную точку и цель. В «я у X, хочу посмотреть Y» найди именно Y по названию и городу; не подменяй его прогулкой вокруг X. Похожие названия храма, парка и отдельной достопримечательности не означают один объект. Сначала установи цель через Maps, затем при необходимости строй путь от X к Y. Не ограничивай поиск конкретной цели радиусом вокруг исходной точки, если пользователь такого условия не задавал.
+- Результат подбора — конкретные названия со своими ссылками, а не «рядом есть кафе/магазины, загляните в заведения». Сохраняй название из Maps; перевод можно добавить рядом. Когда просят адреса, укажи полученные адреса; отсутствующий адрес не придумывай. Общие советы не заменяют найденные варианты.
+- Пустой результат одного запроса не доказывает отсутствия мест. Один раз переформулируй поиск: название/бренд в оригинальном написании + город, без описания всей прогулки. При необходимости отдельно ищи возле каждого ориентира. Сохрани явные ограничения пользователя. После повторного поиска без результата скажи, что варианты не найдены в выдаче, не что таких мест нет.
+- «Какие рядом есть кафе» продолжает разговор о последнем выбранном месте. Сохрани город и ориентир; найди кафе, назови 2–3 подходящих и дай ссылки. Если в прошлом ответе упоминались две разные точки и непонятно, возле какой искать, задай один короткий вопрос.
 - Необязательные бюджет, дата и кухня не мешают начать подбор. Для обычного поиска в городе/районе не нужен маршрут от центра района.
 - Ориентир можно найти без названного города. Определи его через Maps; при нескольких правдоподобных совпадениях уточни. Не спрашивай город, уже указанный в запросе или однозначно определённый Maps.
 - Для поиска у метро, в парке, на территории комплекса сначала найди сам ориентир через search_places с near="". Затем в near следующего поиска укажи его метку [S1]; Python подставит координаты в locationBias. Не оставляй near пустым при уточнении поиска возле уже найденного ориентира. Одного названия парка в textQuery недостаточно для подтверждения расположения ресторана. locationBias задаёт приоритет, а не гарантирует границу; учти app_geo_check.
@@ -229,6 +234,20 @@ async def discover_tools(session) -> dict:
     return tools
 
 
+def place_name(place):
+    display = place.get('displayName')
+    name = display.get('text', '') if isinstance(display, dict) else display
+    if not name:
+        attribution = place.get('attribution')
+        name = attribution.get('title', '') if isinstance(attribution, dict) else ''
+    return re.sub(r'\s*(?:[-–—|·]\s*)?Google Maps\s*$', '', str(name or ''), flags=re.I).strip()
+
+
+def normalized_name(value):
+    value = unicodedata.normalize('NFKD', value.casefold())
+    return ' '.join(re.findall(r'[^\W_]+', ''.join(c for c in value if not unicodedata.combining(c))))
+
+
 def extract_payload(result, name: str):
     if result.isError:
         return {"error": "MCP-инструмент вернул isError=true. Данные не подтверждены.", "error_kind": "service_error"}
@@ -279,6 +298,13 @@ def extract_payload(result, name: str):
                 return " ".join(indexed[index] for index in indices)
             return match.group(0)
         payload["summary"] = re.sub(r"\[\s*\d+(?:\s*,\s*\d+)*\s*\]", citation, payload["summary"])
+    if name == 'search_places' and isinstance(payload, dict) and payload.get('places'):
+        # Make the returned identities explicit; do not invent addresses from coordinates.
+        payload['app_place_candidates'] = [
+            {'name': place_name(place), 'address': place.get('formattedAddress', ''),
+             'sources': list(collect_sources(place))}
+            for place in payload['places'] if place_name(place)
+        ]
     if len(json.dumps(payload, ensure_ascii=False)) > 24000:
         return {"error": "Ответ слишком большой для контекста. Уточни запрос, не выдумывай результат."}
     return payload
@@ -708,6 +734,7 @@ class DayOutAgent:
                         text=clean_response(text)
                         try:
                             self.validate_protocol(text)
+                            self.validate_search_result(state,text)
                             if getattr(self.llm,'context_sync_required',False) and not state.context_synced:
                                 state.proposed_text=text
                                 state.sync_pending=True
@@ -831,6 +858,26 @@ class DayOutAgent:
             raise AnswerValidationError('Служебные команды напечатаны текстом. Выполни настоящий tool_call по исходному запросу, а затем дай человеку результат.')
         if re.search(r'"(?:function|parameters|arguments)"\s*:',text) and any(name in text for name in ALLOWED_TOOLS):
             raise AnswerValidationError('JSON с описанием инструмента не выполнен. Вызови инструмент через tool_calls, а не через текст ответа.')
+
+    def validate_search_result(self,state,text):
+        """Reject observable search omissions before spending a call on memory."""
+        searches=[p for name,p in tool_evidence(state.messages[state.begin:]) if name=='search_places']
+        if not searches:
+            return
+        declined=re.search(r'не наш[её]л|не нашлось|не найден|не удалось|не вернул|нет данных|нет подтвержд[её]нных',text,re.I)
+        requests={call['function']['arguments'] for message in state.messages[state.begin:]
+                  for call in message.get('tool_calls') or [] if call['function'].get('name')=='search_places'}
+        if searches[-1].get('places')==[] and declined and len(requests)<2 and len(state.called)<self.max_calls:
+            raise AnswerValidationError('Один пустой поиск не подтверждает отсутствие мест. Выполни ещё один search_places с другой формулировкой: короткое название/бренд в оригинале и город, без описания всего пути. Сохрани явные ограничения. После второго пустого результата допустимо сообщить, что найти варианты в выдаче не удалось.')
+        # A link alone must not turn a vague description of the area into a recommendation.
+        body=re.sub(r'\[([^\]]*)\]\([^)]*\)', r'\1', text)
+        body=re.sub(r'\[S\d+\]|https?://\S+', '', body)
+        generic=re.search(r'\b(?:есть|найдутся|расположены)\s+(?:[а-яё-]+\s+){0,5}(?:кафе|рестораны|заведения|магазины|аллеи)\b',body,re.I)
+        candidates=[place for payload in searches for place in payload.get('places',[]) if place_name(place)]
+        normalized_body=normalized_name(body)
+        named=any(name in normalized_body for place in candidates if (name:=normalized_name(place_name(place))))
+        if generic and not named:
+            raise AnswerValidationError('Вместо конкретного результата дан общий совет о районе. Назови найденные места с их названиями из Maps и отдельными ссылками. Если пользователь просит адреса, приведи полученные адреса. Если найдены только исходный ориентир или неподходящие объекты, продолжи поиск цели; не подменяй её прогулкой вокруг ориентира.')
 
     def validate_policy(self,state,text):
         self.validate_protocol(text)

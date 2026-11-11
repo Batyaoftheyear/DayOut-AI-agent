@@ -27,7 +27,14 @@ def run_simulated(scenario):
         elif body["messages"][-1]["role"] == "tool":
             if scenario == "empty_results":
                 seen_empty.append(json.loads(body["messages"][-1]["content"])["places"] == [])
-                message = {"role": "assistant", "content": "Поиск не вернул мест. Уточните район или условия."}
+                if len(searches) == 1:
+                    message = {"role": "assistant", "content": None, "tool_calls": [{
+                        "id": "eval-reformulated", "type": "function", "function": {
+                            "name": "search_places", "arguments": '{"textQuery":"Другой синтетический запрос"}',
+                        },
+                    }]}
+                else:
+                    message = {"role": "assistant", "content": "Повторный поиск не вернул мест. Уточните район или условия."}
             elif not injected:
                 injected = True
                 if scenario == "connection_error":
@@ -71,7 +78,7 @@ def run_simulated(scenario):
     with patch.object(web.httpx, "AsyncClient", client), patch.object(web, "streamable_http_client", transport), patch.object(web, "ClientSession", Session):
         first = web.run_action(config, memory, gate, "ask", "Синтетический тест")
         if scenario == "empty_results":
-            checks = {"empty_payload_forwarded": seen_empty == [True], "completed": first.reply is not None,
+            checks = {"empty_payload_forwarded": seen_empty == [True, True], "completed": first.reply is not None,
                       "no_source_invented": bool(first.reply and "http" not in first.reply.text)}
         else:
             checks = {"failure_visible": first.error is not None and first.reply is None,

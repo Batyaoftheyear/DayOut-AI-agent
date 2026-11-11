@@ -67,7 +67,7 @@ def test_dialogue_can_continue_after_answer_error_without_replacing_the_failure(
 def test_controlled_fault_scenarios_are_offline_and_recover_when_expected(scenario):
     result = run_simulated(scenario)
     assert result["llm"] == "scripted_mock" and result["external_requests"] == 0
-    assert result["mcp_calls"] == 1
+    assert result["mcp_calls"] == (2 if scenario == "empty_results" else 1)
     assert all(result["controlled_checks"].values())
 
 
