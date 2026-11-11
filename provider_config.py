@@ -61,11 +61,10 @@ def load_settings(secrets=None, env_path=ENV_PATH):
             raise AgentError("Не настроены YANDEX_API_KEY, YANDEX_FOLDER_ID и YANDEX_MODEL в .env или Secrets.")
         if not re.fullmatch(r"[A-Za-z0-9_-]{8,64}", folder):
             raise AgentError("Некорректный YANDEX_FOLDER_ID: нужен идентификатор каталога, не имя или URL.")
-        selected=next((name for name in ('aliceai-llm-flash','aliceai-llm')
-            if model in {name,f'gpt://{folder}/{name}',f'gpt://{folder}/{name}/latest'}),None)
-        if selected is None:
-            raise AgentError("В YANDEX_MODEL укажите aliceai-llm-flash, aliceai-llm или URI выбранной модели из вашего каталога.")
-        uri=f'gpt://{folder}/{selected}'+('/latest' if selected=='aliceai-llm-flash' else '')
+        selected='aliceai-llm-flash'
+        if model not in {selected,f'gpt://{folder}/{selected}',f'gpt://{folder}/{selected}/latest'}:
+            raise AgentError("В YANDEX_MODEL укажите aliceai-llm-flash или URI этой модели из вашего каталога.")
+        uri=f'gpt://{folder}/{selected}/latest'
         return WebConfig(key, values["GOOGLE_MAPS_API_KEY"], uri,
                          "yandex", folder)
     if not values["GROQ_API_KEY"]:

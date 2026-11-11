@@ -35,6 +35,10 @@ def test_explicit_yandex_selection_does_not_fall_back_to_groq(monkeypatch, tmp_p
     with pytest.raises(AgentError, match="YANDEX_API_KEY"):
         load_settings({"LLM_PROVIDER": "yandex", "GROQ_API_KEY": "synthetic-groq",
                        "GOOGLE_MAPS_API_KEY": CONFIG.maps_key}, tmp_path / "absent.env")
+    with pytest.raises(AgentError, match="YANDEX_MODEL"):
+        load_settings({"LLM_PROVIDER": "yandex", "YANDEX_API_KEY": CONFIG.llm_key,
+                       "YANDEX_FOLDER_ID": FOLDER, "YANDEX_MODEL": "unsupported-model",
+                       "GOOGLE_MAPS_API_KEY": CONFIG.maps_key}, tmp_path / "absent.env")
 
 
 def test_yandex_tool_round_trip_uses_expected_headers_fields_and_usage():
