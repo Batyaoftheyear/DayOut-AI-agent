@@ -2,7 +2,7 @@
 import httpx
 
 from agent import AgentError, GroqClient, GroqConnectionError, QuotaPauseError
-from groq_check import quota_details
+from llm_http import quota_details
 
 API_URL = "https://ai.api.cloud.yandex.net/v1"
 

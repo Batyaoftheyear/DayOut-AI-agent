@@ -1,15 +1,48 @@
 """Check Yandex access and a synthetic tool round trip; no Google Maps calls."""
 import asyncio
+import json
 import logging
 import sys
 
 import httpx
+from jsonschema import ValidationError, validate
 
 from agent import AgentError
 from dayout import safe_error
-from groq_check import DEMO_TOOL, execute_demo_call
 from provider_config import load_settings
 from yandex_client import make_client
+
+
+DEMO_SCHEMA = {
+    "type": "object",
+    "properties": {"city": {"type": "string", "enum": ["Москва"]}},
+    "required": ["city"],
+    "additionalProperties": False,
+}
+
+
+DEMO_TOOL = {"type": "function", "function": {
+    "name": "get_demo_activity",
+    "description": "Получить искусственный пример активности и его код для теста. Это не реальные места.",
+    "parameters": DEMO_SCHEMA,
+}}
+
+
+def execute_demo_call(call: dict) -> dict:
+    try:
+        function = call["function"]
+        if call.get("type") != "function" or function["name"] != "get_demo_activity":
+            raise AgentError("Модель запросила неизвестный инструмент; выполнение запрещено.")
+        if not isinstance(call["id"], str) or not call["id"]:
+            raise ValueError
+        arguments = json.loads(function["arguments"])
+        validate(arguments, DEMO_SCHEMA)
+    except (KeyError, TypeError, ValueError, ValidationError):
+        raise AgentError("Модель вернула некорректные аргументы или ID вызова инструмента.") from None
+    return {"role": "tool", "tool_call_id": call["id"], "content": json.dumps({
+        "city": arguments["city"], "activity": "Вымышленная тестовая активность",
+        "demo_code": "DEMO-42", "synthetic": True,
+    }, ensure_ascii=False)}
 
 
 async def check(config):

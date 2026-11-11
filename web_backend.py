@@ -16,7 +16,7 @@ from mcp.client.streamable_http import streamable_http_client
 
 from agent import AgentError, DayOutAgent, GroqConnectionError, Reply, discover_tools
 from dayout import safe_error
-from groq_check import quota_pause_message
+from llm_http import quota_pause_message
 from mcp_check import MCP_URL
 from provider_config import CONFIG_NAMES, WebConfig, load_settings
 from yandex_client import make_client

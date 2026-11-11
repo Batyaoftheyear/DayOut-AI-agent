@@ -13,7 +13,7 @@ from time import monotonic
 import httpx
 from jsonschema import ValidationError, validators
 
-from groq_check import API_URL, GPT_OSS_MODEL, model_options, error_message as groq_error_message, quota_details, quota_pause_message
+from llm_http import API_URL, GPT_OSS_MODEL, model_options, error_message as groq_error_message, quota_details, quota_pause_message
 from mcp_check import error_message as mcp_error_message
 from conversation_context import CONTEXT_TOOL, CONTEXT_TOOL_NAME, MEMORY_PROMPT, empty_context, update_context
 from literal_constraints import bind_literals

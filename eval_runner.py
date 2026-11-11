@@ -46,7 +46,7 @@ def load_cases(path=CASE_PATH):
 
 def fingerprint():
     digest = hashlib.sha256()
-    for name in ("app.py", "agent.py", "conversation_context.py", "literal_constraints.py", "web_backend.py", "dayout.py", "mcp_check.py", "groq_check.py",
+    for name in ("app.py", "agent.py", "conversation_context.py", "literal_constraints.py", "web_backend.py", "dayout.py", "mcp_check.py", "llm_http.py",
                  "provider_config.py", "yandex_client.py", "geo.py", "eval_runner.py", "eval/reviewer.py", "eval/simulated.py", "requirements.txt"):
         digest.update(name.encode())
         digest.update((ROOT / name).read_bytes())
