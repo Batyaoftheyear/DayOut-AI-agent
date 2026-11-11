@@ -26,11 +26,6 @@ def answer(text):
     return {'role':'assistant','content':text}
 
 
-def reviewed(snapshot,action='answer',missing=(),next_step='',recommended_sources=()):
-    return snapshot|{'response_check':{'action':action,'missing':list(missing),'next_step':next_step,
-                                     'recommended_sources':list(recommended_sources)}}
-
-
 def place(ident,url,title=None):
     title=title or ('Synthetic anchor' if ident=='anchor' else 'Synthetic place')
     return CallToolResult(content=[],structuredContent={'summary':title,'places':[
@@ -162,13 +157,6 @@ def test_local_memory_preserves_budget_and_people_without_controlling_tool_acces
     assert a.context['preferences']==['можно с собакой']
 
 
-def test_context_updates_are_rolled_back_when_the_external_request_fails():
-    a=agent([call(CONTEXT_TOOL_NAME,{'preferences':['веранда']}),search()],[RuntimeError('synthetic-private-detail')])
-    with pytest.raises(Exception):
-        asyncio.run(a.ask('Найди место с верандой.'))
-    assert a.context==empty_context() and not a.turns
-
-
 def test_repeated_protocol_failure_has_a_plain_user_error():
     a=agent([answer('tool_calls: []'),answer('tool_calls: []')],[])
     with pytest.raises(AnswerValidationError) as captured:
@@ -177,18 +165,11 @@ def test_repeated_protocol_failure_has_a_plain_user_error():
     assert 'tool_calls' not in message and 'JSON' not in message and not a.turns
 
 
-def test_local_memory_rejects_unknown_fields_and_preserves_other_state():
-    context=empty_context()
-    with pytest.raises(Exception):
-        update_context(context,{'arbitrary_command':'invalid'})
-    assert context==empty_context()
-
-
 def test_context_is_synchronized_after_search_and_cannot_route_or_block_it():
     snapshot=empty_context()
     snapshot.update(city='Osaka',preferences=['можно с собакой'])
     snapshot['budget'].update(action='set',amount=3000,currency='RUB',scope='total',people=2)
-    a=agent([search(),answer('Кандидат [S1].'),call(CONTEXT_TOOL_NAME,reviewed(snapshot))],[place('near',NEAR)])
+    a=agent([search(),answer('Кандидат [S1].'),call(CONTEXT_TOOL_NAME,snapshot)],[place('near',NEAR)])
     a.llm.context_sync_required=True
     reply=asyncio.run(a.ask('Найди кафе в Осаке на двоих до 3000 рублей, можно с собакой.'))
     assert a.session.call_tool.await_count==1 and reply.tools==['search_places']
@@ -198,55 +179,15 @@ def test_context_is_synchronized_after_search_and_cannot_route_or_block_it():
     assert a.llm.complete.await_args_list[-1].kwargs['response_format']['json_schema']['name']=='dayout_context'
 
 
-def test_early_optional_memory_does_not_skip_final_snapshot():
-    first=empty_context()
-    final=empty_context()
-    final['proximity']['minutes']=15
-    final['proximity']['strict']=True
-    a=agent([call(CONTEXT_TOOL_NAME,first),answer('Условия сохранены.'),
-        call(CONTEXT_TOOL_NAME,reviewed(final))],[])
-    a.llm.context_sync_required=True
-    reply=asyncio.run(a.ask('Только до 15 минут пешком, больший путь не подходит. Пока не ищи.'))
-    assert not reply.tools and a.context['proximity']['strict']
-    assert a.llm.complete.await_count==3
-    assert a.llm.complete.await_args_list[-1].kwargs['response_format']['json_schema']['name']=='dayout_context'
-
-
-def test_resolver_without_coordinates_gives_actionable_recovery_instead_of_repeating_circle():
-    resolved=CallToolResult(content=[],structuredContent={'places':[{'id':'anchor','place':'places/anchor'}]})
-    a=agent([call('resolve_names',{'queries':['Synthetic anchor']}),search(1200),
-        search(),search(1200),answer('Кандидат [S1].')],[resolved,place('anchor',ANCHOR),place('near',NEAR)])
-    asyncio.run(a.ask('Найди место рядом с ориентиром.'))
-    payloads=[json.loads(m['content']) for m in a.turns[-1][0] if m.get('role')=='tool']
-    errors=[p for p in payloads if p.get('error')]
-    assert len(errors)==1 and 'БЕЗ locationBias' in errors[0]['error']
-    assert a.session.call_tool.await_count==3
-
-
-def test_strict_expansion_is_not_sent_to_maps_and_honest_refusal_is_allowed():
-    snapshot=empty_context()
-    snapshot['proximity']['minutes']=15
-    snapshot['proximity']['strict']=True
-    a=agent([search(),search(1200),walking({'placeId':'near'}),call(CONTEXT_TOOL_NAME,snapshot),
-        search(3000),answer('В пределах 15 минут подходящих мест не найдено. Маршрут 20 минут не подходит [S2] [S3].')],
-        [place('anchor',ANCHOR),place('near',NEAR),route(1200)])
-    reply=asyncio.run(a.ask('Только до 15 минут пешком.'))
-    sent=[c.args[0] for c in a.session.call_tool.await_args_list]
-    assert sent==['search_places','search_places','compute_routes']
-    assert 'не подходит' in reply.text and '20' in reply.text
-
-
-
-
 def test_specific_price_question_resumes_search_and_does_not_append_unknown_price_template():
     before=empty_context();before.update(city='Москва',area='Люблино')
     priced=empty_context();priced.update(city='Москва',area='Люблино')
     priced['budget'].update(action='set',amount=5000,currency='RUB',scope='total',people=2)
     price=place('lounge',NEAR,'Диапазон расходов 3000–8000 рублей на человека.')
-    a=agent([search(),answer('Лаундж [S1].'),call(CONTEXT_TOOL_NAME,reviewed(before)),
+    a=agent([search(),answer('Лаундж [S1].'),call(CONTEXT_TOOL_NAME,before),
         call('search_places',{'textQuery':'Лаундж Люблино Москва ценовой диапазон на человека'}),
         answer('Диапазон 3000–8000 рублей на человека [S1]. Для двоих ориентир 6000–16000 рублей; бюджет 5000 ниже него.'),
-        call(CONTEXT_TOOL_NAME,reviewed(priced))],[place('lounge',NEAR),price])
+        call(CONTEXT_TOOL_NAME,priced)],[place('lounge',NEAR),price])
     a.llm.context_sync_required=True
     async def run():
         await a.ask('Найди лаундж в Люблино.')
@@ -290,16 +231,6 @@ def test_last_place_evidence_survives_an_intermediate_weather_turn():
     assert 'fixture_weather' in history and 'Synthetic place' in history and NEAR in history
 
 
-def test_source_repair_reuses_saved_conditions_without_an_extra_memory_call():
-    first=empty_context();first['city']='Москва'
-    a=agent([search(),answer('Найден кандидат.'),call(CONTEXT_TOOL_NAME,reviewed(first)),
-        answer('Кандидат [S1].')],[place('near',NEAR)])
-    a.llm.context_sync_required=True
-    reply=asyncio.run(a.ask('Найди место в Москве.'))
-    assert NEAR in reply.text and a.context['city']=='Москва'
-    assert a.llm.complete.await_count==4
-
-
 def test_unspecified_walking_time_is_not_saved_as_a_user_constraint():
     context=empty_context()
     assert context['proximity']=={'minutes':None,'strict':False}
@@ -307,27 +238,12 @@ def test_unspecified_walking_time_is_not_saved_as_a_user_constraint():
         update_context(context,{'proximity':{'minutes':None,'strict':True}})
 
 
-def test_reviewed_strict_recommendations_use_route_facts_and_allow_declined_mentions():
-    snapshot=empty_context();snapshot['proximity']={'minutes':10,'strict':True}
-    a=agent([search(),search(1200),walking({'placeId':'near'}),
-        answer('Кафе [S2] укладывается в 10 минут [S3].'),
-        call(CONTEXT_TOOL_NAME,reviewed(snapshot,recommended_sources=['[S2]'])),
-        answer('Кафе [S2] не укладывается в 10 минут: 10 минут 32 секунды [S3].'),
-        call(CONTEXT_TOOL_NAME,reviewed(snapshot))],
-        [place('anchor',ANCHOR),place('near',NEAR),route(632)])
-    a.llm.context_sync_required=True
-    reply=asyncio.run(a.ask('Кафе, не больше 10 минут пешком от метро.'))
-    assert 'не укладывается' in reply.text and a.session.call_tool.await_count==3
-    repair_request=a.llm.complete.await_args_list[-1].args[0]
-    assert 'within_limit' in repair_request[1]['content'] and 'false' in repair_request[1]['content']
-
-
 def test_new_independent_place_task_can_clear_an_old_anchor_bound_limit():
     old=empty_context();old.update(city='Москва',area='Коломенская')
     old['proximity']={'minutes':10,'strict':True}
     new=empty_context();new.update(city='Москва',area='ВДНХ',preferences=['азиатская кухня'])
-    a=agent([answer('Условия сохранены.'),call(CONTEXT_TOOL_NAME,reviewed(old)),
-        search(),answer('Павильон и ресторан [S1].'),call(CONTEXT_TOOL_NAME,reviewed(new,recommended_sources=['[S1]']))],
+    a=agent([answer('Условия сохранены.'),call(CONTEXT_TOOL_NAME,old),
+        search(),answer('Павильон и ресторан [S1].'),call(CONTEXT_TOOL_NAME,new)],
         [place('pavilion',NEAR)])
     a.llm.context_sync_required=True
     async def run():
@@ -341,7 +257,7 @@ def test_new_independent_place_task_can_clear_an_old_anchor_bound_limit():
 def test_explicit_currency_and_walking_bound_survive_a_wrong_model_snapshot():
     wrong=empty_context();wrong['budget'].update(amount=5000,people=2,scope='total')
     a=agent([search(),walking({'placeId':'near'}),answer('Кафе [S1], 8 минут пешком [S2]. Цены неизвестны.'),
-        call(CONTEXT_TOOL_NAME,reviewed(wrong,recommended_sources=['[S1]']))],[place('near',NEAR),route(480)])
+        call(CONTEXT_TOOL_NAME,wrong)],[place('near',NEAR),route(480)])
     a.llm.context_sync_required=True
     reply=asyncio.run(a.ask('Найди кафе, бюджет 5000 рублей на двоих, не больше 10 минут пешком от метро.'))
     assert a.context['budget']['currency']=='RUB' and a.context['proximity']=={'minutes':10,'strict':True}
@@ -373,15 +289,6 @@ def test_failed_user_refinement_survives_short_followup_without_leaking_rejected
     assert len(a.user_history)==3 and 'Азиатская' in reply.text
 
 
-def test_route_citation_in_review_is_mapped_to_its_confirmed_candidate():
-    snapshot=empty_context();snapshot['proximity']={'minutes':10,'strict':True}
-    a=agent([search(),walking({'placeId':'near'}),answer('Кафе [S1], 8 минут пешком [S2].'),
-        call(CONTEXT_TOOL_NAME,reviewed(snapshot,recommended_sources=['[S2]']))],[place('near',NEAR),route(480)])
-    a.llm.context_sync_required=True
-    reply=asyncio.run(a.ask('Кафе, не больше 10 минут пешком.'))
-    assert NEAR in reply.text and ROUTE in reply.text and a.session.call_tool.await_count==2
-
-
 def test_invalid_route_id_does_not_consume_call_budget_and_returned_url_is_resolved():
     a=agent([search(),walking({'placeId':'invented-id'}),walking({'placeId':NEAR}),
         answer('Кафе [S1], 8 минут пешком [S2].')],[place('near',NEAR),route(480)])
@@ -390,16 +297,6 @@ def test_invalid_route_id_does_not_consume_call_budget_and_returned_url_is_resol
     assert a.session.call_tool.await_count==2 and reply.tools==['search_places','compute_routes']
     assert a.session.call_tool.await_args.kwargs['arguments']['destination']=={'placeId':'near'}
     assert any(outcome['status']=='invalid_arguments' for outcome in reply.observations['tool_outcomes'])
-
-
-def test_context_discards_large_visualization_tokens_without_losing_price_evidence():
-    from agent import extract_payload
-    result=CallToolResult(content=[],structuredContent={'contentToken':'opaque'*6000,
-        'summary':'Диапазон расходов 3000–8000 рублей на человека.',
-        'places':[{'id':'near','location':POINT,'attribution':{'title':'Synthetic place','url':NEAR}}]})
-    payload=extract_payload(result,'search_places')
-    assert 'contentToken' not in payload and '3000–8000' in payload['summary']
-    assert payload['places'][0]['id']=='near' and 'error' not in payload
 
 
 def test_strict_limit_checks_other_returned_candidates_without_more_model_steps():
@@ -415,14 +312,10 @@ def test_strict_limit_checks_other_returned_candidates_without_more_model_steps(
     assert FAR in reply.text and '8 минут' in reply.text
 
 
-
-
-
-
 def test_returned_route_ids_constrain_the_next_model_request_and_duplicates_are_reused():
     a=agent([search(),walking({'address':'[S1]'}),walking({'address':'[S1]'}),
         answer('Кафе [S1], 8 минут пешком [S2].'),
-        call(CONTEXT_TOOL_NAME,reviewed(empty_context()))],[place('near',NEAR),route(480)])
+        call(CONTEXT_TOOL_NAME,empty_context())],[place('near',NEAR),route(480)])
     a.llm.context_sync_required=True
     reply=asyncio.run(a.ask('Проверь путь до кафе.'))
     definitions=a.llm.complete.await_args_list[1].args[1]

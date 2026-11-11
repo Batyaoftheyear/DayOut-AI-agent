@@ -5,16 +5,17 @@ import pytest
 from streamlit.testing.v1 import AppTest
 
 import web_backend as web
-from agent import REVIEWED_MODEL, Reply
+from agent import Reply
 
 
 @pytest.fixture
 def app(monkeypatch, tmp_path):
     monkeypatch.setattr(tempfile, "tempdir", str(tmp_path))
-    monkeypatch.setenv("GROQ_API_KEY", "synthetic-web-key")
+    monkeypatch.setenv("YANDEX_API_KEY", "synthetic-web-key")
+    monkeypatch.setenv("YANDEX_FOLDER_ID", "synthetic-folder")
     monkeypatch.setenv("GOOGLE_MAPS_API_KEY", "synthetic-maps-key")
-    monkeypatch.setenv("GROQ_MODEL", REVIEWED_MODEL)
-    monkeypatch.setenv("LLM_PROVIDER", "groq")
+    monkeypatch.setenv("YANDEX_MODEL", "aliceai-llm-flash")
+    monkeypatch.setenv("LLM_PROVIDER", "yandex")
     return AppTest.from_file(str(Path(__file__).resolve().parents[1] / "app.py"))
 
 

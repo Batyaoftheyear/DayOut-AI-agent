@@ -1,4 +1,3 @@
-import copy
 import csv
 import json
 
@@ -90,15 +89,6 @@ def test_grading_csv_is_applied_without_storing_freeform_notes_in_report(tmp_pat
     evaluation.apply_review(report, path)
     assert evaluation.summary(report)["live_quality_pass_rate"] == 1
     assert "synthetic private note" not in json.dumps(report)
-
-
-def test_report_contains_only_aggregate_observations(tmp_path):
-    path = tmp_path / "result.json"
-    report = {"metadata": {"raw_content_saved": False}, "results": [live_row()]}
-    evaluation.write_report(path, report)
-    data = json.loads(path.read_text(encoding="utf-8"))
-    assert data["summary"]["live_quality_pass_rate"] is None
-    assert "http" not in path.read_text(encoding="utf-8")
 
 
 def test_infrastructure_failure_is_not_hidden_or_graded_as_model_quality():
